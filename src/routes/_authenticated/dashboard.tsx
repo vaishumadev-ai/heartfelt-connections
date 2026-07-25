@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Bell, Menu, Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, FileCode, LogOut } from "lucide-react";
+import { Bell, Menu, Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, FileCode, LogOut, BookOpen, Compass } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { listCourses, type CourseCard } from "@/lib/courses.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,6 +87,8 @@ function Dashboard() {
               <span>Moz<span className="text-[#ff5a6a]">ok</span></span>
             </div>
             <div className="flex items-center gap-5 text-gray-700">
+              <Link to="/browse" title="Browse"><Compass className="h-5 w-5" /></Link>
+              <Link to="/learn" title="My learning"><BookOpen className="h-5 w-5" /></Link>
               <Bell className="h-5 w-5" />
               <button onClick={signOut} title="Sign out"><LogOut className="h-5 w-5" /></button>
               <Menu className="h-5 w-5" />
@@ -130,7 +132,7 @@ function Dashboard() {
 
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featured && (
-              <div className="row-span-2 rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
                 <h3 className="text-3xl font-bold">{featured.title}</h3>
                 <p className="mt-1 text-sm text-gray-500">{featured.subtitle}</p>
                 <div className="mt-4 flex items-center justify-between">
@@ -150,11 +152,11 @@ function Dashboard() {
                 <div className="mt-8 flex items-center justify-between">
                   <div className="rounded-full bg-[#e6f4f8] px-4 py-2 text-sm font-semibold text-gray-800">{formatPrice(featured.price_cents)}</div>
                   <div className="text-sm text-gray-500">{featured.duration_label}</div>
-                  <button className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
                     <ArrowRight className="h-4 w-4" />
-                  </button>
+                  </span>
                 </div>
-              </div>
+              </Link>
             )}
 
             {secondary.map((c) => (
@@ -247,7 +249,7 @@ function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
   const priceBg = course.icon_kind === "cyber" ? "bg-[#fde2e4]" : "bg-[#e6f4f8]";
   return (
-    <div className="rounded-3xl bg-white p-5 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold">{course.title}</h3>
@@ -258,11 +260,11 @@ function SmallCard({ course }: { course: CourseCard }) {
       <div className="mt-6 flex items-center justify-between">
         <div className={`rounded-full ${priceBg} px-3 py-1.5 text-xs font-semibold`}>{formatPrice(course.price_cents)}</div>
         <div className="text-xs text-gray-500">{course.duration_label}</div>
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
           <ArrowRight className="h-4 w-4" />
-        </button>
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }
 

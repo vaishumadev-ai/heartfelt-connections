@@ -387,13 +387,8 @@ export async function destroyFixturesByIds(input: {
   // Post-delete verification — the caller asked us to remove exactly these
   // rows. If any remain we surface it loudly with the table and ids so the
   // operator can investigate rather than silently reporting success.
-  const verifyTables: ("courses" | "lessons" | "reviews" | "enrollments" | "lesson_completions")[] = [
-    "courses",
-    "lessons",
-    "reviews",
-    "enrollments",
-    "lesson_completions",
-  ];
+  const verifyTables: ("courses" | "lessons" | "reviews" | "enrollments" | "lesson_completions")[] =
+    ["courses", "lessons", "reviews", "enrollments", "lesson_completions"];
   for (const table of verifyTables) {
     const col = table === "courses" ? "id" : "course_id";
     const { data: remaining, error: verErr } = await supabase

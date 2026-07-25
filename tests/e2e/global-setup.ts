@@ -3,7 +3,12 @@ import path from "node:path";
 import type { FullConfig } from "@playwright/test";
 import { assertTestProject, assertValidFixtureNamespace } from "@/lib/testing/production-guard";
 import { createFixtures, destroyFixturesByIds, isValidUuid } from "./fixtures";
-import { readFixtureState, writeFixtureStateAtomic, STATE_VERSION, type FixtureState } from "./fixture-state";
+import {
+  readFixtureState,
+  writeFixtureStateAtomic,
+  STATE_VERSION,
+  type FixtureState,
+} from "./fixture-state";
 
 export const FIXTURE_STATE_PATH = path.resolve(process.cwd(), ".e2e-fixture-state.json");
 
@@ -56,10 +61,14 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   //    is cleaned up (exact-ID delete + verify) before we start a new run.
   //    Malformed stale state stops the run — we refuse to overwrite it.
   const existing = await readFixtureState(FIXTURE_STATE_PATH, ref).catch((err: Error) => {
-    throw new Error(`[e2e/global-setup] refusing to start with malformed state file: ${err.message}`);
+    throw new Error(
+      `[e2e/global-setup] refusing to start with malformed state file: ${err.message}`,
+    );
   });
   if (existing) {
-    console.log(`[e2e/global-setup] Cleaning up stale fixture state (namespace=${existing.namespace}).`);
+    console.log(
+      `[e2e/global-setup] Cleaning up stale fixture state (namespace=${existing.namespace}).`,
+    );
     await destroyFixturesByIds({
       namespace: existing.namespace,
       courseIds: [existing.freeCourseId, existing.paidCourseId],

@@ -46,7 +46,9 @@ describe("fixture-state", () => {
       expect(() => validateFixtureState(makeState(), "different-ref")).toThrow(/testProjectRef/);
     });
     it("rejects invalid UUID", () => {
-      expect(() => validateFixtureState(makeState({ freeCourseId: "not-a-uuid" }), REF)).toThrow(/UUID/);
+      expect(() => validateFixtureState(makeState({ freeCourseId: "not-a-uuid" }), REF)).toThrow(
+        /UUID/,
+      );
     });
     it("rejects unsupported stateVersion", () => {
       expect(() =>
@@ -54,10 +56,14 @@ describe("fixture-state", () => {
       ).toThrow(/stateVersion/);
     });
     it("rejects invalid namespace", () => {
-      expect(() => validateFixtureState(makeState({ namespace: "%wildcard%" }), REF)).toThrow(/namespace/);
+      expect(() => validateFixtureState(makeState({ namespace: "%wildcard%" }), REF)).toThrow(
+        /namespace/,
+      );
     });
     it("rejects slug not starting with namespace", () => {
-      expect(() => validateFixtureState(makeState({ freeSlug: "wrong-prefix-free" }), REF)).toThrow(/freeSlug/);
+      expect(() => validateFixtureState(makeState({ freeSlug: "wrong-prefix-free" }), REF)).toThrow(
+        /freeSlug/,
+      );
     });
     it("rejects non-object input", () => {
       expect(() => validateFixtureState(null)).toThrow();

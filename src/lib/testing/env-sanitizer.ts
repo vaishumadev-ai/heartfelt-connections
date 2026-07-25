@@ -47,15 +47,23 @@ export function sanitizeChildEnv(input: SanitizerInput): SanitizerResult {
   }
   for (const [k, v] of Object.entries(input.overlay)) merged[k] = v;
 
-  const serviceValues = new Set(input.serviceRoleValues.filter((v) => typeof v === "string" && v.length > 0));
+  const serviceValues = new Set(
+    input.serviceRoleValues.filter((v) => typeof v === "string" && v.length > 0),
+  );
 
   for (const [k, v] of Object.entries(merged)) {
     if (!k.startsWith("VITE_")) continue;
     if (SERVICE_ROLE_NAME_RE.test(k)) {
-      return { ok: false, reason: `VITE_* variable name '${k}' indicates a service-role secret and cannot ship to the browser bundle.` };
+      return {
+        ok: false,
+        reason: `VITE_* variable name '${k}' indicates a service-role secret and cannot ship to the browser bundle.`,
+      };
     }
     if (typeof v === "string" && serviceValues.has(v)) {
-      return { ok: false, reason: `VITE_* variable '${k}' value equals a known SERVICE_ROLE key. Refusing to bundle service-role material into the browser.` };
+      return {
+        ok: false,
+        reason: `VITE_* variable '${k}' value equals a known SERVICE_ROLE key. Refusing to bundle service-role material into the browser.`,
+      };
     }
   }
 

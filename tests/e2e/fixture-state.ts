@@ -21,20 +21,30 @@ export type FixtureState = {
 export function validateFixtureState(v: unknown, expectedProjectRef?: string): FixtureState {
   if (!v || typeof v !== "object") throw new Error("state is not an object");
   const s = v as Record<string, unknown>;
-  if (s.stateVersion !== STATE_VERSION) throw new Error(`unsupported stateVersion '${String(s.stateVersion)}'`);
-  if (s.status !== "creating" && s.status !== "ready") throw new Error(`invalid status '${String(s.status)}'`);
-  if (typeof s.testProjectRef !== "string" || s.testProjectRef.length === 0) throw new Error("testProjectRef missing");
+  if (s.stateVersion !== STATE_VERSION)
+    throw new Error(`unsupported stateVersion '${String(s.stateVersion)}'`);
+  if (s.status !== "creating" && s.status !== "ready")
+    throw new Error(`invalid status '${String(s.status)}'`);
+  if (typeof s.testProjectRef !== "string" || s.testProjectRef.length === 0)
+    throw new Error("testProjectRef missing");
   if (expectedProjectRef && s.testProjectRef !== expectedProjectRef) {
-    throw new Error(`testProjectRef '${s.testProjectRef}' does not match current TEST_SUPABASE_URL ref '${expectedProjectRef}'`);
+    throw new Error(
+      `testProjectRef '${s.testProjectRef}' does not match current TEST_SUPABASE_URL ref '${expectedProjectRef}'`,
+    );
   }
-  if (typeof s.namespace !== "string" || !isValidFixtureNamespace(s.namespace)) throw new Error(`invalid namespace '${String(s.namespace)}'`);
+  if (typeof s.namespace !== "string" || !isValidFixtureNamespace(s.namespace))
+    throw new Error(`invalid namespace '${String(s.namespace)}'`);
   if (!isValidUuid(s.freeCourseId)) throw new Error("freeCourseId is not a valid UUID");
   if (!isValidUuid(s.paidCourseId)) throw new Error("paidCourseId is not a valid UUID");
   if (typeof s.freeSlug !== "string" || !s.freeSlug.startsWith(`${s.namespace}-`)) {
-    throw new Error(`freeSlug '${String(s.freeSlug)}' does not start with namespace '${s.namespace}-'`);
+    throw new Error(
+      `freeSlug '${String(s.freeSlug)}' does not start with namespace '${s.namespace}-'`,
+    );
   }
   if (typeof s.paidSlug !== "string" || !s.paidSlug.startsWith(`${s.namespace}-`)) {
-    throw new Error(`paidSlug '${String(s.paidSlug)}' does not start with namespace '${s.namespace}-'`);
+    throw new Error(
+      `paidSlug '${String(s.paidSlug)}' does not start with namespace '${s.namespace}-'`,
+    );
   }
   return s as unknown as FixtureState;
 }

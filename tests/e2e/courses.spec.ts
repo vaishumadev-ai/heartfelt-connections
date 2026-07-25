@@ -156,7 +156,9 @@ test.describe("Course route – redirects & not-found", () => {
       allowResponses: [
         {
           status: 404,
-          urlPattern: new RegExp(`getCourseBySlug.*${slugPart.source}|${slugPart.source}.*getCourseBySlug`),
+          urlPattern: new RegExp(
+            `getCourseBySlug.*${slugPart.source}|${slugPart.source}.*getCourseBySlug`,
+          ),
           min: 1,
           max: 1,
         },

@@ -65,7 +65,7 @@ function Browse() {
 
 function BrowseCard({ course }: { course: CourseCard }) {
   return (
-    <Link to="/courses/$slug" params={{ slug: course.slug }} className="group block rounded-3xl bg-white p-6 ring-1 ring-gray-100 transition-all hover:-translate-y-1 hover:">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="group block rounded-3xl bg-white p-6 ring-1 ring-gray-300 transition-all hover:-translate-y-1 hover:">
       <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{course.category}</div>
       <h3 className="mt-2 text-xl font-bold">{course.title}</h3>
       <p className="mt-1 text-sm text-gray-500 line-clamp-2">{course.subtitle}</p>

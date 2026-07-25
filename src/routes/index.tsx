@@ -65,7 +65,7 @@ function Index() {
               <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30">
                 Start learning <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/auth" className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold hover:bg-gray-50">
+              <Link to="/auth" className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-6 py-3 text-sm font-semibold hover:bg-gray-50">
                 <Search className="h-4 w-4" /> Browse courses
               </Link>
             </div>

@@ -493,6 +493,10 @@ export type Database = {
         Args: { _reason: string; _user_id: string }
         Returns: undefined
       }
+      set_last_lesson: {
+        Args: { _course_id: string; _lesson_id: string }
+        Returns: undefined
+      }
       submit_course_for_review: {
         Args: { _course_id: string }
         Returns: undefined

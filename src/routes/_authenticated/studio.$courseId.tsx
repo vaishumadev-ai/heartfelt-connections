@@ -404,7 +404,9 @@ function LessonRow({
           </button>
           <button
             onClick={onDelete}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+            disabled={!isEditable}
+            title={isEditable ? "Delete lesson" : "Locked while under review or approved"}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -414,7 +416,34 @@ function LessonRow({
         <div className="grid gap-3 border-t border-border/60 p-4 md:grid-cols-2">
           <label className="md:col-span-2">
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">Title</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={!isEditable}
+              className={inputCls}
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Module title
+            </span>
+            <input
+              value={moduleTitle}
+              onChange={(e) => setModuleTitle(e.target.value)}
+              disabled={!isEditable}
+              className={inputCls}
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isPreview}
+              onChange={(e) => setIsPreview(e.target.checked)}
+              disabled={!isEditable}
+            />
+            <span className="text-xs font-semibold text-muted-foreground">
+              Free preview lesson
+            </span>
           </label>
           <label>
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -423,6 +452,7 @@ function LessonRow({
             <input
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
+              disabled={!isEditable}
               className={inputCls}
             />
           </label>
@@ -434,6 +464,7 @@ function LessonRow({
               value={dur}
               onChange={(e) => setDur(e.target.value)}
               inputMode="numeric"
+              disabled={!isEditable}
               className={inputCls}
             />
           </label>
@@ -443,13 +474,15 @@ function LessonRow({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}
+              disabled={!isEditable}
               className={`${inputCls} resize-none`}
             />
           </label>
           <div className="md:col-span-2 flex justify-end">
             <button
               onClick={() => save.mutate()}
-              disabled={save.isPending}
+              disabled={save.isPending || !isEditable}
+              title={isEditable ? undefined : "Locked while under review or approved"}
               className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> Save lesson

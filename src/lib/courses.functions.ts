@@ -177,12 +177,17 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("enrollments")
       .select(
-        "progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes)",
+        "progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, is_published)",
       )
       .eq("user_id", userId)
       .order("enrolled_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Historical paid enrollments (pre-payments) grant no learner access;
+    // hide them from active-entitlement lists. They remain in the DB for audit.
+    return (data ?? []).filter((row) => {
+      const c = row.course as { price_cents?: number; is_published?: boolean } | null;
+      return !!c && c.is_published === true && (c.price_cents ?? 0) === 0;
+    });
   });
 
 export type LessonPlayer = {
@@ -215,7 +220,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     // 1) Resolve course; allow drafts only for owner/admin.
     const { data: course, error: cErr } = await supabase
       .from("courses")
-      .select("id, slug, title, category, is_published, instructor_id")
+      .select("id, slug, title, category, is_published, instructor_id, price_cents")
       .eq("slug", data.slug)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
@@ -223,10 +228,12 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
 
     // 2) Authorize BEFORE fetching protected content.
     const isOwner = course.instructor_id === userId;
-    const { data: isAdminData } = await supabase.rpc("has_role", {
+    // Role-check errors must fail closed — never silently downgrade to isAdmin=false.
+    const { data: isAdminData, error: roleErr } = await supabase.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
     });
+    if (roleErr) throw new Error(`Authorization check failed: ${roleErr.message}`);
     const isAdmin = !!isAdminData;
 
     if (!course.is_published && !isOwner && !isAdmin) return null;
@@ -238,7 +245,16 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       .eq("course_id", course.id)
       .maybeSingle();
     const enrolled = !!enr;
-    const fullAccess = isOwner || isAdmin || enrolled;
+    // Entitlement decision: enrollment counts as a learner entitlement only
+    // when the course is free. Paid historical enrollments grant no lesson
+    // access until a payment-backed entitlement system exists.
+    const entitlement = resolveLessonEntitlement({
+      course: { is_published: course.is_published, price_cents: course.price_cents },
+      isOwner,
+      isAdmin,
+      enrolled,
+    });
+    const fullAccess = entitlement === "full";
 
     // 3) Fetch content according to entitlement — never fetch-then-filter.
     let lessons: LessonPlayer["lessons"];
@@ -289,6 +305,25 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       enrolled,
     };
   });
+
+// Pure entitlement resolver (exported for unit tests).
+// "full"  = complete content access (owner, admin, or free-enrolled)
+// "preview" = preview-only lessons
+// "none"  = no access at all (unpublished draft to a stranger)
+export type LessonEntitlement = "full" | "preview" | "none";
+export function resolveLessonEntitlement(input: {
+  course: { is_published: boolean; price_cents: number };
+  isOwner: boolean;
+  isAdmin: boolean;
+  enrolled: boolean;
+}): LessonEntitlement {
+  const { course, isOwner, isAdmin, enrolled } = input;
+  if (isOwner || isAdmin) return "full";
+  if (!course.is_published) return "none";
+  // Paid enrollments grant NO learner access until verified payments exist.
+  if (enrolled && (course.price_cents ?? 0) === 0) return "full";
+  return "preview";
+}
 
 export const markLessonComplete = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

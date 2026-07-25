@@ -16,55 +16,91 @@ export type Database = {
     Tables: {
       courses: {
         Row: {
+          audience: string[]
           category: string
+          certificate: boolean
           cover_url: string | null
           created_at: string
           description: string | null
           duration_label: string | null
+          faq: Json
           icon_kind: string | null
           id: string
+          instructor_bio: string | null
           instructor_id: string | null
+          instructor_name: string | null
+          instructor_title: string | null
           is_published: boolean
+          language: string
+          learn_outcomes: string[]
+          level: string
           likes: number
           price_cents: number
           rating: number
+          requirements: string[]
+          skills: string[]
           slug: string
+          students_count: number
           subtitle: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          audience?: string[]
           category: string
+          certificate?: boolean
           cover_url?: string | null
           created_at?: string
           description?: string | null
           duration_label?: string | null
+          faq?: Json
           icon_kind?: string | null
           id?: string
+          instructor_bio?: string | null
           instructor_id?: string | null
+          instructor_name?: string | null
+          instructor_title?: string | null
           is_published?: boolean
+          language?: string
+          learn_outcomes?: string[]
+          level?: string
           likes?: number
           price_cents?: number
           rating?: number
+          requirements?: string[]
+          skills?: string[]
           slug: string
+          students_count?: number
           subtitle?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          audience?: string[]
           category?: string
+          certificate?: boolean
           cover_url?: string | null
           created_at?: string
           description?: string | null
           duration_label?: string | null
+          faq?: Json
           icon_kind?: string | null
           id?: string
+          instructor_bio?: string | null
           instructor_id?: string | null
+          instructor_name?: string | null
+          instructor_title?: string | null
           is_published?: boolean
+          language?: string
+          learn_outcomes?: string[]
+          level?: string
           likes?: number
           price_cents?: number
           rating?: number
+          requirements?: string[]
+          skills?: string[]
           slug?: string
+          students_count?: number
           subtitle?: string | null
           title?: string
           updated_at?: string
@@ -159,6 +195,8 @@ export type Database = {
           created_at: string
           duration_seconds: number | null
           id: string
+          is_preview: boolean
+          module_title: string | null
           position: number
           title: string
           video_url: string | null
@@ -169,6 +207,8 @@ export type Database = {
           created_at?: string
           duration_seconds?: number | null
           id?: string
+          is_preview?: boolean
+          module_title?: string | null
           position: number
           title: string
           video_url?: string | null
@@ -179,6 +219,8 @@ export type Database = {
           created_at?: string
           duration_seconds?: number | null
           id?: string
+          is_preview?: boolean
+          module_title?: string | null
           position?: number
           title?: string
           video_url?: string | null

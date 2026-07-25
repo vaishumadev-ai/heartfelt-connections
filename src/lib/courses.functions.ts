@@ -514,7 +514,6 @@ export const createCourse = createServerFn({ method: "POST" })
         category: data.category,
         slug,
         instructor_id: userId,
-        is_published: false,
         price_cents: 0,
       })
       .select("id, slug")

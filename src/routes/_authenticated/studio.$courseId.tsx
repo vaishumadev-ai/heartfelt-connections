@@ -257,7 +257,8 @@ function EditCourse() {
           <div className="mt-6 flex justify-end">
             <button
               onClick={() => save.mutate()}
-              disabled={save.isPending}
+              disabled={save.isPending || !isEditable}
+              title={isEditable ? undefined : "Course is locked while under review or approved"}
               className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> {save.isPending ? "Saving…" : "Save changes"}
@@ -273,7 +274,9 @@ function EditCourse() {
                 key={l.id}
                 lesson={l}
                 courseId={courseId}
+                isEditable={isEditable}
                 onDelete={() => {
+                  if (!isEditable) return;
                   if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);
                 }}
               />
@@ -288,6 +291,7 @@ function EditCourse() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              if (!isEditable) return;
               if (!newLessonTitle.trim()) return;
               addLesson.mutate({
                 title: newLessonTitle.trim(),
@@ -301,10 +305,13 @@ function EditCourse() {
               value={newLessonTitle}
               onChange={(e) => setNewLessonTitle(e.target.value)}
               placeholder="New lesson title"
+              disabled={!isEditable}
               className={inputCls}
             />
             <button
               type="submit"
+              disabled={!isEditable}
+              title={isEditable ? undefined : "Course is locked while under review or approved"}
               className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background"
             >
               <Plus className="h-4 w-4" /> Add

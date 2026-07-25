@@ -16,10 +16,14 @@ describe("assertFreePublishedCourse", () => {
     expect(() => assertFreePublishedCourse(null)).toThrow(/not available/i);
   });
   it("rejects an unpublished course", () => {
-    expect(() => assertFreePublishedCourse({ is_published: false, price_cents: 0 })).toThrow(/not available/i);
+    expect(() => assertFreePublishedCourse({ is_published: false, price_cents: 0 })).toThrow(
+      /not available/i,
+    );
   });
   it("rejects a paid course with a clear checkout message", () => {
-    expect(() => assertFreePublishedCourse({ is_published: true, price_cents: 1999 })).toThrow(/Checkout is not available/i);
+    expect(() => assertFreePublishedCourse({ is_published: true, price_cents: 1999 })).toThrow(
+      /Checkout is not available/i,
+    );
   });
   it("allows a free published course", () => {
     expect(() => assertFreePublishedCourse({ is_published: true, price_cents: 0 })).not.toThrow();

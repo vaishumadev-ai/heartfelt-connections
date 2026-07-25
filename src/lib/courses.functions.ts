@@ -35,16 +35,20 @@ export type CourseCard = {
   likes: number;
 };
 
-export const listCourses = createServerFn({ method: "GET" }).handler(async (): Promise<CourseCard[]> => {
-  const supabase = pubClient();
-  const { data, error } = await supabase
-    .from("courses")
-    .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes")
-    .eq("is_published", true)
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data ?? [];
-});
+export const listCourses = createServerFn({ method: "GET" }).handler(
+  async (): Promise<CourseCard[]> => {
+    const supabase = pubClient();
+    const { data, error } = await supabase
+      .from("courses")
+      .select(
+        "id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes",
+      )
+      .eq("is_published", true)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+);
 
 export type CourseDetail = CourseCard & {
   description: string | null;
@@ -61,7 +65,14 @@ export type CourseDetail = CourseCard & {
   instructor_title: string | null;
   instructor_bio: string | null;
   certificate: boolean;
-  lessons: { id: string; title: string; position: number; duration_seconds: number | null; is_preview: boolean; module_title: string | null }[];
+  lessons: {
+    id: string;
+    title: string;
+    position: number;
+    duration_seconds: number | null;
+    is_preview: boolean;
+    module_title: string | null;
+  }[];
   related: CourseCard[];
   reviews_count: number;
   rating_breakdown: { stars: number; count: number }[];
@@ -73,7 +84,9 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     const supabase = pubClient();
     const { data: course, error } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, description, cover_url, level, language, learn_outcomes, skills, requirements, audience, faq, students_count, instructor_name, instructor_title, instructor_bio, certificate")
+      .select(
+        "id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, description, cover_url, level, language, learn_outcomes, skills, requirements, audience, faq, students_count, instructor_name, instructor_title, instructor_bio, certificate",
+      )
       .eq("slug", data.slug)
       .eq("is_published", true)
       .maybeSingle();
@@ -82,10 +95,9 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     // Use SECURITY DEFINER RPC that returns only safe curriculum metadata
     // (id, title, position, duration_seconds, is_preview, module_title) —
     // never content or video_url.
-    const { data: curriculum, error: curErr } = await supabase.rpc(
-      "get_course_curriculum",
-      { _slug: data.slug },
-    );
+    const { data: curriculum, error: curErr } = await supabase.rpc("get_course_curriculum", {
+      _slug: data.slug,
+    });
     if (curErr) throw new Error(curErr.message);
     const lessons = (curriculum ?? []).map((r) => ({
       id: r.lesson_id,
@@ -97,7 +109,9 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     }));
     const { data: related } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes")
+      .select(
+        "id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes",
+      )
       .eq("category", course.category)
       .eq("is_published", true)
       .neq("id", course.id)
@@ -106,7 +120,10 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
       .from("reviews")
       .select("rating")
       .eq("course_id", course.id);
-    const counts = [5,4,3,2,1].map((stars) => ({ stars, count: (reviews ?? []).filter(r => r.rating === stars).length }));
+    const counts = [5, 4, 3, 2, 1].map((stars) => ({
+      stars,
+      count: (reviews ?? []).filter((r) => r.rating === stars).length,
+    }));
     return {
       ...course,
       faq: (course.faq as { q: string; a: string }[]) ?? [],
@@ -159,7 +176,9 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("enrollments")
-      .select("progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes)")
+      .select(
+        "progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes)",
+      )
       .eq("user_id", userId)
       .order("enrolled_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -168,8 +187,22 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
 
 export type LessonPlayer = {
   course: { id: string; slug: string; title: string; category: string };
-  lessons: { id: string; title: string; position: number; duration_seconds: number | null; content: string | null; video_url: string | null }[];
-  current: { id: string; title: string; position: number; duration_seconds: number | null; content: string | null; video_url: string | null };
+  lessons: {
+    id: string;
+    title: string;
+    position: number;
+    duration_seconds: number | null;
+    content: string | null;
+    video_url: string | null;
+  }[];
+  current: {
+    id: string;
+    title: string;
+    position: number;
+    duration_seconds: number | null;
+    content: string | null;
+    video_url: string | null;
+  };
   completedIds: string[];
   enrolled: boolean;
 };
@@ -240,8 +273,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       }
     }
 
-    const current =
-      (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
+    const current = (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
 
     const { data: comps } = await supabase
       .from("lesson_completions")
@@ -281,13 +313,15 @@ export const markLessonComplete = createServerFn({ method: "POST" })
 // ============ Instructor Studio ============
 
 function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 60) || `course-${Date.now()}`;
+  return (
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 60) || `course-${Date.now()}`
+  );
 }
 
 export const getMyRoles = createServerFn({ method: "GET" })
@@ -381,17 +415,19 @@ export const getMyCourse = createServerFn({ method: "GET" })
 
 export const updateCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    courseId: string;
-    title?: string;
-    subtitle?: string | null;
-    description?: string | null;
-    category?: string;
-    price_cents?: number;
-    duration_label?: string | null;
-    icon_kind?: string | null;
-    is_published?: boolean;
-  }) => d)
+  .inputValidator(
+    (d: {
+      courseId: string;
+      title?: string;
+      subtitle?: string | null;
+      description?: string | null;
+      category?: string;
+      price_cents?: number;
+      duration_label?: string | null;
+      icon_kind?: string | null;
+      is_published?: boolean;
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { courseId, ...rest } = data;
@@ -420,15 +456,17 @@ export const deleteCourse = createServerFn({ method: "POST" })
 
 export const upsertLesson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    lessonId?: string;
-    courseId: string;
-    title: string;
-    position: number;
-    duration_seconds?: number | null;
-    content?: string | null;
-    video_url?: string | null;
-  }) => d)
+  .inputValidator(
+    (d: {
+      lessonId?: string;
+      courseId: string;
+      title: string;
+      position: number;
+      duration_seconds?: number | null;
+      content?: string | null;
+      video_url?: string | null;
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // Verify course ownership
@@ -519,7 +557,10 @@ export const listCourseReviews = createServerFn({ method: "GET" })
     return list.map((r) => ({
       ...r,
       author: byId.get(r.user_id)
-        ? { display_name: byId.get(r.user_id)!.display_name, avatar_url: byId.get(r.user_id)!.avatar_url }
+        ? {
+            display_name: byId.get(r.user_id)!.display_name,
+            avatar_url: byId.get(r.user_id)!.avatar_url,
+          }
         : null,
     })) as ReviewItem[];
   });

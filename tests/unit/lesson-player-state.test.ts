@@ -60,14 +60,44 @@ describe("selectCurrentLesson", () => {
     if (r.kind === "selected") expect(r.lesson.id).toBe("a");
   });
 
-  it("returns all-complete when every lesson done", () => {
+  it("all-complete with valid stored last lesson resumes at that last lesson", () => {
     const r = selectCurrentLesson({
       lessons,
-      lastLessonId: "d",
+      lastLessonId: "c",
       completedIds: ["a", "b", "c", "d"],
     });
     expect(r).toMatchObject({ kind: "selected", reason: "all-complete" });
-    if (r.kind === "selected") expect(r.lesson.id).toBe("a");
+    if (r.kind === "selected") expect(r.lesson.id).toBe("c");
+  });
+
+  it("all-complete with null last lesson lands on the final canonical lesson, never lesson one", () => {
+    const r = selectCurrentLesson({
+      lessons,
+      completedIds: ["a", "b", "c", "d"],
+    });
+    expect(r).toMatchObject({ kind: "selected", reason: "all-complete" });
+    if (r.kind === "selected") expect(r.lesson.id).toBe("d");
+  });
+
+  it("all-complete with stale (unknown) last lesson lands on the final canonical lesson", () => {
+    const r = selectCurrentLesson({
+      lessons,
+      lastLessonId: "gone",
+      completedIds: ["a", "b", "c", "d"],
+    });
+    expect(r).toMatchObject({ kind: "selected", reason: "all-complete" });
+    if (r.kind === "selected") expect(r.lesson.id).toBe("d");
+  });
+
+  it("all-complete with explicit requested lesson still wins", () => {
+    const r = selectCurrentLesson({
+      lessons,
+      requestedLessonId: "b",
+      lastLessonId: "d",
+      completedIds: ["a", "b", "c", "d"],
+    });
+    expect(r).toMatchObject({ kind: "selected", reason: "explicit" });
+    if (r.kind === "selected") expect(r.lesson.id).toBe("b");
   });
 
   it("falls back to first incomplete when lastLessonId is stale/unknown", () => {

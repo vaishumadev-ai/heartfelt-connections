@@ -52,13 +52,19 @@ export const Route = createFileRoute("/_authenticated/learn/$slug")({
     <div className="min-h-screen grid place-items-center bg-background">
       <div className="rounded-3xl bg-card p-10 text-center max-w-md" role="alert">
         <h1 className="text-2xl font-bold">We couldn't load this lesson</h1>
-        <p className="mt-2 text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-muted-foreground">
+          Something went wrong loading this lesson. Please try again.
+        </p>
         <button
-          onClick={() => reset()}
+          onClick={() => {
+            reset();
+          }}
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background"
         >
           Retry
         </button>
+        {/* Discard the raw error surface — no console.error, no leak. */}
+        <span className="sr-only">{error.name}</span>
       </div>
     </div>
   ),
@@ -67,6 +73,16 @@ export const Route = createFileRoute("/_authenticated/learn/$slug")({
 function Player() {
   const { slug } = Route.useParams();
   const { lesson: lessonId } = Route.useSearch();
+  return <PlayerBody slug={slug} lessonId={lessonId} />;
+}
+
+/**
+ * The single rendered player surface. The route wrapper (`Player`) reads
+ * `slug`/`lessonId` from Route hooks and forwards them here. Exported so
+ * component tests can render the same component the app uses without
+ * duplicating logic.
+ */
+export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string }) {
   const fetchPlayer = useServerFn(getLessonPlayer);
   const markDone = useServerFn(markLessonComplete);
   const persistLast = useServerFn(setLastLesson);
@@ -156,10 +172,13 @@ function Player() {
   }
 
   if (data.state === "no_preview_available") {
+    // Message follows canSelfEnroll rather than !isEnrolled: paid unenrolled
+    // viewers and historical paid enrollments get neutral copy.
+    const canEnroll = data.canSelfEnroll;
     return (
       <StateShell
         title="No preview available"
-        message="Enroll to unlock the full course content."
+        message={canEnroll ? "Enroll to unlock the course." : "Paid access is not available yet."}
         cta={{ label: "Go to course", to: "/courses/$slug", params: { slug } }}
       />
     );
@@ -197,12 +216,13 @@ function Player() {
     isEnrolled,
     canTrackProgress: track,
     progress,
+    courseComplete,
+    canSelfEnroll,
   } = data;
   const completed = new Set(completedLessonIds);
   const isDone = completed.has(current.id);
   const pct = progress ?? 0;
-  const isCourseComplete =
-    track && lessons.length > 0 && completedLessonIds.length >= lessons.length;
+  const isCourseComplete = courseComplete;
 
   const goToLesson = (id: string) => {
     setMobileOpen(false);
@@ -250,11 +270,18 @@ function Player() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-          <main className="rounded-3xl bg-card p-8" aria-live="polite">
+          <main className="rounded-3xl bg-card p-8">
             <div className="text-xs font-semibold uppercase tracking-wider text-foreground">
               {course.category} • {course.title}
             </div>
-            <h1 className="mt-2 text-3xl font-bold md:text-4xl">{current.title}</h1>
+            {/* Focused live region: announces lesson-title changes only. */}
+            <h1
+              className="mt-2 text-3xl font-bold md:text-4xl focus:outline-none"
+              tabIndex={-1}
+              aria-live="polite"
+            >
+              {current.title}
+            </h1>
 
             {entitlement === "preview" && !isEnrolled && (
               <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
@@ -347,7 +374,7 @@ function Player() {
                   {isDone ? "Completed" : mutation.isPending ? "Saving…" : "Mark complete"}
                 </button>
               ) : (
-                !isEnrolled && (
+                canSelfEnroll && (
                   <Link
                     to="/courses/$slug"
                     params={{ slug }}

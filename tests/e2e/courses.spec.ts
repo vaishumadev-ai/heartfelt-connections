@@ -65,9 +65,7 @@ test.describe("Course route – public/guest behavior", () => {
       await expect(page.getByRole("heading", { name: /Course curriculum/i })).toBeVisible();
 
       // Guest CTA
-      await expect(
-        page.getByRole("link", { name: /Sign in to enroll/i }).first(),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: /Sign in to enroll/i }).first()).toBeVisible();
 
       const viewportName = testInfo.project.name;
       const isDesktop = viewportName.startsWith("desktop");

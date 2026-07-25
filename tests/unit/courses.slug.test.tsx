@@ -76,9 +76,30 @@ type Lesson = {
 
 function makeCourse(overrides: Record<string, unknown> = {}) {
   const lessons: Lesson[] = [
-    { id: "l1", title: "Intro", position: 1, duration_seconds: 300, is_preview: true, module_title: "Getting started" },
-    { id: "l2", title: "Deep dive", position: 2, duration_seconds: 900, is_preview: false, module_title: "Getting started" },
-    { id: "l3", title: "Advanced", position: 3, duration_seconds: 600, is_preview: false, module_title: "Advanced topics" },
+    {
+      id: "l1",
+      title: "Intro",
+      position: 1,
+      duration_seconds: 300,
+      is_preview: true,
+      module_title: "Getting started",
+    },
+    {
+      id: "l2",
+      title: "Deep dive",
+      position: 2,
+      duration_seconds: 900,
+      is_preview: false,
+      module_title: "Getting started",
+    },
+    {
+      id: "l3",
+      title: "Advanced",
+      position: 3,
+      duration_seconds: 600,
+      is_preview: false,
+      module_title: "Advanced topics",
+    },
   ];
   return {
     id: "course-1",
@@ -175,7 +196,9 @@ describe("Course route rendering", () => {
   it("renders hero, curriculum, related courses from cached data", async () => {
     resolvedAuth(null);
     await renderRoute();
-    expect(await screen.findByRole("heading", { level: 1, name: /Learning Design Foundations/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /Learning Design Foundations/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Ship better UI/)).toBeInTheDocument();
     expect(screen.getByText(/Getting started/)).toBeInTheDocument();
     expect(screen.getByText(/Advanced topics/)).toBeInTheDocument();
@@ -264,9 +287,7 @@ describe("Retry behavior", () => {
     listMyEnrollmentsMock.mockRejectedValueOnce(new Error("db down"));
     listMyEnrollmentsMock.mockResolvedValue([]);
     await renderRoute();
-    const retry = (
-      await screen.findAllByRole("button", { name: /Retry/i }, { timeout: 5000 })
-    )[0];
+    const retry = (await screen.findAllByRole("button", { name: /Retry/i }, { timeout: 5000 }))[0];
     const callsBefore = listMyEnrollmentsMock.mock.calls.length;
     await userEvent.click(retry);
     await screen.findAllByRole("button", { name: /Enroll now/i }, { timeout: 5000 });
@@ -304,8 +325,10 @@ describe("Curriculum expansion", () => {
     expect(triggers[1]).toHaveAttribute("aria-expanded", "false");
 
     // no controlled/uncontrolled React warning
-    const controlledWarns = warnSpy.mock.calls.filter((args) =>
-      String(args[0] ?? "").includes("controlled") && String(args[0] ?? "").includes("uncontrolled"),
+    const controlledWarns = warnSpy.mock.calls.filter(
+      (args) =>
+        String(args[0] ?? "").includes("controlled") &&
+        String(args[0] ?? "").includes("uncontrolled"),
     );
     expect(controlledWarns).toEqual([]);
     warnSpy.mockRestore();

@@ -763,9 +763,7 @@ export function CoursePage() {
                       data-testid="share-fallback"
                       className="mt-2 rounded-2xl border border-border bg-background p-3 text-xs"
                     >
-                      <div className="mb-1 text-muted-foreground">
-                        Copy this link to share:
-                      </div>
+                      <div className="mb-1 text-muted-foreground">Copy this link to share:</div>
                       <input
                         readOnly
                         value={shareInfoUrl}

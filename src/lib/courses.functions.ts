@@ -198,45 +198,68 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
     });
   });
 
-export type LessonPlayer = {
-  course: { id: string; slug: string; title: string; category: string };
-  lessons: {
-    id: string;
-    title: string;
-    position: number;
-    duration_seconds: number | null;
-    content: string | null;
-    video_url: string | null;
-  }[];
-  current: {
-    id: string;
-    title: string;
-    position: number;
-    duration_seconds: number | null;
-    content: string | null;
-    video_url: string | null;
-  };
-  completedIds: string[];
-  enrolled: boolean;
+export type PlayerCourseDTO = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
 };
+
+export type PlayerLessonDTO = {
+  id: string;
+  title: string;
+  position: number;
+  duration_seconds: number | null;
+  is_preview: boolean;
+  content: string | null;
+  video_url: string | null;
+};
+
+export type PlayerBase = {
+  course: PlayerCourseDTO;
+  entitlement: Entitlement;
+  isEnrolled: boolean;
+  canTrackProgress: boolean;
+  progress: number | null;
+  completedLessonIds: string[];
+};
+
+export type LessonPlayerResult =
+  | { state: "course_not_found_or_hidden" }
+  | (PlayerBase & { state: "empty_curriculum" })
+  | (PlayerBase & { state: "no_preview_available" })
+  | (PlayerBase & { state: "requested_lesson_unavailable" })
+  | (PlayerBase & { state: "protected_lesson_requested" })
+  | (PlayerBase & {
+      state: "ready";
+      lessons: PlayerLessonDTO[];
+      current: PlayerLessonDTO;
+      prevId: string | null;
+      nextId: string | null;
+    });
+
+// Retained temporary alias for any external import; the new discriminated
+// result is the canonical shape.
+export type LessonPlayer = LessonPlayerResult;
 
 export const getLessonPlayer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { slug: string; lessonId?: string }) => d)
-  .handler(async ({ data, context }): Promise<LessonPlayer | null> => {
+  .handler(async ({ data, context }): Promise<LessonPlayerResult> => {
     const { supabase, userId } = context;
-    // 1) Resolve course; allow drafts only for owner/admin.
+
+    // 1) Resolve course. Unpublished courses are indistinguishable from
+    //    missing courses to non-owner/non-admin viewers.
     const { data: course, error: cErr } = await supabase
       .from("courses")
       .select("id, slug, title, category, is_published, instructor_id, price_cents")
       .eq("slug", data.slug)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
-    if (!course) return null;
+    if (!course) return { state: "course_not_found_or_hidden" };
 
-    // 2) Authorize BEFORE fetching protected content.
     const isOwner = course.instructor_id === userId;
-    // Role-check errors must fail closed — never silently downgrade to isAdmin=false.
+    // Fail-closed admin check.
     const { data: isAdminData, error: roleErr } = await supabase.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
@@ -244,7 +267,9 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     if (roleErr) throw new Error(`Authorization check failed: ${roleErr.message}`);
     const isAdmin = !!isAdminData;
 
-    if (!course.is_published && !isOwner && !isAdmin) return null;
+    if (!course.is_published && !isOwner && !isAdmin) {
+      return { state: "course_not_found_or_hidden" };
+    }
 
     const { data: enr } = await supabase
       .from("enrollments")
@@ -252,65 +277,159 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .eq("course_id", course.id)
       .maybeSingle();
-    const enrolled = !!enr;
-    // Entitlement decision: enrollment counts as a learner entitlement only
-    // when the course is free. Paid historical enrollments grant no lesson
-    // access until a payment-backed entitlement system exists.
+    const isEnrolled = !!enr;
+
     const entitlement = resolveLessonEntitlement({
       course: { is_published: course.is_published, price_cents: course.price_cents },
       isOwner,
       isAdmin,
-      enrolled,
+      enrolled: isEnrolled,
     });
+    const trackable = canTrackProgress({
+      entitlement,
+      isEnrolled,
+      priceCents: course.price_cents,
+      isPublished: course.is_published,
+    });
+
+    const courseDTO: PlayerCourseDTO = {
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      category: course.category,
+    };
+
+    // Completions are only surfaced for a viewer with active trackable
+    // progress. Owner/admin inspection and historical paid enrollments
+    // never expose lesson completions or progress.
+    let completedLessonIds: string[] = [];
+    let progress: number | null = null;
+    if (trackable) {
+      const { data: comps, error: compErr } = await supabase
+        .from("lesson_completions")
+        .select("lesson_id")
+        .eq("user_id", userId)
+        .eq("course_id", course.id);
+      if (compErr) throw new Error(compErr.message);
+      completedLessonIds = (comps ?? []).map((c) => c.lesson_id);
+    }
+
+    const buildBase = (): PlayerBase => ({
+      course: courseDTO,
+      entitlement,
+      isEnrolled,
+      canTrackProgress: trackable,
+      progress,
+      completedLessonIds,
+    });
+
+    // 2) Curriculum metadata via safe RPC — never leaks content/video_url.
+    //    Empty rows here means either the RPC filters unpublished for
+    //    non-elevated viewers, or the course truly has no lessons.
+    const { data: curriculumRows, error: curErr } = await supabase.rpc("get_course_curriculum", {
+      _slug: data.slug,
+    });
+    if (curErr) throw new Error(curErr.message);
+
+    let curriculum = (curriculumRows ?? []).map((r) => ({
+      id: r.lesson_id,
+      position: r.lesson_position,
+      is_preview: r.is_preview,
+    }));
+    curriculum = orderLessons(curriculum);
+
+    // For owner/admin viewing an unpublished draft, the curriculum RPC
+    // filters by is_published; fall back to a direct authorized read of
+    // safe metadata columns (RLS admits owners via the "Active instructors
+    // manage own lessons" and admin policies).
+    if (curriculum.length === 0 && (isOwner || isAdmin)) {
+      const { data: rows } = await supabase
+        .from("lessons")
+        .select("id, position, is_preview")
+        .eq("course_id", course.id);
+      curriculum = orderLessons(
+        (rows ?? []).map((r) => ({ id: r.id, position: r.position, is_preview: r.is_preview })),
+      );
+    }
+
+    if (curriculum.length === 0) {
+      return { ...buildBase(), state: "empty_curriculum" };
+    }
+
     const fullAccess = entitlement === "full";
 
-    // 3) Fetch content according to entitlement — never fetch-then-filter.
-    let lessons: LessonPlayer["lessons"];
+    // 3) Fetch content by entitlement. Never fetch protected content for a
+    //    preview viewer, then filter after.
+    let lessons: PlayerLessonDTO[] = [];
     if (fullAccess) {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, content, video_url")
-        .eq("course_id", course.id)
-        .order("position", { ascending: true });
+        .select("id, title, position, duration_seconds, is_preview, content, video_url")
+        .eq("course_id", course.id);
       if (lErr) throw new Error(lErr.message);
-      lessons = rows ?? [];
-    } else {
-      // Public preview only — protected lessons are never returned.
+      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+    } else if (entitlement === "preview") {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, content, video_url, is_preview")
+        .select("id, title, position, duration_seconds, is_preview, content, video_url")
         .eq("course_id", course.id)
-        .eq("is_preview", true)
-        .order("position", { ascending: true });
+        .eq("is_preview", true);
       if (lErr) throw new Error(lErr.message);
-      lessons = (rows ?? []).map(({ is_preview: _p, ...rest }) => rest);
+      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+      if (lessons.length === 0) {
+        return { ...buildBase(), state: "no_preview_available" };
+      }
+    } else {
+      // entitlement === 'none' means unpublished-and-stranger, which was
+      // already handled as course_not_found_or_hidden above. Belt-and-braces:
+      return { state: "course_not_found_or_hidden" };
     }
 
-    if (lessons.length === 0) return null;
-
-    // If a specific lessonId was requested but is not in the returned
-    // (authorized) set, fail closed rather than silently swapping to lesson 0.
-    if (data.lessonId && !lessons.some((l) => l.id === data.lessonId)) {
-      if (!fullAccess) {
-        // Requesting a protected lesson without entitlement: deny.
-        return null;
+    // Requested-lesson classification uses the safe curriculum metadata to
+    // distinguish "unknown/cross-course id" from "known but protected".
+    if (data.lessonId) {
+      const inAuthorized = lessons.some((l) => l.id === data.lessonId);
+      if (!inAuthorized) {
+        const inCurriculum = curriculum.some((l) => l.id === data.lessonId);
+        if (!inCurriculum) {
+          return { ...buildBase(), state: "requested_lesson_unavailable" };
+        }
+        // Known lesson id, but not authorized for this viewer.
+        return { ...buildBase(), state: "protected_lesson_requested" };
       }
     }
 
-    const current = (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
+    // Progress is derived from the FULL curriculum (all lessons), not the
+    // preview subset. Preview viewers already have progress=null.
+    if (trackable) {
+      progress = computeProgress(curriculum.length, completedLessonIds.length);
+    }
 
-    const { data: comps } = await supabase
-      .from("lesson_completions")
-      .select("lesson_id")
-      .eq("user_id", userId)
-      .eq("course_id", course.id);
+    // Selection uses canonically ordered authorized lessons.
+    const lastLessonId: string | null = enr ? ((enr as { last_lesson_id?: string | null }).last_lesson_id ?? null) : null;
+    const selection = selectCurrentLesson({
+      lessons,
+      requestedLessonId: data.lessonId,
+      lastLessonId,
+      completedIds: completedLessonIds,
+    });
+    if (selection.kind !== "selected") {
+      // "empty" is impossible here (guarded above); "requested-invalid" is
+      // impossible because we handled it via the curriculum classifier.
+      return { ...buildBase(), state: "requested_lesson_unavailable" };
+    }
+
+    const current = selection.lesson;
+    const { prevId, nextId } = neighborIds(lessons, current.id);
 
     return {
-      course: { id: course.id, slug: course.slug, title: course.title, category: course.category },
+      ...buildBase(),
+      progress,
+      state: "ready",
       lessons,
       current,
-      completedIds: (comps ?? []).map((c) => c.lesson_id),
-      enrolled,
+      prevId,
+      nextId,
     };
   });
 

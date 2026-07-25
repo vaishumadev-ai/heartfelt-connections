@@ -96,3 +96,76 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
+export type LessonPlayer = {
+  course: { id: string; slug: string; title: string; category: string };
+  lessons: { id: string; title: string; position: number; duration_seconds: number | null; content: string | null; video_url: string | null }[];
+  current: { id: string; title: string; position: number; duration_seconds: number | null; content: string | null; video_url: string | null };
+  completedIds: string[];
+  enrolled: boolean;
+};
+
+export const getLessonPlayer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string; lessonId?: string }) => d)
+  .handler(async ({ data, context }): Promise<LessonPlayer | null> => {
+    const { supabase, userId } = context;
+    const { data: course, error: cErr } = await supabase
+      .from("courses")
+      .select("id, slug, title, category")
+      .eq("slug", data.slug)
+      .eq("is_published", true)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!course) return null;
+    const { data: lessons, error: lErr } = await supabase
+      .from("lessons")
+      .select("id, title, position, duration_seconds, content, video_url")
+      .eq("course_id", course.id)
+      .order("position", { ascending: true });
+    if (lErr) throw new Error(lErr.message);
+    if (!lessons || lessons.length === 0) return null;
+    const current = (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
+    const { data: enr } = await supabase
+      .from("enrollments")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("course_id", course.id)
+      .maybeSingle();
+    const { data: comps } = await supabase
+      .from("lesson_completions")
+      .select("lesson_id")
+      .eq("user_id", userId)
+      .eq("course_id", course.id);
+    return {
+      course,
+      lessons,
+      current,
+      completedIds: (comps ?? []).map((c) => c.lesson_id),
+      enrolled: !!enr,
+    };
+  });
+
+export const markLessonComplete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { lessonId: string; courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Upsert completion
+    const { error } = await supabase
+      .from("lesson_completions")
+      .upsert({ user_id: userId, course_id: data.courseId, lesson_id: data.lessonId }, { onConflict: "user_id,lesson_id" });
+    if (error) throw new Error(error.message);
+    // Recompute progress
+    const [{ count: total }, { count: done }] = await Promise.all([
+      supabase.from("lessons").select("id", { count: "exact", head: true }).eq("course_id", data.courseId),
+      supabase.from("lesson_completions").select("id", { count: "exact", head: true }).eq("course_id", data.courseId).eq("user_id", userId),
+    ]);
+    const progress = total && total > 0 ? Math.round(((done ?? 0) / total) * 100) : 0;
+    await supabase
+      .from("enrollments")
+      .update({ progress, last_lesson_id: data.lessonId })
+      .eq("user_id", userId)
+      .eq("course_id", data.courseId);
+    return { progress };
+  });

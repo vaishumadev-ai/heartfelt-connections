@@ -487,6 +487,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_admin_course_lessons: {
+        Args: { _course_id: string }
+        Returns: {
+          duration_seconds: number
+          id: string
+          is_preview: boolean
+          module_title: string
+          position: number
+          title: string
+        }[]
+      }
       get_course_curriculum: {
         Args: { _slug: string }
         Returns: {

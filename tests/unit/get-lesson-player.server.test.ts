@@ -50,7 +50,9 @@ function makeSupabase(spec: {
     from(table: string) {
       const q: any = {
         _eq: {} as Record<string, unknown>,
-        select() {
+        _cols: undefined as string | undefined,
+        select(cols?: string) {
+          q._cols = cols;
           return q;
         },
         eq(col: string, val: unknown) {
@@ -75,12 +77,14 @@ function makeSupabase(spec: {
               return Promise.resolve(spec.lessonsPreview ?? { data: [], error: null }).then(
                 resolve,
               );
-            // Fallback path (owner/admin draft) uses select("id, position, is_preview")
-            if (
-              spec.lessonsFallback &&
-              !("title" in ((spec.lessonsAuthorized?.data as any[]) ?? [])[0] ?? {})
-            )
-              return Promise.resolve(spec.lessonsFallback).then(resolve);
+            // Fallback path (owner/admin draft) selects id, position, is_preview
+            // WITHOUT title — distinguish by inspecting the requested cols.
+            const cols = typeof q._cols === "string" ? q._cols : "";
+            const isFallback = cols.length > 0 && !cols.includes("title");
+            if (isFallback)
+              return Promise.resolve(spec.lessonsFallback ?? { data: [], error: null }).then(
+                resolve,
+              );
             return Promise.resolve(spec.lessonsAuthorized ?? { data: [], error: null }).then(
               resolve,
             );

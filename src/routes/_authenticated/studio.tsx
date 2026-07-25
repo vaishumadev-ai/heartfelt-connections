@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Plus, Pencil, Trash2, GraduationCap } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, GraduationCap, ShieldCheck } from "lucide-react";
 import {
   listMyCourses,
   getMyRoles,
@@ -172,6 +172,8 @@ function ApplicationPanel({
 
 function InstructorPanel() {
   const { data: courses } = useSuspenseQuery(myCoursesQO);
+  const { data: roles } = useSuspenseQuery(myRolesQO);
+  const isAdmin = roles.includes("admin");
   const qc = useQueryClient();
   const navigate = useNavigate();
   const createFn = useServerFn(createCourse);
@@ -196,6 +198,25 @@ function InstructorPanel() {
 
   return (
     <div className="space-y-8">
+      {isAdmin && (
+        <div className="flex items-center justify-between rounded-2xl bg-foreground/5 p-4 ring-1 ring-border">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-5 w-5" />
+            <div>
+              <div className="text-sm font-semibold">Admin console</div>
+              <div className="text-xs text-muted-foreground">
+                Review pending courses and manage curation.
+              </div>
+            </div>
+          </div>
+          <Link
+            to="/admin/courses"
+            className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-primary-foreground"
+          >
+            Open admin
+          </Link>
+        </div>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();

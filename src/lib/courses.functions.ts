@@ -146,23 +146,14 @@ export const enrollInCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Load & validate course first — fail closed before any write.
-    const { data: course, error: cErr } = await supabase
-      .from("courses")
-      .select("id, is_published, price_cents")
-      .eq("id", data.courseId)
-      .maybeSingle();
-    if (cErr) throw new Error(cErr.message);
-    assertFreePublishedCourse(course);
-    // Free published course — insert; RLS policy also enforces these preconditions.
-    // Idempotent: ignore duplicate-key on (user_id, course_id).
-    const { error } = await supabase
-      .from("enrollments")
-      .insert({ user_id: userId, course_id: data.courseId });
-    if (error && !/duplicate key|unique/i.test(error.message)) {
-      throw new Error(error.message);
-    }
+    // All free enrollments go through the guarded RPC, which uses a
+    // course-scoped advisory lock, re-checks publish/price, and inserts
+    // as auth.uid(). This closes the direct-INSERT race that could beat
+    // unpublish_for_edit and any client-side pre-check drift.
+    const { error } = await context.supabase.rpc("enroll_free_course", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
@@ -987,5 +978,79 @@ export const deleteMyReview = createServerFn({ method: "POST" })
       .eq("course_id", data.courseId);
     if (error) throw new Error(error.message);
     await recomputeCourseRating(data.courseId);
+    return { ok: true };
+  });
+
+// ============ Admin surface ============
+
+export type AdminCourseRow = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  instructor_id: string | null;
+  instructor_name: string | null;
+  is_published: boolean;
+  review_status: "draft" | "pending_review" | "approved" | "rejected";
+  enrollments_count: number;
+  completions_count: number;
+  reviews_count: number;
+  updated_at: string;
+};
+
+async function assertAdmin(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("current_user_has_role", { _role: "admin" });
+  if (error) throw new Error(`Authorization check failed: ${error.message}`);
+  if (data !== true) throw new Error("Admin only");
+}
+
+export const listAdminCourses = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminCourseRow[]> => {
+    await assertAdmin(context.supabase);
+    const { data, error } = await context.supabase.rpc("list_admin_courses");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AdminCourseRow[];
+  });
+
+export type AdminCourseDetail = AdminCourseRow & {
+  subtitle: string | null;
+  description: string | null;
+  review_decision_reason: string | null;
+  price_cents: number;
+  can_unpublish: boolean;
+};
+
+export const getAdminCourse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }): Promise<AdminCourseDetail | null> => {
+    await assertAdmin(context.supabase);
+    const { data: rows, error } = await context.supabase.rpc("get_admin_course", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return (row as AdminCourseDetail | undefined) ?? null;
+  });
+
+export const unpublishForEdit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason: string }) => {
+    const reason = (d.reason ?? "").trim();
+    if (!reason) throw new Error("Reason required");
+    if (reason.length > 1000) throw new Error("Reason too long");
+    if (!d.courseId) throw new Error("Missing courseId");
+    return { courseId: d.courseId, reason };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("unpublish_for_edit", {
+      _course_id: data.courseId,
+      _reason: data.reason,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });

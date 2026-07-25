@@ -180,11 +180,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "lesson_completions_lesson_id_fkey"
-            columns: ["lesson_id"]
+            foreignKeyName: "lesson_completions_lesson_course_fkey"
+            columns: ["lesson_id", "course_id"]
             isOneToOne: false
             referencedRelation: "lessons"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "course_id"]
           },
         ]
       }

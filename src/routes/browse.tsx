@@ -3,6 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Search, ArrowRight, Heart } from "lucide-react";
 import { listCourses, type CourseCard } from "@/lib/courses.functions";
+import doodleIdea from "@/assets/doodle-idea.png";
+import doodleRocket from "@/assets/doodle-rocket.png";
 
 const q = queryOptions({ queryKey: ["courses"], queryFn: () => listCourses() });
 
@@ -44,8 +46,12 @@ function Browse() {
           </Link>
           <Link to="/auth" className="rounded-full bg-black px-5 py-2 text-sm font-semibold text-background">Sign in</Link>
         </div>
-        <h1 className="mt-10 text-4xl font-bold md:text-5xl">Browse all courses</h1>
-        <p className="mt-2 text-muted-foreground">Find your next skill. {courses.length} courses available.</p>
+        <div className="relative mt-10 overflow-hidden rounded-3xl border border-border bg-card px-8 py-10">
+          <img src={doodleIdea} alt="" aria-hidden loading="lazy" className="pointer-events-none absolute -right-6 -top-6 h-40 w-40 opacity-90" />
+          <img src={doodleRocket} alt="" aria-hidden loading="lazy" className="pointer-events-none absolute -bottom-8 right-32 hidden h-32 w-32 opacity-80 md:block" />
+          <h1 className="text-4xl font-bold md:text-5xl">Browse all courses</h1>
+          <p className="mt-2 text-muted-foreground">Find your next skill. {courses.length} courses available.</p>
+        </div>
         <div className="mt-6 flex items-center rounded-full bg-card p-1.5">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses..." className="flex-1 bg-transparent px-5 py-2 text-sm outline-none" />
           <button className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background"><Search className="h-5 w-5" /></button>

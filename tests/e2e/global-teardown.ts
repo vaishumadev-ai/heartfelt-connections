@@ -6,9 +6,13 @@ import { assertValidFixtureNamespace } from "@/lib/testing/production-guard";
 const FIXTURE_STATE_PATH = path.resolve(process.cwd(), ".e2e-fixture-state.json");
 
 export default async function globalTeardown(): Promise<void> {
-  let state:
-    | { namespace: string; freeSlug: string; paidSlug: string; freeCourseId: string; paidCourseId: string }
-    | null = null;
+  let state: {
+    namespace: string;
+    freeSlug: string;
+    paidSlug: string;
+    freeCourseId: string;
+    paidCourseId: string;
+  } | null = null;
   try {
     const raw = await fs.readFile(FIXTURE_STATE_PATH, "utf8");
     state = JSON.parse(raw);

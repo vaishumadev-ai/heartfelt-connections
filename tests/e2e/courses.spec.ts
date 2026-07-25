@@ -85,7 +85,10 @@ function assertNoFailures(f: Failures, allow: Allow = {}) {
   });
   expect(unexpectedBad, "http >=400").toEqual([]);
   rules.forEach((rule, i) => {
-    expect(usage[i], `allowed response ${rule.status} ${rule.urlPattern} over budget`).toBeLessThanOrEqual(rule.max);
+    expect(
+      usage[i],
+      `allowed response ${rule.status} ${rule.urlPattern} over budget`,
+    ).toBeLessThanOrEqual(rule.max);
   });
   expect(f.failedRequests, "failed requests").toEqual([]);
   for (const [url, n] of f.redirects) {

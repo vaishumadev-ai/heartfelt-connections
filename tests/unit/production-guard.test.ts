@@ -64,7 +64,10 @@ describe("production-guard", () => {
       expect(r.ok).toBe(false);
     });
     it("rejects fixture client pointing at a different test project", () => {
-      const r = validateTestProject({ testSupabaseUrl: TEST_URL, fixtureClientUrl: OTHER_TEST_URL });
+      const r = validateTestProject({
+        testSupabaseUrl: TEST_URL,
+        fixtureClientUrl: OTHER_TEST_URL,
+      });
       expect(r.ok).toBe(false);
     });
     it("rejects projectId that does not match the test URL ref", () => {
@@ -72,7 +75,10 @@ describe("production-guard", () => {
       expect(r.ok).toBe(false);
     });
     it("rejects invalid supabase URL in supabaseUrl slot", () => {
-      const r = validateTestProject({ testSupabaseUrl: TEST_URL, supabaseUrl: "https://example.com" });
+      const r = validateTestProject({
+        testSupabaseUrl: TEST_URL,
+        supabaseUrl: "https://example.com",
+      });
       expect(r.ok).toBe(false);
     });
     it("rejects the production URL in TEST_SUPABASE_URL", () => {

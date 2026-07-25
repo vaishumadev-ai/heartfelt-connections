@@ -305,7 +305,9 @@ export async function destroyFixturesByIds(input: {
   expectedSlugs?: string[];
 }): Promise<{ deletedCourses: number }> {
   const namespace = assertValidFixtureNamespace(input.namespace, "teardown");
-  const ids = Array.from(new Set(input.courseIds.filter((v) => typeof v === "string" && v.length > 0)));
+  const ids = Array.from(
+    new Set(input.courseIds.filter((v) => typeof v === "string" && v.length > 0)),
+  );
   if (ids.length === 0) return { deletedCourses: 0 };
 
   const supabase = adminClient();

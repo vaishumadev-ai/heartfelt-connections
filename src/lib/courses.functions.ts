@@ -129,12 +129,7 @@ export const enrollInCourse = createServerFn({ method: "POST" })
       .eq("id", data.courseId)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
-    if (!course || !course.is_published) {
-      throw new Error("Course is not available for enrollment.");
-    }
-    if ((course.price_cents ?? 0) > 0) {
-      throw new Error("Checkout is not available yet for paid courses.");
-    }
+    assertFreePublishedCourse(course);
     // Free published course — insert; RLS policy also enforces these preconditions.
     // Idempotent: ignore duplicate-key on (user_id, course_id).
     const { error } = await supabase
@@ -145,6 +140,18 @@ export const enrollInCourse = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// Pure helper (exported for unit tests). Throws on any disallowed enrollment.
+export function assertFreePublishedCourse(
+  course: { is_published: boolean; price_cents: number } | null,
+) {
+  if (!course || !course.is_published) {
+    throw new Error("Course is not available for enrollment.");
+  }
+  if ((course.price_cents ?? 0) > 0) {
+    throw new Error("Checkout is not available yet for paid courses.");
+  }
+}
 
 export const listMyEnrollments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

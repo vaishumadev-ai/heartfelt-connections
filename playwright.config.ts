@@ -30,7 +30,8 @@ if (missingTestEnv.length === 0) {
     testSupabaseUrl: process.env.TEST_SUPABASE_URL,
     supabaseUrl: process.env.SUPABASE_URL,
     viteSupabaseUrl: process.env.VITE_SUPABASE_URL,
-    projectId: process.env.SUPABASE_PROJECT_ID ?? process.env.VITE_SUPABASE_PROJECT_ID,
+    projectId: process.env.SUPABASE_PROJECT_ID,
+    viteProjectId: process.env.VITE_SUPABASE_PROJECT_ID,
   });
   if (!check.ok) {
     throw new Error(`[playwright.config] ${check.reason}`);
@@ -61,9 +62,10 @@ export default defineConfig({
     use: { ...devices["Desktop Chrome"], viewport: { width: v.width, height: v.height } },
   })),
   webServer: {
-    // Test-preview launcher writes a temp `.env.local` so Vite's env loader
-    // picks up the test Supabase project regardless of the committed `.env`.
-    // The launcher also strips SUPABASE_SERVICE_ROLE_KEY from the child env.
+    // Test-preview launcher injects the mapped SUPABASE_* / VITE_SUPABASE_*
+    // values directly on the child process env (no .env.local writes),
+    // and strips SUPABASE_SERVICE_ROLE_KEY from the child env before build
+    // and preview.
     command: `bun run scripts/test-preview.ts`,
     env: {
       PW_HOST: HOST,

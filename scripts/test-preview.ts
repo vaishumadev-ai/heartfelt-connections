@@ -2,20 +2,19 @@
 /**
  * Test-only preview launcher.
  *
- * Maps TEST_SUPABASE_* env into SUPABASE_* / VITE_SUPABASE_* so that
- * `bun run build && bun run preview` uses the dedicated test project
- * regardless of what the committed `.env` contains.
+ * Maps TEST_SUPABASE_* env into SUPABASE_* / VITE_SUPABASE_* directly on the
+ * child process environment. Vite gives explicit process env priority over
+ * loaded .env files, so no .env.local manipulation is required.
  *
  *   - Never maps the service-role key into any VITE_* variable.
- *   - Writes a temporary `.env.local` so Vite's env loader picks up the
- *     test project (Vite loads `.env.local` last, overriding `.env`).
- *   - Restores/removes the `.env.local` on exit.
+ *   - Never writes credentials or configuration into `.env.local`.
  *   - Verifies the production project ref is not present before build.
+ *   - Cross-platform: spawns Bun directly (no bash, no shell chaining).
+ *   - Runs build first; only starts preview after build exits 0.
+ *   - Forwards SIGINT / SIGTERM and propagates the child exit code.
  *   - Prints only the resolved test project ref — never keys.
  */
 import { spawn } from "node:child_process";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { assertTestProject, extractProjectRef } from "../src/lib/testing/production-guard";
 
 const TEST_URL = process.env.TEST_SUPABASE_URL;
@@ -41,6 +40,7 @@ try {
       supabaseUrl: TEST_URL,
       viteSupabaseUrl: TEST_URL,
       projectId: ref,
+      viteProjectId: ref,
     },
     "test-preview",
   );
@@ -62,63 +62,37 @@ const overlay: Record<string, string> = {
 };
 
 const parentEnv = { ...process.env };
-// Strip service-role env from the child; fixture setup runs in the parent
-// (Playwright globalSetup), which retains access to it.
+// Strip service-role env from the child preview/build; fixture setup runs
+// in the parent (Playwright globalSetup), which retains access to it.
 delete parentEnv.SUPABASE_SERVICE_ROLE_KEY;
 delete parentEnv.TEST_SUPABASE_SERVICE_ROLE_KEY;
 const childEnv = { ...parentEnv, ...overlay };
 
 const cwd = process.cwd();
-const envLocalPath = path.join(cwd, ".env.local");
-const envLocalBackup = path.join(cwd, ".env.local.pw-backup");
-
-let hadPrior = false;
-try {
-  await fs.access(envLocalPath);
-  hadPrior = true;
-  await fs.rename(envLocalPath, envLocalBackup);
-} catch {
-  hadPrior = false;
-}
-
-const envLocalBody =
-  Object.entries(overlay)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("\n") + "\n";
-await fs.writeFile(envLocalPath, envLocalBody, "utf8");
-
-let cleanedUp = false;
-async function cleanup() {
-  if (cleanedUp) return;
-  cleanedUp = true;
-  await fs.rm(envLocalPath, { force: true });
-  if (hadPrior) {
-    try {
-      await fs.rename(envLocalBackup, envLocalPath);
-    } catch {
-      // ignore
-    }
-  }
-}
-
 const host = process.env.PW_HOST ?? "127.0.0.1";
 const port = process.env.PW_PORT ?? "4173";
 
-const child = spawn(
-  "bash",
-  ["-lc", `bun run build && bun run preview --host ${host} --port ${port}`],
-  { stdio: "inherit", env: childEnv, cwd },
-);
+function spawnBun(args: string[]) {
+  return spawn("bun", args, { stdio: "inherit", env: childEnv, cwd });
+}
 
-const forwardExit = async (code: number | null, signal: NodeJS.Signals | null) => {
-  await cleanup();
+// 1) Build the app with the guarded child env.
+const build = spawnBun(["run", "build"]);
+const buildCode: number = await new Promise((resolve) => {
+  build.on("exit", (code) => resolve(code ?? 1));
+  process.on("SIGINT", () => build.kill("SIGINT"));
+  process.on("SIGTERM", () => build.kill("SIGTERM"));
+});
+if (buildCode !== 0) {
+  console.error(`[test-preview] build failed with code ${buildCode}; not starting preview.`);
+  process.exit(buildCode);
+}
+
+// 2) Start preview with the same guarded child env.
+const preview = spawnBun(["run", "preview", "--host", host, "--port", port]);
+preview.on("exit", (code, signal) => {
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
-};
-
-child.on("exit", forwardExit);
-process.on("SIGINT", () => child.kill("SIGINT"));
-process.on("SIGTERM", () => child.kill("SIGTERM"));
-process.on("beforeExit", () => {
-  void cleanup();
 });
+process.on("SIGINT", () => preview.kill("SIGINT"));
+process.on("SIGTERM", () => preview.kill("SIGTERM"));

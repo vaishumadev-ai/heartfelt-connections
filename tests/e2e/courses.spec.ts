@@ -22,10 +22,11 @@ type Failures = {
   failedRequests: { url: string; failure: string | null }[];
   badResponses: { url: string; status: number }[];
   redirects: Map<string, number>;
+  navigations: string[];
 };
 
 type Allow = {
-  status4xxUrlPatterns?: RegExp[];
+  allowResponses?: { status: number; urlPattern: RegExp; max: number }[];
   consoleTextPatterns?: RegExp[];
 };
 
@@ -36,6 +37,7 @@ function attach(page: Page): Failures {
     failedRequests: [],
     badResponses: [],
     redirects: new Map(),
+    navigations: [],
   };
   page.on("pageerror", (err) => f.pageErrors.push(err.message));
   page.on("console", (msg) => {
@@ -54,6 +56,9 @@ function attach(page: Page): Failures {
       f.redirects.set(res.url(), n + 1);
     }
   });
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) f.navigations.push(frame.url());
+  });
   return f;
 }
 
@@ -65,10 +70,23 @@ function assertNoFailures(f: Failures, allow: Allow = {}) {
     (t) => !(allow.consoleTextPatterns ?? []).some((re) => re.test(t)),
   );
   expect(unexpectedConsole, "console.error").toEqual([]);
-  const unexpectedBad = f.badResponses.filter(
-    (r) => !(allow.status4xxUrlPatterns ?? []).some((re) => re.test(r.url)),
-  );
+  // Narrow allowlist: only exact (status, urlPattern) tuples up to `max`
+  // occurrences are permitted; everything else is a failure.
+  const rules = allow.allowResponses ?? [];
+  const usage = rules.map(() => 0);
+  const unexpectedBad = f.badResponses.filter((r) => {
+    for (let i = 0; i < rules.length; i++) {
+      if (r.status === rules[i].status && rules[i].urlPattern.test(r.url)) {
+        usage[i] += 1;
+        return false;
+      }
+    }
+    return true;
+  });
   expect(unexpectedBad, "http >=400").toEqual([]);
+  rules.forEach((rule, i) => {
+    expect(usage[i], `allowed response ${rule.status} ${rule.urlPattern} over budget`).toBeLessThanOrEqual(rule.max);
+  });
   expect(f.failedRequests, "failed requests").toEqual([]);
   for (const [url, n] of f.redirects) {
     expect(n, `redirect loop on ${url}`).toBeLessThanOrEqual(2);
@@ -88,31 +106,44 @@ async function readSlugs(): Promise<{ freeSlug: string; paidSlug: string }> {
 const MOBILE_BAR = "div.fixed.inset-x-0.bottom-0";
 
 test.describe("Course route – redirects & not-found", () => {
-  test("/courses redirects once to /browse", async ({ page }) => {
-    const f = attach(page);
-    const res = await page.goto("/courses", { waitUntil: "domcontentloaded" });
-    expect(res).not.toBeNull();
-    await expect(page).toHaveURL(/\/browse$/);
-    assertNoFailures(f);
-  });
+  for (const start of ["/courses", "/courses/"]) {
+    test(`${start} redirects to /browse without cycles`, async ({ page }) => {
+      const f = attach(page);
+      await page.goto(start, { waitUntil: "networkidle" });
+      await expect(page).toHaveURL(/\/browse$/);
+      // Final route renders the browse heading (public content assertion).
+      await expect(page.getByRole("heading", { name: /Browse/i }).first()).toBeVisible();
 
-  test("/courses/ redirects once to /browse", async ({ page }) => {
-    const f = attach(page);
-    await page.goto("/courses/", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/browse$/);
-    assertNoFailures(f);
-  });
+      // Path-only navigation trace — assert /browse reached and no URL
+      // revisited more than once across the whole trace.
+      const paths = f.navigations.map((u) => {
+        try {
+          return new URL(u).pathname.replace(/\/$/, "") || "/";
+        } catch {
+          return u;
+        }
+      });
+      expect(paths, "reached /browse").toContain("/browse");
+      const counts = new Map<string, number>();
+      for (const p of paths) counts.set(p, (counts.get(p) ?? 0) + 1);
+      for (const [p, n] of counts) {
+        expect(n, `navigation cycle for ${p}`).toBeLessThanOrEqual(1);
+      }
+      assertNoFailures(f);
+    });
+  }
 
   test("unknown slug renders the not-found experience", async ({ page }) => {
     const f = attach(page);
-    await page.goto("/courses/definitely-not-a-real-course-xyz-1a-tests", {
-      waitUntil: "domcontentloaded",
-    });
+    const unknown = "definitely-not-a-real-course-xyz-1a-tests";
+    await page.goto(`/courses/${unknown}`, { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: /Course not found/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Browse courses/i })).toBeVisible();
-    // Documented intentional 404 for the not-found data fetch only.
+    // Documented intentional 404: exactly the getCourseBySlug server-fn
+    // call for the unknown slug, status must be exactly 404, at most one
+    // occurrence. Any 401/403/429/5xx or unrelated server-fn 4xx fails.
     assertNoFailures(f, {
-      status4xxUrlPatterns: [/\/_serverFn\//, /getCourseBySlug/],
+      allowResponses: [{ status: 404, urlPattern: /getCourseBySlug/, max: 1 }],
     });
   });
 });
@@ -148,22 +179,43 @@ test.describe("Course route – valid fixture course", () => {
       await expect(mobileBar).toBeHidden();
     } else {
       await expect(mobileBar).toBeVisible();
-      const lastLesson = page.getByText(/Testing basics/i).first();
-      await lastLesson.scrollIntoViewIfNeeded();
+
+      // Open curriculum + FAQ so their expanded height is included in the
+      // overflow / bottom-usability checks.
+      const firstModule = page.getByRole("button", { name: /Module 1/i }).first();
+      if (await firstModule.isVisible().catch(() => false)) await firstModule.click();
+      const faq = page.getByRole("button", { name: /Do I need prior experience\?/i }).first();
+      if (await faq.isVisible().catch(() => false)) await faq.click();
+
+      // Verify the TRUE bottom of the document (past curriculum: reviews,
+      // FAQ, related courses) is reachable and none of it is obscured by
+      // the sticky bar.
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      const related = page.getByRole("link", { name: /Paid Course Fixture/i }).first();
+      await related.scrollIntoViewIfNeeded();
       const barBox = await mobileBar.boundingBox();
-      const targetBox = await lastLesson.boundingBox();
-      expect(barBox && targetBox, "layout boxes").toBeTruthy();
-      if (barBox && targetBox) {
+      const relatedBox = await related.boundingBox();
+      expect(barBox && relatedBox, "layout boxes").toBeTruthy();
+      if (barBox && relatedBox) {
         expect(
-          targetBox.y + targetBox.height,
-          "final content bottom vs mobile bar top",
-        ).toBeLessThan(barBox.y);
+          relatedBox.y + relatedBox.height,
+          "related-course link fully above sticky bar",
+        ).toBeLessThanOrEqual(barBox.y);
       }
+      await related.focus();
+      const focused = await page.evaluate(() => document.activeElement?.textContent ?? "");
+      expect(focused).toMatch(/Paid Course Fixture/i);
     }
 
     const related = page.getByRole("link", { name: /Paid Course Fixture/i });
     await expect(related.first()).toBeVisible();
 
+    // Horizontal overflow check runs AFTER curriculum + FAQ are toggled
+    // open (see above on mobile) so any oversized expanded content shows up.
+    if (!isDesktop) {
+      const firstModule = page.getByRole("button", { name: /Module 1/i }).first();
+      if (await firstModule.isVisible().catch(() => false)) await firstModule.click();
+    }
     const overflow = await page.evaluate(() => ({
       dw: document.documentElement.scrollWidth,
       cw: document.documentElement.clientWidth,

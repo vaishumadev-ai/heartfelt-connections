@@ -122,9 +122,6 @@ export function canTrackProgress(input: {
   isPublished: boolean;
 }): boolean {
   return (
-    input.entitlement === "full" &&
-    input.isEnrolled &&
-    input.priceCents === 0 &&
-    input.isPublished
+    input.entitlement === "full" && input.isEnrolled && input.priceCents === 0 && input.isPublished
   );
 }

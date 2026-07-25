@@ -406,7 +406,9 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     }
 
     // Selection uses canonically ordered authorized lessons.
-    const lastLessonId: string | null = enr ? ((enr as { last_lesson_id?: string | null }).last_lesson_id ?? null) : null;
+    const lastLessonId: string | null = enr
+      ? ((enr as { last_lesson_id?: string | null }).last_lesson_id ?? null)
+      : null;
     const selection = selectCurrentLesson({
       lessons,
       requestedLessonId: data.lessonId,

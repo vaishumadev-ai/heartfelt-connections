@@ -186,11 +186,23 @@ function Player() {
   }
 
   // ----- Ready state -----
-  const { course, lessons, current, completedLessonIds, prevId, nextId, entitlement, isEnrolled, canTrackProgress: track, progress } = data;
+  const {
+    course,
+    lessons,
+    current,
+    completedLessonIds,
+    prevId,
+    nextId,
+    entitlement,
+    isEnrolled,
+    canTrackProgress: track,
+    progress,
+  } = data;
   const completed = new Set(completedLessonIds);
   const isDone = completed.has(current.id);
   const pct = progress ?? 0;
-  const isCourseComplete = track && lessons.length > 0 && completedLessonIds.length >= lessons.length;
+  const isCourseComplete =
+    track && lessons.length > 0 && completedLessonIds.length >= lessons.length;
 
   const goToLesson = (id: string) => {
     setMobileOpen(false);
@@ -378,8 +390,17 @@ function CurriculumList({
             <h3 className="text-lg font-bold">Course progress</h3>
             <span className="text-sm font-semibold text-foreground">{pct}%</span>
           </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-            <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${pct}%` }} />
+          <div
+            className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+          >
+            <div
+              className="h-full rounded-full bg-foreground transition-all"
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </>
       )}
@@ -404,7 +425,9 @@ function CurriculumList({
                   <Circle className="h-5 w-5 text-muted-foreground/50" aria-hidden />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm ${active ? "font-semibold" : ""} truncate`}>{l.title}</div>
+                  <div className={`text-sm ${active ? "font-semibold" : ""} truncate`}>
+                    {l.title}
+                  </div>
                   {l.duration_seconds ? (
                     <div className="text-xs text-muted-foreground">
                       {Math.round(l.duration_seconds / 60)} min

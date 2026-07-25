@@ -5,9 +5,12 @@ import {
   extractProjectRef,
   referencesProduction,
   validateTestProject,
+  isValidFixtureNamespace,
+  assertValidFixtureNamespace,
 } from "@/lib/testing/production-guard";
 
 const TEST_URL = "https://test-abcdef.supabase.co";
+const OTHER_TEST_URL = "https://other-testref.supabase.co";
 const PROD_URL = `https://${PRODUCTION_PROJECT_REF}.supabase.co`;
 
 describe("production-guard", () => {
@@ -56,6 +59,28 @@ describe("production-guard", () => {
       expect(r.ok).toBe(true);
       if (r.ok) expect(r.ref).toBe("test-abcdef");
     });
+    it("rejects preview URL pointing at a different non-production project", () => {
+      const r = validateTestProject({ testSupabaseUrl: TEST_URL, supabaseUrl: OTHER_TEST_URL });
+      expect(r.ok).toBe(false);
+    });
+    it("rejects fixture client pointing at a different test project", () => {
+      const r = validateTestProject({
+        testSupabaseUrl: TEST_URL,
+        fixtureClientUrl: OTHER_TEST_URL,
+      });
+      expect(r.ok).toBe(false);
+    });
+    it("rejects projectId that does not match the test URL ref", () => {
+      const r = validateTestProject({ testSupabaseUrl: TEST_URL, projectId: "some-other" });
+      expect(r.ok).toBe(false);
+    });
+    it("rejects invalid supabase URL in supabaseUrl slot", () => {
+      const r = validateTestProject({
+        testSupabaseUrl: TEST_URL,
+        supabaseUrl: "https://example.com",
+      });
+      expect(r.ok).toBe(false);
+    });
     it("rejects the production URL in TEST_SUPABASE_URL", () => {
       const r = validateTestProject({ testSupabaseUrl: PROD_URL });
       expect(r.ok).toBe(false);
@@ -93,6 +118,38 @@ describe("production-guard", () => {
     });
     it("returns ref when valid", () => {
       expect(assertTestProject({ testSupabaseUrl: TEST_URL }, "preview").ref).toBe("test-abcdef");
+    });
+  });
+
+  describe("fixture namespace validator", () => {
+    it("accepts a valid generated namespace", () => {
+      expect(isValidFixtureNamespace("pw-20260725abcd-1a2b")).toBe(true);
+      expect(isValidFixtureNamespace("pw-abcd")).toBe(true);
+    });
+    it("rejects empty and undefined", () => {
+      expect(isValidFixtureNamespace("")).toBe(false);
+      expect(isValidFixtureNamespace(undefined)).toBe(false);
+      expect(isValidFixtureNamespace(null)).toBe(false);
+    });
+    it("rejects LIKE wildcards", () => {
+      expect(isValidFixtureNamespace("pw-%")).toBe(false);
+      expect(isValidFixtureNamespace("pw-abc%def")).toBe(false);
+      expect(isValidFixtureNamespace("pw-abc_def")).toBe(false);
+    });
+    it("rejects whitespace, path characters and uppercase", () => {
+      expect(isValidFixtureNamespace("pw- abc")).toBe(false);
+      expect(isValidFixtureNamespace("pw-a/b")).toBe(false);
+      expect(isValidFixtureNamespace("pw-a\\b")).toBe(false);
+      expect(isValidFixtureNamespace("pw-ABC")).toBe(false);
+    });
+    it("rejects missing pw- prefix (category-wide value)", () => {
+      expect(isValidFixtureNamespace("fixtures")).toBe(false);
+      expect(isValidFixtureNamespace("all")).toBe(false);
+    });
+    it("assertValidFixtureNamespace throws phase-tagged", () => {
+      expect(() => assertValidFixtureNamespace("pw-%", "teardown")).toThrow(
+        /\[production-guard\/teardown\]/,
+      );
     });
   });
 });

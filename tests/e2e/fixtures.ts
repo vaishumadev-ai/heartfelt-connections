@@ -1,5 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { assertTestProject } from "@/lib/testing/production-guard";
+import {
+  assertTestProject,
+  assertValidFixtureNamespace,
+  isValidFixtureNamespace,
+} from "@/lib/testing/production-guard";
 
 /**
  * Deterministic E2E fixtures. All rows created here are tagged with a
@@ -24,7 +28,14 @@ function adminClient(): SupabaseClient {
   const url = process.env.TEST_SUPABASE_URL!;
   const key = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY!;
   assertTestProject(
-    { testSupabaseUrl: url, fixtureClientUrl: url, supabaseUrl: process.env.SUPABASE_URL },
+    {
+      testSupabaseUrl: url,
+      fixtureClientUrl: url,
+      supabaseUrl: process.env.SUPABASE_URL,
+      viteSupabaseUrl: process.env.VITE_SUPABASE_URL,
+      projectId: process.env.SUPABASE_PROJECT_ID,
+      viteProjectId: process.env.VITE_SUPABASE_PROJECT_ID,
+    },
     "fixtures",
   );
   return createClient(url, key, {
@@ -49,12 +60,64 @@ function nsPrefix(): string {
   return `pw-${stamp}-${rand}`;
 }
 
+/**
+ * Preflight — confirm the dedicated test project actually has the Mozok
+ * schema before we attempt any fixture insert. A blank Supabase project has
+ * no tables and would surface as a confusing 500 during setup.
+ *
+ * We probe with `select ... limit 0` on each required table/column. Any
+ * error is treated as "schema missing" and we emit an actionable message
+ * telling the operator to apply repository migrations to the test project.
+ */
+const REQUIRED_TABLE_COLUMNS: Record<string, string[]> = {
+  courses: [
+    "id",
+    "slug",
+    "price_cents",
+    "is_published",
+    "category",
+    "learn_outcomes",
+    "skills",
+    "requirements",
+    "audience",
+    "faq",
+    "certificate",
+  ],
+  lessons: ["id", "course_id", "module_title", "is_preview", "content", "position"],
+  enrollments: ["id", "user_id", "course_id"],
+  lesson_completions: ["id", "user_id", "course_id", "lesson_id"],
+  reviews: ["id", "user_id", "course_id", "rating"],
+  notifications: ["id", "user_id", "title"],
+  user_roles: ["id", "user_id", "role"],
+};
+
+async function verifyTestSchema(supabase: SupabaseClient): Promise<void> {
+  const failures: string[] = [];
+  for (const [table, cols] of Object.entries(REQUIRED_TABLE_COLUMNS)) {
+    const { error } = await supabase.from(table).select(cols.join(",")).limit(0);
+    if (error) failures.push(`${table}: ${error.message}`);
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      [
+        "[fixtures/preflight] The dedicated test Supabase project is missing required schema.",
+        "Apply every migration under supabase/migrations to the test project in order,",
+        "then re-run bun run test:e2e.",
+        "Missing or incompatible objects:",
+        ...failures.map((f) => `  - ${f}`),
+      ].join("\n"),
+    );
+  }
+}
+
 /** Insert a deterministic set of fixtures and return the identifying slugs. */
 export async function createFixtures(): Promise<FixtureSlugs> {
-  const namespace = process.env.PW_FIXTURE_NAMESPACE || nsPrefix();
+  const rawNs = process.env.PW_FIXTURE_NAMESPACE || nsPrefix();
+  const namespace = assertValidFixtureNamespace(rawNs, "fixtures");
   process.env.PW_FIXTURE_NAMESPACE = namespace;
 
   const supabase = adminClient();
+  await verifyTestSchema(supabase);
 
   const freeSlug = `${namespace}-free`;
   const paidSlug = `${namespace}-paid`;
@@ -86,6 +149,28 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     certificate: true,
   } as const;
 
+  // Track every successfully-created course id so we can perform exact-ID
+  // cleanup if a later step fails.
+  const createdCourseIds: string[] = [];
+  const abortWithCleanup = async (originalErr: Error): Promise<never> => {
+    if (createdCourseIds.length === 0) throw originalErr;
+    try {
+      await destroyFixturesByIds({
+        namespace,
+        courseIds: createdCourseIds,
+        expectedSlugs: [freeSlug, paidSlug],
+      });
+    } catch (cleanupErr) {
+      const cause = (cleanupErr as Error).message;
+      const err = new Error(
+        `${originalErr.message}\n[fixtures/setup] partial-cleanup also failed: ${cause}`,
+      );
+      (err as Error & { cause?: unknown }).cause = originalErr;
+      throw err;
+    }
+    throw originalErr;
+  };
+
   const { data: free, error: freeErr } = await supabase
     .from("courses")
     .insert({
@@ -100,7 +185,10 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     })
     .select("id")
     .single();
-  if (freeErr || !free) throw new Error(`fixture free course insert failed: ${freeErr?.message}`);
+  if (freeErr || !free) {
+    return abortWithCleanup(new Error(`fixture free course insert failed: ${freeErr?.message}`));
+  }
+  createdCourseIds.push(free.id);
 
   const { data: paid, error: paidErr } = await supabase
     .from("courses")
@@ -115,7 +203,10 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     })
     .select("id")
     .single();
-  if (paidErr || !paid) throw new Error(`fixture paid course insert failed: ${paidErr?.message}`);
+  if (paidErr || !paid) {
+    return abortWithCleanup(new Error(`fixture paid course insert failed: ${paidErr?.message}`));
+  }
+  createdCourseIds.push(paid.id);
 
   // Insert modules/lessons for the free course (preview + protected).
   const lessons = [
@@ -157,7 +248,9 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     },
   ];
   const { error: lessonsErr } = await supabase.from("lessons").insert(lessons);
-  if (lessonsErr) throw new Error(`fixture lessons insert failed: ${lessonsErr.message}`);
+  if (lessonsErr) {
+    return abortWithCleanup(new Error(`fixture lessons insert failed: ${lessonsErr.message}`));
+  }
 
   // Add one preview lesson on the paid course too so both course pages render
   // a curriculum block during tests.
@@ -182,8 +275,11 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     },
   ];
   const { error: paidLessonsErr } = await supabase.from("lessons").insert(paidLessons);
-  if (paidLessonsErr)
-    throw new Error(`fixture paid lessons insert failed: ${paidLessonsErr.message}`);
+  if (paidLessonsErr) {
+    return abortWithCleanup(
+      new Error(`fixture paid lessons insert failed: ${paidLessonsErr.message}`),
+    );
+  }
 
   return {
     namespace,
@@ -195,27 +291,62 @@ export async function createFixtures(): Promise<FixtureSlugs> {
 }
 
 /**
- * Delete only rows belonging to the namespace. Uses category='fixtures' AND
- * slug prefix match to double-guard. FK cascade on lessons/reviews/enrollments
- * removes descendants.
+ * Exact-ID cleanup. Never uses a LIKE-based delete. The caller supplies the
+ * verified UUIDs (from fixture state) and the validated namespace. Before
+ * deleting, each course row is loaded and verified:
+ *   - category is 'fixtures'
+ *   - slug starts with the validated namespace + '-'
+ *   - id matches the caller-supplied list
+ * If any verification fails, we abort without deleting.
  */
-export async function destroyFixtures(namespace: string): Promise<{ deletedCourses: number }> {
-  if (!namespace) return { deletedCourses: 0 };
-  const supabase = adminClient();
-  // Safety: refuse to delete anything without a namespace prefix filter.
-  // Find the courses first, then remove children explicitly (no reliance on
-  // implicit FK cascades that may or may not exist on this schema).
-  const { data: courses, error: findErr } = await supabase
-    .from("courses")
-    .select("id")
-    .eq("category", "fixtures")
-    .like("slug", `${namespace}-%`);
-  if (findErr) throw new Error(`fixture teardown lookup failed: ${findErr.message}`);
-  const ids = (courses ?? []).map((c) => c.id);
+export async function destroyFixturesByIds(input: {
+  namespace: string;
+  courseIds: string[];
+  expectedSlugs?: string[];
+}): Promise<{ deletedCourses: number }> {
+  const namespace = assertValidFixtureNamespace(input.namespace, "teardown");
+  const ids = Array.from(
+    new Set(input.courseIds.filter((v) => typeof v === "string" && v.length > 0)),
+  );
   if (ids.length === 0) return { deletedCourses: 0 };
 
-  // Order matters: remove children before parents. Any row not tied to a
-  // fixture course id is left alone.
+  const supabase = adminClient();
+
+  // Load exact rows and verify each before deletion.
+  const { data: rows, error: findErr } = await supabase
+    .from("courses")
+    .select("id,slug,category")
+    .in("id", ids);
+  if (findErr) throw new Error(`fixture teardown lookup failed: ${findErr.message}`);
+  const found = new Map((rows ?? []).map((r) => [r.id as string, r] as const));
+
+  for (const id of ids) {
+    const row = found.get(id);
+    if (!row) {
+      // A row that no longer exists is not an error, but we skip it.
+      continue;
+    }
+    if (row.category !== "fixtures") {
+      throw new Error(
+        `[fixtures/teardown] refusing to delete course id=${id}: category '${row.category}' is not 'fixtures'.`,
+      );
+    }
+    const slug = row.slug as string;
+    if (!slug || !slug.startsWith(`${namespace}-`)) {
+      throw new Error(
+        `[fixtures/teardown] refusing to delete course id=${id}: slug '${slug}' does not start with namespace '${namespace}-'.`,
+      );
+    }
+    if (input.expectedSlugs && !input.expectedSlugs.includes(slug)) {
+      throw new Error(
+        `[fixtures/teardown] refusing to delete course id=${id}: slug '${slug}' not in expected list.`,
+      );
+    }
+  }
+
+  const verifiedIds = Array.from(found.keys());
+  if (verifiedIds.length === 0) return { deletedCourses: 0 };
+
   const cascades: { table: "lessons" | "reviews" | "enrollments" | "lesson_completions" }[] = [
     { table: "lesson_completions" },
     { table: "enrollments" },
@@ -223,10 +354,19 @@ export async function destroyFixtures(namespace: string): Promise<{ deletedCours
     { table: "lessons" },
   ];
   for (const { table } of cascades) {
-    const { error } = await supabase.from(table).delete().in("course_id", ids);
+    const { error } = await supabase.from(table).delete().in("course_id", verifiedIds);
     if (error) throw new Error(`fixture teardown ${table} failed: ${error.message}`);
   }
-  const { error: delErr } = await supabase.from("courses").delete().in("id", ids);
+  const { error: delErr } = await supabase.from("courses").delete().in("id", verifiedIds);
   if (delErr) throw new Error(`fixture teardown courses failed: ${delErr.message}`);
-  return { deletedCourses: ids.length };
+  return { deletedCourses: verifiedIds.length };
 }
+
+/** Back-compat helper — refuses to run without exact IDs. */
+export async function destroyFixtures(): Promise<{ deletedCourses: number }> {
+  throw new Error(
+    "[fixtures] destroyFixtures() is removed. Use destroyFixturesByIds({ namespace, courseIds }) with exact fixture state.",
+  );
+}
+
+export { isValidFixtureNamespace };

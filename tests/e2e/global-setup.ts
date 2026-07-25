@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { FullConfig } from "@playwright/test";
-import { assertTestProject } from "@/lib/testing/production-guard";
+import { assertTestProject, assertValidFixtureNamespace } from "@/lib/testing/production-guard";
 import { createFixtures } from "./fixtures";
 
 export const FIXTURE_STATE_PATH = path.resolve(process.cwd(), ".e2e-fixture-state.json");
@@ -43,13 +43,15 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       supabaseUrl: process.env.SUPABASE_URL,
       viteSupabaseUrl: process.env.VITE_SUPABASE_URL,
       projectId: process.env.SUPABASE_PROJECT_ID,
+      viteProjectId: process.env.VITE_SUPABASE_PROJECT_ID,
     },
     "globalSetup",
   );
 
   console.log(`[e2e/global-setup] Using dedicated test project ref: ${ref}`);
 
-  const namespace = process.env.PW_FIXTURE_NAMESPACE || `pw-${Date.now().toString(36)}`;
+  const rawNs = process.env.PW_FIXTURE_NAMESPACE || `pw-${Date.now().toString(36)}`;
+  const namespace = assertValidFixtureNamespace(rawNs, "globalSetup");
   process.env.PW_FIXTURE_NAMESPACE = namespace;
 
   const created = await createFixtures();
@@ -62,7 +64,11 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     paidCourseId: created.paidCourseId,
     createdAt: new Date().toISOString(),
   };
-  await fs.writeFile(FIXTURE_STATE_PATH, JSON.stringify(state, null, 2));
+  // Atomic state write: write to a temp path and rename into place so
+  // teardown never sees a half-written file.
+  const tmp = `${FIXTURE_STATE_PATH}.tmp-${process.pid}`;
+  await fs.writeFile(tmp, JSON.stringify(state, null, 2));
+  await fs.rename(tmp, FIXTURE_STATE_PATH);
 
   // Expose slugs to workers without inheriting the service-role key.
   process.env.PW_KNOWN_SLUG = created.freeSlug;

@@ -757,6 +757,23 @@ export function CoursePage() {
                   >
                     <Share2 className="h-4 w-4" /> Share
                   </button>
+                  {shareInfoUrl && (
+                    <div
+                      role="status"
+                      data-testid="share-fallback"
+                      className="mt-2 rounded-2xl border border-border bg-background p-3 text-xs"
+                    >
+                      <div className="mb-1 text-muted-foreground">
+                        Copy this link to share:
+                      </div>
+                      <input
+                        readOnly
+                        value={shareInfoUrl}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="w-full select-all rounded-md border border-border bg-card px-2 py-1"
+                      />
+                    </div>
+                  )}
                   <div className="mt-5 space-y-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-foreground" /> 30-day money-back

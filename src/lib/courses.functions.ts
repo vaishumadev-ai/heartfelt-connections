@@ -273,7 +273,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
 
     const { data: enr } = await supabase
       .from("enrollments")
-      .select("id")
+      .select("id, last_lesson_id")
       .eq("user_id", userId)
       .eq("course_id", course.id)
       .maybeSingle();

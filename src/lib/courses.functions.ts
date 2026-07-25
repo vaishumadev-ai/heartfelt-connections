@@ -775,7 +775,7 @@ export const submitReview = createServerFn({ method: "POST" })
     const { error } = await supabase.rpc("submit_review_verified", {
       _course_id: data.courseId,
       _rating: data.rating,
-      _body: data.body ?? undefined,
+      _body: data.body ?? "",
     });
     if (error) throw new Error(error.message);
     const rating = await recomputeCourseRating(data.courseId);

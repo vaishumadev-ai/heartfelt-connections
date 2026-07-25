@@ -378,3 +378,82 @@ export const deleteLesson = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ Reviews ============
+
+export type ReviewItem = {
+  id: string;
+  user_id: string;
+  rating: number;
+  body: string | null;
+  created_at: string;
+  author: { display_name: string | null; avatar_url: string | null } | null;
+};
+
+export const listCourseReviews = createServerFn({ method: "GET" })
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data }): Promise<ReviewItem[]> => {
+    const supabase = pubClient();
+    const { data: rows, error } = await supabase
+      .from("reviews")
+      .select("id, user_id, rating, body, created_at, author:profiles(display_name, avatar_url)")
+      .eq("course_id", data.courseId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as unknown as ReviewItem[];
+  });
+
+async function recomputeCourseRating(courseId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: rows } = await supabaseAdmin
+    .from("reviews")
+    .select("rating")
+    .eq("course_id", courseId);
+  const list = rows ?? [];
+  const avg = list.length
+    ? Math.round((list.reduce((s, r) => s + (r.rating as number), 0) / list.length) * 10) / 10
+    : 0;
+  await supabaseAdmin.from("courses").update({ rating: avg }).eq("id", courseId);
+  return avg;
+}
+
+export const submitReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; rating: number; body?: string | null }) => {
+    const rating = Math.round(Number(d.rating));
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      throw new Error("Rating must be between 1 and 5");
+    }
+    const body = (d.body ?? "").trim().slice(0, 2000) || null;
+    if (!d.courseId) throw new Error("Missing courseId");
+    return { courseId: d.courseId, rating, body };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Delete previous review from this user for the course, then insert (portable "upsert")
+    await supabase.from("reviews").delete().eq("user_id", userId).eq("course_id", data.courseId);
+    const { error } = await supabase.from("reviews").insert({
+      user_id: userId,
+      course_id: data.courseId,
+      rating: data.rating,
+      body: data.body,
+    });
+    if (error) throw new Error(error.message);
+    const rating = await recomputeCourseRating(data.courseId);
+    return { ok: true, rating };
+  });
+
+export const deleteMyReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("user_id", userId)
+      .eq("course_id", data.courseId);
+    if (error) throw new Error(error.message);
+    await recomputeCourseRating(data.courseId);
+    return { ok: true };
+  });

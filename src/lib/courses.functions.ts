@@ -697,7 +697,7 @@ export const getMyCourse = createServerFn({ method: "GET" })
     if (!course) return null;
     const { data: lessons } = await supabase
       .from("lessons")
-      .select("id, title, position, duration_seconds, content, video_url")
+      .select("id, title, position, duration_seconds, content, video_url, is_preview, module_title")
       .eq("course_id", course.id)
       .order("position", { ascending: true });
     return { course, lessons: lessons ?? [] };
@@ -720,6 +720,7 @@ export const updateCourse = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { courseId, ...rest } = data;
     // is_published is column-level revoked; never accept it here even if a
     // caller supplies it. Instructors publish only via submit_course_for_review
@@ -739,6 +740,7 @@ export const deleteCourse = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { error } = await supabase
       .from("courses")
       .delete()
@@ -759,11 +761,14 @@ export const upsertLesson = createServerFn({ method: "POST" })
       duration_seconds?: number | null;
       content?: string | null;
       video_url?: string | null;
+      is_preview?: boolean;
+      module_title?: string | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     // Verify course ownership
     const { data: owned } = await supabase
       .from("courses")
@@ -781,6 +786,8 @@ export const upsertLesson = createServerFn({ method: "POST" })
           duration_seconds: data.duration_seconds ?? null,
           content: data.content ?? null,
           video_url: data.video_url ?? null,
+          is_preview: data.is_preview ?? false,
+          module_title: data.module_title ?? null,
         })
         .eq("id", data.lessonId)
         .eq("course_id", data.courseId);
@@ -796,6 +803,8 @@ export const upsertLesson = createServerFn({ method: "POST" })
         duration_seconds: data.duration_seconds ?? null,
         content: data.content ?? null,
         video_url: data.video_url ?? null,
+        is_preview: data.is_preview ?? false,
+        module_title: data.module_title ?? null,
       })
       .select("id")
       .single();
@@ -809,6 +818,7 @@ export const deleteLesson = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { data: owned } = await supabase
       .from("courses")
       .select("id")

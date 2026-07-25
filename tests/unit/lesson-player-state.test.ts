@@ -3,7 +3,7 @@ import {
   orderLessons,
   selectCurrentLesson,
   neighborIds,
-  computeProgress,
+  clampProgress,
   canTrackProgress,
 } from "@/lib/lesson-player-state";
 
@@ -129,11 +129,18 @@ describe("neighborIds", () => {
   });
 });
 
-describe("computeProgress", () => {
-  it("returns 0 on empty course", () => expect(computeProgress(0, 0)).toBe(0));
-  it("rounds normally", () => expect(computeProgress(3, 1)).toBe(33));
-  it("clamps above 100", () => expect(computeProgress(2, 10)).toBe(100));
-  it("clamps negative done", () => expect(computeProgress(4, -1)).toBe(0));
+describe("clampProgress", () => {
+  it("rounds and clamps a database value in range", () => {
+    expect(clampProgress(42.4)).toBe(42);
+    expect(clampProgress(42.6)).toBe(43);
+  });
+  it("clamps values above 100", () => expect(clampProgress(999)).toBe(100));
+  it("clamps negative values to 0", () => expect(clampProgress(-10)).toBe(0));
+  it("treats null/undefined/NaN as 0", () => {
+    expect(clampProgress(null)).toBe(0);
+    expect(clampProgress(undefined)).toBe(0);
+    expect(clampProgress(Number.NaN)).toBe(0);
+  });
 });
 
 describe("canTrackProgress", () => {

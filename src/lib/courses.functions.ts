@@ -177,12 +177,17 @@ export const listMyEnrollments = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("enrollments")
       .select(
-        "progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes)",
+        "progress, enrolled_at, course:courses(id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, is_published)",
       )
       .eq("user_id", userId)
       .order("enrolled_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Historical paid enrollments (pre-payments) grant no learner access;
+    // hide them from active-entitlement lists. They remain in the DB for audit.
+    return (data ?? []).filter((row) => {
+      const c = row.course as { price_cents?: number; is_published?: boolean } | null;
+      return !!c && c.is_published === true && (c.price_cents ?? 0) === 0;
+    });
   });
 
 export type LessonPlayer = {

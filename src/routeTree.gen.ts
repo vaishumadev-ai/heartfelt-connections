@@ -20,6 +20,7 @@ import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedStudioCourseIdRouteImport } from './routes/_authenticated/studio.$courseId'
 import { Route as AuthenticatedLearnSlugRouteImport } from './routes/_authenticated/learn.$slug'
+import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin.courses'
 
 const BrowseRoute = BrowseRouteImport.update({
   id: '/browse',
@@ -76,6 +77,12 @@ const AuthenticatedLearnSlugRoute = AuthenticatedLearnSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => AuthenticatedLearnRoute,
 } as any)
+const AuthenticatedAdminCoursesRoute =
+  AuthenticatedAdminCoursesRouteImport.update({
+    id: '/admin/courses',
+    path: '/admin/courses',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses/': typeof CoursesIndexRoute
+  '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
 }
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
   '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses': typeof CoursesIndexRoute
+  '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
 }
@@ -112,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses/': typeof CoursesIndexRoute
+  '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/_authenticated/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/_authenticated/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
 }
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/courses/$slug'
     | '/courses/'
+    | '/admin/courses'
     | '/learn/$slug'
     | '/studio/$courseId'
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/courses/$slug'
     | '/courses'
+    | '/admin/courses'
     | '/learn/$slug'
     | '/studio/$courseId'
   id:
@@ -151,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/studio'
     | '/courses/$slug'
     | '/courses/'
+    | '/_authenticated/admin/courses'
     | '/_authenticated/learn/$slug'
     | '/_authenticated/studio/$courseId'
   fileRoutesById: FileRoutesById
@@ -243,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLearnSlugRouteImport
       parentRoute: typeof AuthenticatedLearnRoute
     }
+    '/_authenticated/admin/courses': {
+      id: '/_authenticated/admin/courses'
+      path: '/admin/courses'
+      fullPath: '/admin/courses'
+      preLoaderRoute: typeof AuthenticatedAdminCoursesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -272,12 +292,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedLearnRoute: typeof AuthenticatedLearnRouteWithChildren
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
+  AuthenticatedAdminCoursesRoute: typeof AuthenticatedAdminCoursesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedLearnRoute: AuthenticatedLearnRouteWithChildren,
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
+  AuthenticatedAdminCoursesRoute: AuthenticatedAdminCoursesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

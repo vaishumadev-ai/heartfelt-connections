@@ -368,14 +368,107 @@ export const getMyRoles = createServerFn({ method: "GET" })
     return (data ?? []).map((r) => r.role as string);
   });
 
-export const becomeInstructor = createServerFn({ method: "POST" })
+// Fail-closed role assertion for Studio server fns.
+// Throws if the RPC errors or the caller lacks the role.
+async function assertActiveInstructor(
+  supabase: {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  },
+): Promise<void> {
+  const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
+  if (error) throw new Error(`Authorization check failed: ${error.message}`);
+  const isInstructor = !!data;
+  if (isInstructor) return;
+  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", { _role: "admin" });
+  if (aErr) throw new Error(`Authorization check failed: ${aErr.message}`);
+  if (!adm) throw new Error("Instructor role required");
+}
+
+export type MyApplication = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "withdrawn";
+  application_reason: string | null;
+  decision_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const getMyInstructorApplication = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .upsert({ user_id: userId, role: "instructor" }, { onConflict: "user_id,role" });
+  .handler(async ({ context }): Promise<MyApplication | null> => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("instructor_applications")
+      .select("id, status, application_reason, decision_reason, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as MyApplication | null) ?? null;
+  });
+
+export const applyForInstructor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { reason?: string | null } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("apply_for_instructor", {
+      _reason: data?.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const withdrawInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("withdraw_instructor_application", {
+      _application_id: data.applicationId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const approveInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string; reason?: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("approve_instructor_application", {
+      _application_id: data.applicationId,
+      _reason: data.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const rejectInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { applicationId: d.applicationId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("reject_instructor_application", {
+      _application_id: data.applicationId,
+      _reason: data.reason,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const revokeInstructorRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { userId: d.userId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("revoke_instructor_role", {
+      _user_id: data.userId,
+      _reason: data.reason,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

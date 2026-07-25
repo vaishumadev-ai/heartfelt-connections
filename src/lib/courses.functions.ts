@@ -488,13 +488,14 @@ export const listMyCourses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyCourse[]> => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data, error } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, price_cents, is_published, updated_at")
+      .select("id, slug, title, subtitle, category, price_cents, is_published, updated_at, review_status")
       .eq("instructor_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []) as MyCourse[];
   });
 
 export const createCourse = createServerFn({ method: "POST" })
@@ -502,6 +503,7 @@ export const createCourse = createServerFn({ method: "POST" })
   .inputValidator((d: { title: string; category: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const base = slugify(data.title);
     const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
     const { data: row, error } = await supabase
@@ -525,6 +527,7 @@ export const getMyCourse = createServerFn({ method: "GET" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data: course, error } = await supabase
       .from("courses")
       .select("*")
@@ -553,12 +556,15 @@ export const updateCourse = createServerFn({ method: "POST" })
       price_cents?: number;
       duration_label?: string | null;
       icon_kind?: string | null;
-      is_published?: boolean;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { courseId, ...rest } = data;
+    // is_published is column-level revoked; never accept it here even if a
+    // caller supplies it. Instructors publish only via submit_course_for_review
+    // → admin approve_course.
     const { error } = await supabase
       .from("courses")
       .update(rest)
@@ -573,6 +579,7 @@ export const deleteCourse = createServerFn({ method: "POST" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { error } = await supabase
       .from("courses")
       .delete()
@@ -597,6 +604,7 @@ export const upsertLesson = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     // Verify course ownership
     const { data: owned } = await supabase
       .from("courses")
@@ -641,6 +649,7 @@ export const deleteLesson = createServerFn({ method: "POST" })
   .inputValidator((d: { lessonId: string; courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data: owned } = await supabase
       .from("courses")
       .select("id")
@@ -648,7 +657,52 @@ export const deleteLesson = createServerFn({ method: "POST" })
       .eq("instructor_id", userId)
       .maybeSingle();
     if (!owned) throw new Error("Not authorized");
-    const { error } = await supabase.from("lessons").delete().eq("id", data.lessonId);
+    // Add course_id to DELETE predicate — defense-in-depth against a guessed
+    // lessonId from another course.
+    const { error } = await supabase
+      .from("lessons")
+      .delete()
+      .eq("id", data.lessonId)
+      .eq("course_id", data.courseId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const submitCourseForReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertActiveInstructor(context.supabase);
+    const { error } = await context.supabase.rpc("submit_course_for_review", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const approveCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason?: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("approve_course", {
+      _course_id: data.courseId,
+      _reason: data.reason ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const rejectCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { courseId: d.courseId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("reject_course", {
+      _course_id: data.courseId,
+      _reason: data.reason,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

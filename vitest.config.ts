@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
+import path from "node:path";
 
 // Standalone Vitest config. Do NOT reuse the main vite.config.ts because the
 // TanStack Start plugin (nitro, code-splitter, server-fn transformer) is not
@@ -8,7 +8,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 // deterministic and fast; production behavior is verified separately by the
 // Playwright suite in tests/e2e.
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "./src") },
+  },
   test: {
     environment: "jsdom",
     globals: true,

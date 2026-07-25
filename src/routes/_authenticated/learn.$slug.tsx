@@ -97,7 +97,7 @@ function Player() {
               <button
                 onClick={() => mutation.mutate({ lessonId: current.id, courseId: course.id })}
                 disabled={mutation.isPending || isDone}
-                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-[#e6f4f8] text-[#4aa9c9]" : "bg-[#ff5a6a] text-background hover:brightness-110"} disabled:opacity-70`}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-[#e6f4f8] text-foreground" : "bg-[#ff5a6a] text-background hover:brightness-110"} disabled:opacity-70`}
               >
                 <CheckCircle2 className="h-4 w-4" /> {isDone ? "Completed" : mutation.isPending ? "Saving..." : "Mark complete"}
               </button>
@@ -129,7 +129,7 @@ function Player() {
                       onClick={() => navigate({ to: "/learn/$slug", params: { slug }, search: { lesson: l.id } })}
                       className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${active ? "bg-[#f5f5f5]" : "hover:bg-background"}`}
                     >
-                      {done ? <CheckCircle2 className="h-5 w-5 text-[#4aa9c9]" /> : <Circle className="h-5 w-5 text-gray-300" />}
+                      {done ? <CheckCircle2 className="h-5 w-5 text-foreground" /> : <Circle className="h-5 w-5 text-muted-foreground/50" />}
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm ${active ? "font-semibold" : ""} truncate`}>{l.title}</div>
                         {l.duration_seconds && <div className="text-xs text-muted-foreground">{Math.round(l.duration_seconds / 60)} min</div>}

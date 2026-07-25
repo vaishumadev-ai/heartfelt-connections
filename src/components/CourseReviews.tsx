@@ -147,7 +147,7 @@ function ReviewForm({
                 >
                   <Star
                     className={`h-6 w-6 transition ${
-                      active ? "fill-[#ffb547] text-[#ffb547]" : "text-gray-300"
+                      active ? "fill-foreground text-foreground" : "text-muted-foreground/50"
                     }`}
                   />
                 </button>
@@ -223,7 +223,7 @@ function StarRow({ value, readOnly, small }: { value: number; readOnly?: boolean
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`${size} ${n <= value ? "fill-[#ffb547] text-[#ffb547]" : "text-gray-300"}`}
+          className={`${size} ${n <= value ? "fill-foreground text-foreground" : "text-muted-foreground/50"}`}
           aria-hidden={readOnly}
         />
       ))}

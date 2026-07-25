@@ -132,19 +132,39 @@ function CoursePage() {
   const { slug } = Route.useParams();
   const { data: course } = useSuspenseQuery(courseQuery(slug));
   const [userId, setUserId] = useState<string | null>(null);
-  const [authResolved, setAuthResolved] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
+  const [authState, setAuthState] = useState<"loading" | "resolved" | "error">("loading");
+  const [authTick, setAuthTick] = useState(0);
+  const [openModules, setOpenModules] = useState<string[]>([]);
+  const [shareInfoUrl, setShareInfoUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const enroll = useServerFn(enrollInCourse);
   const fetchEnrollments = useServerFn(listMyEnrollments);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      setAuthResolved(true);
-    });
-  }, []);
+    let cancelled = false;
+    setAuthState("loading");
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setUserId(null);
+          setAuthState("error");
+          return;
+        }
+        setUserId(data.user?.id ?? null);
+        setAuthState("resolved");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUserId(null);
+        setAuthState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authTick]);
 
   const enrollmentsQuery = useQuery({
     queryKey: ["my-enrollments", userId],
@@ -153,15 +173,18 @@ function CoursePage() {
     retry: 1,
   });
 
-  const enrollmentStatus: "guest" | "loading" | "error" | "known" = !authResolved
-    ? "loading"
-    : !userId
-      ? "guest"
-      : enrollmentsQuery.isPending || enrollmentsQuery.isFetching
-        ? "loading"
-        : enrollmentsQuery.isError
-          ? "error"
-          : "known";
+  const enrollmentStatus: "guest" | "loading" | "error" | "known" =
+    authState === "loading"
+      ? "loading"
+      : authState === "error"
+        ? "error"
+        : !userId
+          ? "guest"
+          : enrollmentsQuery.isPending || enrollmentsQuery.isFetching
+            ? "loading"
+            : enrollmentsQuery.isError
+              ? "error"
+              : "known";
 
   const isEnrolled =
     enrollmentStatus === "known" && !!course
@@ -192,6 +215,9 @@ function CoursePage() {
     return Array.from(map.entries()).map(([title, lessons]) => ({ title, lessons }));
   }, [course]);
 
+  const moduleIds = useMemo(() => modules.map((_, i) => `m-${i}`), [modules]);
+  const allExpanded = moduleIds.length > 0 && openModules.length === moduleIds.length;
+
   if (!course) return null;
 
   const hours = totalHours(course.lessons);
@@ -201,18 +227,54 @@ function CoursePage() {
 
   async function share() {
     const url = window.location.href;
-    try {
-      if (navigator.share) await navigator.share({ title: course!.title, url });
-      else {
+    const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    const canCopy =
+      typeof navigator !== "undefined" &&
+      !!navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function";
+    if (canShare) {
+      try {
+        await navigator.share({ title: course!.title, url });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        if (canCopy) {
+          try {
+            await navigator.clipboard.writeText(url);
+            toast.success("Link copied");
+            return;
+          } catch {
+            /* fall through */
+          }
+        }
+        setShareInfoUrl(url);
+        return;
+      }
+    }
+    if (canCopy) {
+      try {
         await navigator.clipboard.writeText(url);
         toast.success("Link copied");
+        return;
+      } catch {
+        setShareInfoUrl(url);
+        return;
       }
-    } catch {
-      /* user cancelled */
     }
+    setShareInfoUrl(url);
   }
 
-  const retryEnrollment = () => enrollmentsQuery.refetch();
+  const retryEnrollment = () => {
+    if (authState === "error") {
+      setAuthTick((t) => t + 1);
+      return;
+    }
+    enrollmentsQuery.refetch();
+  };
+
+  const toggleExpandAll = () => {
+    setOpenModules(allExpanded ? [] : moduleIds);
+  };
 
   const renderPrimaryCta = (variant: "desktop" | "mobile") => {
     const base =
@@ -427,16 +489,17 @@ function CoursePage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setExpandAll((v) => !v)}
+                  onClick={toggleExpandAll}
                   className="text-sm font-semibold underline underline-offset-4"
                 >
-                  {expandAll ? "Collapse all" : "Expand all"}
+                  {allExpanded ? "Collapse all" : "Expand all"}
                 </button>
               </div>
               <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card">
                 <Accordion
                   type="multiple"
-                  value={expandAll ? modules.map((_, i) => `m-${i}`) : undefined}
+                  value={openModules}
+                  onValueChange={(v: string[]) => setOpenModules(v)}
                   className="w-full"
                 >
                   {modules.map((m, i) => (

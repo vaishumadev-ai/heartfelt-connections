@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { listAdminCourses, type AdminCourseRow } from "@/lib/courses.functions";
+import { listAdminCourses, mapCourseGovernanceError, type AdminCourseRow } from "@/lib/courses.functions";
 
 const adminCoursesQO = queryOptions({
   queryKey: ["admin-courses"],
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/admin/courses")({
   component: AdminCourses,
   errorComponent: ({ error }) => (
     <div className="p-8" role="alert">
-      {error.message}
+      {mapCourseGovernanceError(error)}
     </div>
   ),
 });

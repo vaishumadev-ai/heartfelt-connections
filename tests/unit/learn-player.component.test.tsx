@@ -261,7 +261,10 @@ describe("Lesson player — non-ready states", () => {
       completedLessonIds: [],
     });
     await renderPlayer();
-    expect(await screen.findByText(/paid access is not available yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/full access isn't available yet/i)).toBeInTheDocument();
+    // Never suggests a paid purchase or enrollment specifically.
+    expect(screen.queryByText(/enroll/i)).toBeNull();
+    expect(screen.queryByText(/paid/i)).toBeNull();
   });
 
   it("protected_lesson_requested state: no protected content rendered", async () => {
@@ -278,7 +281,30 @@ describe("Lesson player — non-ready states", () => {
     });
     await renderPlayer();
     expect(await screen.findByText(/lesson locked/i)).toBeInTheDocument();
+    expect(screen.getByText(/enroll to unlock this lesson/i)).toBeInTheDocument();
     // No lesson content leaks
+    expect(screen.queryByText(/Content l\d/)).toBeNull();
+  });
+
+  it("protected_lesson_requested with canSelfEnroll=false → neutral copy, no enrollment CTA", async () => {
+    getLessonPlayerMock.mockResolvedValue({
+      state: "protected_lesson_requested",
+      course: { id: "c1", slug: "test-slug", title: "T", category: "Design" },
+      entitlement: "preview",
+      isEnrolled: false,
+      canTrackProgress: false,
+      progress: null,
+      courseComplete: false,
+      canSelfEnroll: false,
+      completedLessonIds: [],
+    });
+    await renderPlayer();
+    expect(
+      await screen.findByText(/this lesson isn't available with your current access/i),
+    ).toBeInTheDocument();
+    // No "requires enrollment" / "enroll" wording, no leaked existence hint.
+    expect(screen.queryByText(/requires enrollment/i)).toBeNull();
+    expect(screen.queryByText(/enroll/i)).toBeNull();
     expect(screen.queryByText(/Content l\d/)).toBeNull();
   });
 });

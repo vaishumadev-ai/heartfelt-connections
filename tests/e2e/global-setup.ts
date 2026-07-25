@@ -14,7 +14,6 @@ const PRODUCTION_PROJECT_REF = "snfqvaoclktprpouubie";
  *   - If required test-project config is missing, FAIL with a clear error.
  *     Do not silently skip critical E2E tests.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   const testUrl = process.env.TEST_SUPABASE_URL;
   const testAnon = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;

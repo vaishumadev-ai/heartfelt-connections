@@ -157,6 +157,12 @@ function resolvedAuth(userId: string | null) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Reset implementations too so mockResolvedValueOnce queues from prior tests
+  // do not bleed across specs.
+  listMyEnrollmentsMock.mockReset();
+  enrollInCourseMock.mockReset();
+  getCourseBySlugMock.mockReset();
+  getUserMock.mockReset();
   listMyEnrollmentsMock.mockResolvedValue([]);
   enrollInCourseMock.mockResolvedValue({ ok: true });
   // default: unresolved auth (never resolves) so tests must opt in

@@ -562,3 +562,78 @@ describe("getLessonPlayer — canSelfEnroll matrix + preview filter", () => {
     expect(res.entitlement).toBe("preview");
   });
 });
+
+describe("getLessonPlayer — owner/admin fallback + active-owner access", () => {
+  it("throws when the owner/admin curriculum fallback query errors (fail-closed)", async () => {
+    // Admin viewing an unpublished draft. curriculum RPC returns empty
+    // (RPC filters unpublished), which drives the fallback direct read.
+    // The fallback returns an error — getLessonPlayer must throw and MUST
+    // NOT return empty_curriculum.
+    const supabase = makeSupabase({
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: false,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
+      isAdmin: { data: true, error: null },
+      isInstructor: { data: false, error: null },
+      enrollment: { data: null, error: null },
+      curriculumRpc: { data: [], error: null },
+      lessonsFallback: { data: null, error: { message: "fallback boom" } },
+    });
+    await expect(call(supabase, { slug: "s" })).rejects.toThrow(/fallback boom/);
+  });
+
+  it("active instructor owner receives full access and canSelfEnroll=false", async () => {
+    const supabase = makeSupabase({
+      // Owner is user-1 AND active instructor role is granted.
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: false,
+          instructor_id: "user-1",
+          price_cents: 0,
+        },
+        error: null,
+      },
+      isAdmin: { data: false, error: null },
+      isInstructor: { data: true, error: null },
+      enrollment: { data: null, error: null },
+      curriculumRpc: { data: [], error: null },
+      lessonsFallback: {
+        data: [{ id: "l1", position: 1, is_preview: false }],
+        error: null,
+      },
+      lessonsAuthorized: {
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: false,
+            content: "c",
+            video_url: null,
+          },
+        ],
+        error: null,
+      },
+    });
+    const res: any = await call(supabase, { slug: "s" });
+    expect(res.state).toBe("ready");
+    expect(res.entitlement).toBe("full");
+    expect(res.canSelfEnroll).toBe(false);
+    expect(res.canTrackProgress).toBe(false);
+    expect(res.progress).toBeNull();
+  });
+});

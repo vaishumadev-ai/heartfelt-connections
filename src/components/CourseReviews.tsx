@@ -29,13 +29,12 @@ export function CourseReviews({ courseId }: { courseId: string }) {
   const submitFn = useServerFn(submitReview);
   const deleteFn = useServerFn(deleteMyReview);
 
-  const mine = userId ? reviews.find((r) => r.user_id === userId) ?? null : null;
+  const mine = userId ? (reviews.find((r) => r.user_id === userId) ?? null) : null;
   const others = userId ? reviews.filter((r) => r.user_id !== userId) : reviews;
 
-  const avg =
-    reviews.length
-      ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
-      : 0;
+  const avg = reviews.length
+    ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
+    : 0;
 
   const submit = useMutation({
     mutationFn: (v: { rating: number; body: string }) =>
@@ -132,7 +131,9 @@ function ReviewForm({
     >
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold">{existing ? "Update your review" : "Write a review"}</div>
+          <div className="text-sm font-semibold">
+            {existing ? "Update your review" : "Write a review"}
+          </div>
           <div className="mt-2 flex items-center gap-1" onMouseLeave={() => setHover(0)}>
             {[1, 2, 3, 4, 5].map((n) => {
               const active = (hover || rating) >= n;
@@ -177,7 +178,9 @@ function ReviewForm({
         className="mt-3 w-full resize-none rounded-2xl bg-card p-4 text-sm outline-none ring-1 ring-transparent focus:ring-foreground"
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{body.length}/{MAX}</span>
+        <span className="text-xs text-muted-foreground">
+          {body.length}/{MAX}
+        </span>
         <button
           type="submit"
           disabled={pending || rating < 1}
@@ -216,7 +219,15 @@ function ReviewCard({ r }: { r: ReviewItem }) {
   );
 }
 
-function StarRow({ value, readOnly, small }: { value: number; readOnly?: boolean; small?: boolean }) {
+function StarRow({
+  value,
+  readOnly,
+  small,
+}: {
+  value: number;
+  readOnly?: boolean;
+  small?: boolean;
+}) {
   const size = small ? "h-3.5 w-3.5" : "h-4 w-4";
   return (
     <div className="flex items-center">

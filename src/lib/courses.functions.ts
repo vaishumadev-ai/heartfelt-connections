@@ -376,7 +376,9 @@ export async function assertActiveInstructor(supabase: any): Promise<void> {
   const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
   if (error) throw new Error(`Authorization check failed: ${error.message}`);
   if (data === true) return;
-  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", { _role: "admin" });
+  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", {
+    _role: "admin",
+  });
   if (aErr) throw new Error(`Authorization check failed: ${aErr.message}`);
   if (adm !== true) throw new Error("Instructor role required");
 }
@@ -488,7 +490,9 @@ export const listMyCourses = createServerFn({ method: "GET" })
     await assertActiveInstructor(supabase);
     const { data, error } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, price_cents, is_published, updated_at, review_status")
+      .select(
+        "id, slug, title, subtitle, category, price_cents, is_published, updated_at, review_status",
+      )
       .eq("instructor_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);

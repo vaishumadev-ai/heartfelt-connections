@@ -13,10 +13,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/studio/$courseId")({
   head: () => ({
-    meta: [
-      { title: "Edit course — Mozok Studio" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Edit course — Mozok Studio" }, { name: "robots", content: "noindex" }],
   }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData({
@@ -24,7 +21,11 @@ export const Route = createFileRoute("/_authenticated/studio/$courseId")({
       queryFn: () => getMyCourse({ data: { courseId: params.courseId } }),
     }),
   component: EditCourse,
-  errorComponent: ({ error }) => <div className="p-8" role="alert">{error.message}</div>,
+  errorComponent: ({ error }) => (
+    <div className="p-8" role="alert">
+      {error.message}
+    </div>
+  ),
   notFoundComponent: () => <div className="p-8">Course not found.</div>,
 });
 
@@ -45,7 +46,10 @@ function EditCourse() {
   if (!data) {
     return (
       <div className="p-8">
-        Course not found. <Link to="/studio" className="text-foreground underline">Back</Link>
+        Course not found.{" "}
+        <Link to="/studio" className="text-foreground underline">
+          Back
+        </Link>
       </div>
     );
   }
@@ -115,7 +119,10 @@ function EditCourse() {
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-4xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
-          <Link to="/studio" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
+          <Link
+            to="/studio"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black"
+          >
             <ArrowLeft className="h-4 w-4" /> Studio
           </Link>
           <div className="flex items-center gap-2">
@@ -147,28 +154,47 @@ function EditCourse() {
             )}
           </div>
         </div>
-        {rs === "rejected" && (course as { review_decision_reason?: string | null }).review_decision_reason && (
-          <div className="mb-6 rounded-2xl bg-card p-4 text-sm ring-1 ring-border">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Reviewer feedback</span>
-            <p className="mt-1">{(course as { review_decision_reason?: string | null }).review_decision_reason}</p>
-          </div>
-        )}
+        {rs === "rejected" &&
+          (course as { review_decision_reason?: string | null }).review_decision_reason && (
+            <div className="mb-6 rounded-2xl bg-card p-4 text-sm ring-1 ring-border">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">
+                Reviewer feedback
+              </span>
+              <p className="mt-1">
+                {(course as { review_decision_reason?: string | null }).review_decision_reason}
+              </p>
+            </div>
+          )}
 
         <div className="rounded-3xl bg-card p-6 md:p-8">
           <h1 className="text-2xl font-bold">Course details</h1>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Field label="Title">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={inputCls}
+              />
             </Field>
             <Field label="Category">
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
-                {["Development", "Design", "Marketing", "Language", "Security", "Business"].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={inputCls}
+              >
+                {["Development", "Design", "Marketing", "Language", "Security", "Business"].map(
+                  (c) => (
+                    <option key={c}>{c}</option>
+                  ),
+                )}
               </select>
             </Field>
             <Field label="Subtitle" full>
-              <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={inputCls} />
+              <input
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
+                className={inputCls}
+              />
             </Field>
             <Field label="Description" full>
               <textarea
@@ -196,10 +222,16 @@ function EditCourse() {
               />
             </Field>
             <Field label="Icon kind">
-              <select value={iconKind} onChange={(e) => setIconKind(e.target.value)} className={inputCls}>
+              <select
+                value={iconKind}
+                onChange={(e) => setIconKind(e.target.value)}
+                className={inputCls}
+              >
                 <option value="">None</option>
                 {["megaphone", "pencil", "cyber", "js", "html"].map((k) => (
-                  <option key={k} value={k}>{k}</option>
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -230,7 +262,9 @@ function EditCourse() {
               />
             ))}
             {lessons.length === 0 && (
-              <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">No lessons yet.</li>
+              <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+                No lessons yet.
+              </li>
             )}
           </ul>
 
@@ -238,7 +272,10 @@ function EditCourse() {
             onSubmit={(e) => {
               e.preventDefault();
               if (!newLessonTitle.trim()) return;
-              addLesson.mutate({ title: newLessonTitle.trim(), position: (lessons[lessons.length - 1]?.position ?? 0) + 1 });
+              addLesson.mutate({
+                title: newLessonTitle.trim(),
+                position: (lessons[lessons.length - 1]?.position ?? 0) + 1,
+              });
               setNewLessonTitle("");
             }}
             className="mt-4 flex gap-2"
@@ -265,7 +302,15 @@ function EditCourse() {
 const inputCls =
   "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground";
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Field({
+  label,
+  children,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
   return (
     <label className={`block ${full ? "md:col-span-2" : ""}`}>
       <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
@@ -279,7 +324,14 @@ function LessonRow({
   courseId,
   onDelete,
 }: {
-  lesson: { id: string; title: string; position: number; duration_seconds: number | null; content: string | null; video_url: string | null };
+  lesson: {
+    id: string;
+    title: string;
+    position: number;
+    duration_seconds: number | null;
+    content: string | null;
+    video_url: string | null;
+  };
   courseId: string;
   onDelete: () => void;
 }) {
@@ -326,7 +378,10 @@ function LessonRow({
           >
             {open ? "Close" : "Edit"}
           </button>
-          <button onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onDelete}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          >
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -338,16 +393,34 @@ function LessonRow({
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
           </label>
           <label>
-            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Video URL</span>
-            <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className={inputCls} />
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Video URL
+            </span>
+            <input
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              className={inputCls}
+            />
           </label>
           <label>
-            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Duration (seconds)</span>
-            <input value={dur} onChange={(e) => setDur(e.target.value)} inputMode="numeric" className={inputCls} />
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Duration (seconds)
+            </span>
+            <input
+              value={dur}
+              onChange={(e) => setDur(e.target.value)}
+              inputMode="numeric"
+              className={inputCls}
+            />
           </label>
           <label className="md:col-span-2">
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">Content</span>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} className={`${inputCls} resize-none`} />
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              className={`${inputCls} resize-none`}
+            />
           </label>
           <div className="md:col-span-2 flex justify-end">
             <button

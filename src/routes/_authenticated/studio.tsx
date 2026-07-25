@@ -17,7 +17,10 @@ import {
 
 const myCoursesQO = queryOptions({ queryKey: ["my-courses"], queryFn: () => listMyCourses() });
 const myRolesQO = queryOptions({ queryKey: ["my-roles"], queryFn: () => getMyRoles() });
-const myAppQO = queryOptions({ queryKey: ["my-instructor-app"], queryFn: () => getMyInstructorApplication() });
+const myAppQO = queryOptions({
+  queryKey: ["my-instructor-app"],
+  queryFn: () => getMyInstructorApplication(),
+});
 
 export const Route = createFileRoute("/_authenticated/studio")({
   head: () => ({
@@ -32,7 +35,11 @@ export const Route = createFileRoute("/_authenticated/studio")({
     context.queryClient.ensureQueryData(myAppQO);
   },
   component: Studio,
-  errorComponent: ({ error }) => <div className="p-8" role="alert">{error.message}</div>,
+  errorComponent: ({ error }) => (
+    <div className="p-8" role="alert">
+      {error.message}
+    </div>
+  ),
 });
 
 function Studio() {
@@ -58,7 +65,10 @@ function Studio() {
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black"
+          >
             <ArrowLeft className="h-4 w-4" /> Back to dashboard
           </Link>
         </div>
@@ -133,7 +143,9 @@ function ApplicationPanel({
       </p>
       {app && app.status === "rejected" && app.decision_reason && (
         <p className="mt-4 rounded-2xl bg-background p-3 text-sm">
-          <span className="text-xs font-semibold uppercase text-muted-foreground">Previous decision</span>
+          <span className="text-xs font-semibold uppercase text-muted-foreground">
+            Previous decision
+          </span>
           <br />
           {app.decision_reason}
         </p>
@@ -222,11 +234,16 @@ function InstructorPanel() {
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">Your courses</h2>
         {courses.length === 0 ? (
-          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">No courses yet. Create your first one above.</p>
+          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">
+            No courses yet. Create your first one above.
+          </p>
         ) : (
           <ul className="space-y-3">
             {courses.map((c: MyCourse) => (
-              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-card p-4 ring-1 ring-border">
+              <li
+                key={c.id}
+                className="flex items-center justify-between rounded-2xl bg-card p-4 ring-1 ring-border"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold">{c.title}</h3>
@@ -252,7 +269,8 @@ function InstructorPanel() {
                   </Link>
                   <button
                     onClick={() => {
-                      if (confirm(`Delete "${c.title}"? This cannot be undone.`)) remove.mutate(c.id);
+                      if (confirm(`Delete "${c.title}"? This cannot be undone.`))
+                        remove.mutate(c.id);
                     }}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-muted-foreground hover:-foreground"
                     title="Delete"

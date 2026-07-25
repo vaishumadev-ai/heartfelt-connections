@@ -60,7 +60,8 @@ function makeSupabase(spec: {
           return q;
         },
         maybeSingle() {
-          if (table === "courses") return Promise.resolve(spec.course ?? { data: null, error: null });
+          if (table === "courses")
+            return Promise.resolve(spec.course ?? { data: null, error: null });
           if (table === "enrollments")
             return Promise.resolve(spec.enrollment ?? { data: null, error: null });
           return Promise.resolve({ data: null, error: null });
@@ -70,15 +71,18 @@ function makeSupabase(spec: {
             return Promise.resolve(spec.completions ?? { data: [], error: null }).then(resolve);
           if (table === "lessons") {
             if (previewFilter.called)
-              return Promise.resolve(
-                spec.lessonsPreview ?? { data: [], error: null },
-              ).then(resolve);
+              return Promise.resolve(spec.lessonsPreview ?? { data: [], error: null }).then(
+                resolve,
+              );
             // Fallback path (owner/admin draft) uses select("id, position, is_preview")
-            if (spec.lessonsFallback && !("title" in ((spec.lessonsAuthorized?.data as any[]) ?? [])[0] ?? {}))
+            if (
+              spec.lessonsFallback &&
+              !("title" in ((spec.lessonsAuthorized?.data as any[]) ?? [])[0] ?? {})
+            )
               return Promise.resolve(spec.lessonsFallback).then(resolve);
-            return Promise.resolve(
-              spec.lessonsAuthorized ?? { data: [], error: null },
-            ).then(resolve);
+            return Promise.resolve(spec.lessonsAuthorized ?? { data: [], error: null }).then(
+              resolve,
+            );
           }
           return Promise.resolve({ data: [], error: null }).then(resolve);
         },
@@ -87,7 +91,8 @@ function makeSupabase(spec: {
     },
     rpc(name: string, args: Record<string, unknown>) {
       if (name === "has_role") {
-        if (args._role === "admin") return Promise.resolve(spec.isAdmin ?? { data: false, error: null });
+        if (args._role === "admin")
+          return Promise.resolve(spec.isAdmin ?? { data: false, error: null });
         if (args._role === "instructor")
           return Promise.resolve(spec.isInstructor ?? { data: false, error: null });
       }
@@ -108,7 +113,18 @@ beforeEach(() => vi.clearAllMocks());
 describe("getLessonPlayer — fail-closed database errors", () => {
   it("throws when the enrollment lookup errors", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: { message: "conn reset" } },
@@ -118,7 +134,18 @@ describe("getLessonPlayer — fail-closed database errors", () => {
 
   it("throws when the admin role check errors", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: null, error: { message: "role fail" } },
       isInstructor: { data: false, error: null },
     });
@@ -127,7 +154,18 @@ describe("getLessonPlayer — fail-closed database errors", () => {
 
   it("throws when the instructor role check errors (active-owner verification)", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "user-1", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "user-1",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: null, error: { message: "role fail" } },
     });
@@ -138,22 +176,63 @@ describe("getLessonPlayer — fail-closed database errors", () => {
 describe("getLessonPlayer — authoritative progress", () => {
   it("returns enrollment.progress unchanged (clamped) for trackable learners", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: { id: "e1", last_lesson_id: null, progress: 42 }, error: null },
       completions: { data: [], error: null },
       curriculumRpc: {
         data: [
-          { lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null },
-          { lesson_id: "l2", lesson_title: "L2", lesson_position: 2, duration_seconds: 300, is_preview: false, module_title: null },
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+          {
+            lesson_id: "l2",
+            lesson_title: "L2",
+            lesson_position: 2,
+            duration_seconds: 300,
+            is_preview: false,
+            module_title: null,
+          },
         ],
         error: null,
       },
       lessonsAuthorized: {
         data: [
-          { id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null },
-          { id: "l2", title: "L2", position: 2, duration_seconds: 300, is_preview: false, content: "c", video_url: null },
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+          {
+            id: "l2",
+            title: "L2",
+            position: 2,
+            duration_seconds: 300,
+            is_preview: false,
+            content: "c",
+            video_url: null,
+          },
         ],
         error: null,
       },
@@ -167,17 +246,47 @@ describe("getLessonPlayer — authoritative progress", () => {
 
   it("clamps enrollment.progress above 100", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: { id: "e1", last_lesson_id: null, progress: 999 }, error: null },
       completions: { data: [], error: null },
       curriculumRpc: {
-        data: [{ lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null }],
+        data: [
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+        ],
         error: null,
       },
       lessonsAuthorized: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });
@@ -188,16 +297,46 @@ describe("getLessonPlayer — authoritative progress", () => {
 
   it("returns progress=null for preview (untrackable) viewers", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: null },
       curriculumRpc: {
-        data: [{ lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null }],
+        data: [
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+        ],
         error: null,
       },
       lessonsPreview: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });
@@ -210,19 +349,54 @@ describe("getLessonPlayer — authoritative progress", () => {
 describe("getLessonPlayer — canSelfEnroll matrix + preview filter", () => {
   it("preview query filters is_preview=true for preview viewers", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: null },
       curriculumRpc: {
         data: [
-          { lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null },
-          { lesson_id: "l2", lesson_title: "L2", lesson_position: 2, duration_seconds: 300, is_preview: false, module_title: null },
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+          {
+            lesson_id: "l2",
+            lesson_title: "L2",
+            lesson_position: 2,
+            duration_seconds: 300,
+            is_preview: false,
+            module_title: null,
+          },
         ],
         error: null,
       },
       lessonsPreview: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });
@@ -234,16 +408,46 @@ describe("getLessonPlayer — canSelfEnroll matrix + preview filter", () => {
 
   it("canSelfEnroll=false for paid published courses", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 4999 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 4999,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: null },
       curriculumRpc: {
-        data: [{ lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null }],
+        data: [
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+        ],
         error: null,
       },
       lessonsPreview: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });
@@ -253,16 +457,46 @@ describe("getLessonPlayer — canSelfEnroll matrix + preview filter", () => {
 
   it("canSelfEnroll=false for admin viewer of a free course", async () => {
     const supabase = makeSupabase({
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "other", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "other",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: true, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: null },
       curriculumRpc: {
-        data: [{ lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: false, module_title: null }],
+        data: [
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: false,
+            module_title: null,
+          },
+        ],
         error: null,
       },
       lessonsAuthorized: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: false, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: false,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });
@@ -276,16 +510,46 @@ describe("getLessonPlayer — canSelfEnroll matrix + preview filter", () => {
   it("instructor_id match WITHOUT active instructor role does NOT grant full access", async () => {
     const supabase = makeSupabase({
       // instructor_id matches user-1, but role is revoked (isInstructor=false).
-      course: { data: { id: "c1", slug: "s", title: "t", category: "d", is_published: true, instructor_id: "user-1", price_cents: 0 }, error: null },
+      course: {
+        data: {
+          id: "c1",
+          slug: "s",
+          title: "t",
+          category: "d",
+          is_published: true,
+          instructor_id: "user-1",
+          price_cents: 0,
+        },
+        error: null,
+      },
       isAdmin: { data: false, error: null },
       isInstructor: { data: false, error: null },
       enrollment: { data: null, error: null },
       curriculumRpc: {
-        data: [{ lesson_id: "l1", lesson_title: "L1", lesson_position: 1, duration_seconds: 300, is_preview: true, module_title: null }],
+        data: [
+          {
+            lesson_id: "l1",
+            lesson_title: "L1",
+            lesson_position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            module_title: null,
+          },
+        ],
         error: null,
       },
       lessonsPreview: {
-        data: [{ id: "l1", title: "L1", position: 1, duration_seconds: 300, is_preview: true, content: "c", video_url: null }],
+        data: [
+          {
+            id: "l1",
+            title: "L1",
+            position: 1,
+            duration_seconds: 300,
+            is_preview: true,
+            content: "c",
+            video_url: null,
+          },
+        ],
         error: null,
       },
     });

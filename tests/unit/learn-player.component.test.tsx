@@ -183,9 +183,7 @@ describe("Lesson player — entitlement matrix", () => {
 describe("Lesson player — completion flow", () => {
   it("rapid repeated completion coalesces into exactly one mutation call", async () => {
     let resolve!: (v: any) => void;
-    markLessonCompleteMock.mockImplementation(
-      () => new Promise((r) => (resolve = r)),
-    );
+    markLessonCompleteMock.mockImplementation(() => new Promise((r) => (resolve = r)));
     getLessonPlayerMock.mockResolvedValue(readyDTO({ progress: 0 }));
     await renderPlayer();
     const btn = await screen.findByRole("button", { name: /mark complete/i });

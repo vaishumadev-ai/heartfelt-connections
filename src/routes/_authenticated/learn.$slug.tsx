@@ -178,11 +178,7 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
     return (
       <StateShell
         title="No preview available"
-        message={
-          canEnroll
-            ? "Enroll to unlock the course."
-            : "Paid access is not available yet."
-        }
+        message={canEnroll ? "Enroll to unlock the course." : "Paid access is not available yet."}
         cta={{ label: "Go to course", to: "/courses/$slug", params: { slug } }}
       />
     );

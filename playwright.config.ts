@@ -4,6 +4,27 @@ const PORT = Number(process.env.PW_PORT ?? 4173);
 const HOST = process.env.PW_HOST ?? "127.0.0.1";
 const BASE_URL = `http://${HOST}:${PORT}`;
 
+// Fail fast at config-load time when required TEST Supabase config is missing.
+// This prevents Playwright from silently spinning up a webServer against
+// production credentials and gives a clear "not configured" signal instead of
+// a webServer timeout. See tests/e2e/global-setup.ts for the fixture guard.
+const REQUIRED_TEST_ENV = [
+  "TEST_SUPABASE_URL",
+  "TEST_SUPABASE_PUBLISHABLE_KEY",
+  "TEST_SUPABASE_SERVICE_ROLE_KEY",
+];
+const missingTestEnv = REQUIRED_TEST_ENV.filter((k) => !process.env[k]);
+if (missingTestEnv.length > 0 && !process.env.PW_ALLOW_UNCONFIGURED) {
+  throw new Error(
+    [
+      "Playwright E2E is not configured.",
+      `Missing: ${missingTestEnv.join(", ")}.`,
+      "Provide a DEDICATED test Supabase project and re-run.",
+      "Set PW_ALLOW_UNCONFIGURED=1 to load config for tooling introspection only (will still fail in globalSetup).",
+    ].join(" "),
+  );
+}
+
 // Viewports required by 1A-tests scope.
 const viewports = [
   { name: "mobile-360", width: 360, height: 800 },

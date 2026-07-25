@@ -91,6 +91,13 @@ function EditCourse() {
     rejected: "Rejected",
   };
   const canSubmit = rs === "draft" || rs === "rejected";
+  const isEditable = rs === "draft" || rs === "rejected";
+  const lockedMessage =
+    rs === "pending_review"
+      ? "This course is awaiting admin review. Content is locked until a decision is made."
+      : rs === "approved"
+        ? "This course is approved and live. An admin must unpublish it for edit before changes can be made."
+        : "";
 
   const addLesson = useMutation({
     mutationFn: (v: { title: string; position: number }) =>
@@ -166,6 +173,15 @@ function EditCourse() {
               </p>
             </div>
           )}
+        {!isEditable && lockedMessage && (
+          <div
+            role="status"
+            className="mb-6 rounded-2xl bg-foreground/5 p-4 text-sm ring-1 ring-border"
+          >
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Locked</span>
+            <p className="mt-1">{lockedMessage}</p>
+          </div>
+        )}
 
         <div className="rounded-3xl bg-card p-6 md:p-8">
           <h1 className="text-2xl font-bold">Course details</h1>

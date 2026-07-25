@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@ta
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Play, Heart, Clock, CheckCircle2 } from "lucide-react";
-import { getCourseBySlug, enrollInCourse } from "@/lib/courses.functions";
+import { getCourseBySlug, enrollInCourse, type CourseDetail } from "@/lib/courses.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ const courseQuery = (slug: string) =>
 
 export const Route = createFileRoute("/courses/$slug")({
   head: ({ loaderData }) => {
-    const c = loaderData;
+    const c = loaderData as CourseDetail | undefined;
     if (!c) return { meta: [{ title: "Course not found — Mozok" }, { name: "robots", content: "noindex" }] };
     const title = `${c.title} — Mozok`;
     const desc = c.subtitle ?? c.description?.slice(0, 150) ?? "Learn on Mozok.";

@@ -128,7 +128,7 @@ function totalHours(lessons: CourseDetail["lessons"]) {
   return Math.max(1, Math.round(secs / 3600));
 }
 
-function CoursePage() {
+export function CoursePage() {
   const { slug } = Route.useParams();
   const { data: course } = useSuspenseQuery(courseQuery(slug));
   const [userId, setUserId] = useState<string | null>(null);

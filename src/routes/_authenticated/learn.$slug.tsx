@@ -434,10 +434,9 @@ function StateShell({
       <div className="rounded-3xl bg-card p-10 text-center max-w-md">
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="mt-2 text-muted-foreground">{message}</p>
-        {/* @ts-expect-error dynamic link target */}
         <Link
-          to={cta.to}
-          params={cta.params}
+          to={cta.to as "/browse"}
+          params={cta.params as { slug: string } | undefined}
           className="mt-6 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background"
         >
           {cta.label}

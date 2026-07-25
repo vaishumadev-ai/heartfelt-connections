@@ -72,37 +72,12 @@ describe("resolveLessonEntitlement", () => {
 });
 
 /**
- * Progress-cap and cross-course rejection are enforced inside the
- * `complete_lesson` SECURITY DEFINER RPC. Since that logic lives in
- * Postgres, these behaviours are asserted here as documented contract
- * expectations and re-verified in the deferred E2E matrix (paid
- * completion rejected, cross-course completion rejected, progress
- * cannot exceed 100).
+ * Deferred database integration tests (not unit-testable in-process; require
+ * a live Postgres with the migration applied). Tracked for the parked E2E
+ * environment / Phase 1B DB integration matrix:
+ *   - complete_lesson rejects paid-course learner progress (SQLSTATE 42501)
+ *   - complete_lesson rejects cross-course completion
+ *     (lesson.course_id != _course_id)
+ *   - complete_lesson caps progress at 100
+ *   - getLessonPlayer fails closed when has_role infrastructure errors
  */
-describe("complete_lesson RPC contract (documented)", () => {
-  it("rejects paid-course learner progress", () => {
-    // Contract: RPC raises SQLSTATE 42501 when courses.price_cents <> 0.
-    expect(true).toBe(true);
-  });
-  it("rejects cross-course completion (lesson.course_id != _course_id)", () => {
-    // Contract: RPC raises 'Lesson does not belong to course'.
-    expect(true).toBe(true);
-  });
-  it("caps progress at 100", () => {
-    // Contract: RPC clamps _progress to [0, 100] before UPDATE.
-    expect(true).toBe(true);
-  });
-});
-
-/**
- * Role-check error handling: getLessonPlayer must throw when the has_role
- * RPC returns an error, never silently downgrade to isAdmin=false. This is
- * asserted by inspecting the source contract; the runtime path is covered
- * by the deferred E2E matrix (revoked has_role EXECUTE → authenticated
- * request fails closed).
- */
-describe("has_role failure semantics (documented)", () => {
-  it("authorization infrastructure errors surface as thrown errors", () => {
-    expect(true).toBe(true);
-  });
-});

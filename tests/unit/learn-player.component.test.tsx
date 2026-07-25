@@ -334,3 +334,209 @@ describe("Lesson player — navigation", () => {
     expect(await screen.findByRole("button", { name: /open curriculum/i })).toBeInTheDocument();
   });
 });
+
+// ---------------- URL resume sync ----------------
+
+describe("Lesson player — URL resume sync", () => {
+  it("no lesson search param: server-resolved resume triggers replace navigation exactly once", async () => {
+    const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ lessons, current: lessons[1], prevId: "l1", nextId: "l3" }),
+    );
+    const { rerender, qc } = await renderPlayer();
+    await screen.findByText(/Content l2/);
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1));
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/learn/$slug",
+        params: { slug: "test-slug" },
+        search: { lesson: "l2" },
+        replace: true,
+      }),
+    );
+    // Rerender / refetch does not create a navigation loop.
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    rerender(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" />
+      </QueryClientProvider>,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("explicit lesson param: server never triggers a replace navigation", async () => {
+    const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ lessons, current: lessons[2], prevId: "l2", nextId: null }),
+    );
+    await renderPlayer({ lessonId: "l3" });
+    await screen.findByText(/Content l3/);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------- Mobile Sheet ----------------
+
+describe("Lesson player — Mobile Sheet interaction", () => {
+  it("opens the curriculum, selecting a lesson closes the sheet and navigates with the lesson id", async () => {
+    const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ lessons, current: lessons[0], prevId: null, nextId: "l2" }),
+    );
+    await renderPlayer();
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", { name: /open curriculum/i });
+    await user.click(trigger);
+    // Sheet opens — a curriculum panel with role=dialog is now present.
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    // Select "Lesson l3" from the mobile curriculum list (scoped to dialog).
+    const l3Button = await screen.findByRole("button", { name: /lesson l3/i });
+    await user.click(l3Button);
+    // Navigation received the selected lesson id (no replace).
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/learn/$slug",
+        params: { slug: "test-slug" },
+        search: { lesson: "l3" },
+      }),
+    );
+    // Sheet closes.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Focus restoration to the trigger is asserted by Radix in real browsers;
+    // jsdom's focus semantics are unreliable for this specific check, so it
+    // is parked as Playwright coverage — see phase 1A E2E gate.
+  });
+});
+
+// ---------------- Completion accessibility ----------------
+
+describe("Lesson player — completion accessibility live regions", () => {
+  it("success announces a saved message and no raw error text is present", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO({ progress: 0 }));
+    markLessonCompleteMock.mockResolvedValueOnce({ progress: 50 });
+    await renderPlayer();
+    const user = userEvent.setup();
+    const btn = await screen.findByRole("button", { name: /mark complete/i });
+    await user.click(btn);
+    const polite = await screen.findByTestId("completion-status-polite");
+    await waitFor(() =>
+      expect(polite).toHaveTextContent(/lesson complete\. progress saved/i),
+    );
+    // No raw error text ever appears.
+    expect(screen.queryByText(/boom|policy|postgres|RLS|permission/i)).toBeNull();
+  });
+
+  it("failure announces friendly copy, no raw error surfaced, retry clears failure", async () => {
+    markLessonCompleteMock.mockRejectedValueOnce(
+      new Error("permission denied for table courses (RLS policy X)"),
+    );
+    getLessonPlayerMock.mockResolvedValue(readyDTO({ progress: 0 }));
+    await renderPlayer();
+    const user = userEvent.setup();
+    const btn = await screen.findByRole("button", { name: /mark complete/i });
+    await user.click(btn);
+    const alert = await screen.findByTestId("completion-status-alert");
+    await waitFor(() =>
+      expect(alert).toHaveTextContent(/we couldn't save your progress\. please try again/i),
+    );
+    // Raw error message must be absent everywhere.
+    expect(screen.queryByText(/permission denied/i)).toBeNull();
+    expect(screen.queryByText(/RLS/i)).toBeNull();
+    expect(screen.queryByText(/policy X/i)).toBeNull();
+    // Retry clears the previous failure message before the next attempt.
+    markLessonCompleteMock.mockResolvedValueOnce({ progress: 50 });
+    await user.click(screen.getByRole("button", { name: /mark complete/i }));
+    await waitFor(() => expect(alert).toHaveTextContent(""));
+  });
+
+  it("rapid activation still yields exactly one request (single-flight)", async () => {
+    let resolve!: (v: any) => void;
+    markLessonCompleteMock.mockImplementation(() => new Promise((r) => (resolve = r)));
+    getLessonPlayerMock.mockResolvedValue(readyDTO({ progress: 0 }));
+    await renderPlayer();
+    const btn = await screen.findByRole("button", { name: /mark complete/i });
+    const user = userEvent.setup();
+    await user.click(btn);
+    await user.click(btn);
+    await user.click(btn);
+    expect(markLessonCompleteMock).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ progress: 50 }));
+  });
+});
+
+// ---------------- Error boundary + retry recovery ----------------
+
+describe("Lesson player — error boundary retry recovery", () => {
+  // Manual ErrorBoundary + QueryErrorResetBoundary mirrors the Router
+  // errorComponent contract without pulling the whole router into tests.
+  class TestErrorBoundary extends React.Component<
+    { fallback: (props: { error: Error; reset: () => void }) => React.ReactElement; onReset?: () => void; children: React.ReactNode },
+    { error: Error | null }
+  > {
+    state = { error: null as Error | null };
+    static getDerivedStateFromError(error: Error) {
+      return { error };
+    }
+    reset = () => {
+      this.props.onReset?.();
+      this.setState({ error: null });
+    };
+    render() {
+      if (this.state.error) {
+        return this.props.fallback({ error: this.state.error, reset: this.reset });
+      }
+      return this.props.children;
+    }
+  }
+
+  it("rejected query renders friendly boundary; Retry re-runs and recovers", async () => {
+    const { QueryErrorResetBoundary } = await import("@tanstack/react-query");
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    // First call fails with a leak-shaped raw error, second call succeeds.
+    getLessonPlayerMock
+      .mockRejectedValueOnce(
+        new Error(
+          "permission denied for function get_course_curriculum (policy courses_admin)",
+        ),
+      )
+      .mockResolvedValueOnce(readyDTO({ progress: 0 }));
+    const qc = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: 0, staleTime: 0 },
+        mutations: { retry: false },
+      },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <QueryErrorResetBoundary>
+          {({ reset: qReset }) => (
+            <TestErrorBoundary
+              onReset={qReset}
+              fallback={({ error, reset }) => (
+                <mod.PlayerErrorComponent error={error} reset={reset} />
+              )}
+            >
+              <React.Suspense fallback={<div>loading…</div>}>
+                <mod.PlayerBody slug="test-slug" />
+              </React.Suspense>
+            </TestErrorBoundary>
+          )}
+        </QueryErrorResetBoundary>
+      </QueryClientProvider>,
+    );
+    // Friendly boundary renders.
+    expect(await screen.findByText(/we couldn't load this lesson/i)).toBeInTheDocument();
+    // Raw error text is absent everywhere.
+    expect(screen.queryByText(/permission denied/i)).toBeNull();
+    expect(screen.queryByText(/get_course_curriculum/i)).toBeNull();
+    expect(screen.queryByText(/courses_admin/i)).toBeNull();
+    // Click Retry — second request succeeds and the player renders.
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    expect(routerInvalidateSpy).toHaveBeenCalledWith({ forcePending: true });
+    expect(await screen.findByText(/Content l1/)).toBeInTheDocument();
+  });
+});

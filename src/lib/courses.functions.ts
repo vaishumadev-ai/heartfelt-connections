@@ -522,17 +522,24 @@ export const getMyRoles = createServerFn({ method: "GET" })
 
 // Fail-closed role assertion for Studio server fns.
 // Throws if the RPC errors or the caller lacks the role.
+// Admins do NOT satisfy this gate — Studio server fns are ownership-
+// scoped and are for active instructors only. Admin governance work
+// runs through admin-scoped RPCs.
 // Exported for unit tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function assertActiveInstructor(supabase: any): Promise<void> {
   const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
   if (error) throw new Error(`Authorization check failed: ${error.message}`);
-  if (data === true) return;
-  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", {
-    _role: "admin",
-  });
-  if (aErr) throw new Error(`Authorization check failed: ${aErr.message}`);
-  if (adm !== true) throw new Error("Instructor role required");
+  if (data !== true) throw new Error("Instructor role required");
+}
+
+// Fail-closed editability pre-check. Returns true only when the DB helper
+// returns exactly true. Any RPC failure or non-true value denies editing.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCourseEditable(supabase: any, courseId: string): Promise<void> {
+  const { data, error } = await supabase.rpc("course_is_editable", { _course_id: courseId });
+  if (error) throw new Error(`Editability check failed: ${error.message}`);
+  if (data !== true) throw new Error("Course locked: not in an editable state");
 }
 
 export type MyApplication = {
@@ -690,7 +697,7 @@ export const getMyCourse = createServerFn({ method: "GET" })
     if (!course) return null;
     const { data: lessons } = await supabase
       .from("lessons")
-      .select("id, title, position, duration_seconds, content, video_url")
+      .select("id, title, position, duration_seconds, content, video_url, is_preview, module_title")
       .eq("course_id", course.id)
       .order("position", { ascending: true });
     return { course, lessons: lessons ?? [] };
@@ -713,6 +720,7 @@ export const updateCourse = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { courseId, ...rest } = data;
     // is_published is column-level revoked; never accept it here even if a
     // caller supplies it. Instructors publish only via submit_course_for_review
@@ -732,6 +740,7 @@ export const deleteCourse = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { error } = await supabase
       .from("courses")
       .delete()
@@ -752,11 +761,14 @@ export const upsertLesson = createServerFn({ method: "POST" })
       duration_seconds?: number | null;
       content?: string | null;
       video_url?: string | null;
+      is_preview?: boolean;
+      module_title?: string | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     // Verify course ownership
     const { data: owned } = await supabase
       .from("courses")
@@ -774,6 +786,8 @@ export const upsertLesson = createServerFn({ method: "POST" })
           duration_seconds: data.duration_seconds ?? null,
           content: data.content ?? null,
           video_url: data.video_url ?? null,
+          is_preview: data.is_preview ?? false,
+          module_title: data.module_title ?? null,
         })
         .eq("id", data.lessonId)
         .eq("course_id", data.courseId);
@@ -789,6 +803,8 @@ export const upsertLesson = createServerFn({ method: "POST" })
         duration_seconds: data.duration_seconds ?? null,
         content: data.content ?? null,
         video_url: data.video_url ?? null,
+        is_preview: data.is_preview ?? false,
+        module_title: data.module_title ?? null,
       })
       .select("id")
       .single();
@@ -802,6 +818,7 @@ export const deleteLesson = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
+    await assertCourseEditable(supabase, data.courseId);
     const { data: owned } = await supabase
       .from("courses")
       .select("id")

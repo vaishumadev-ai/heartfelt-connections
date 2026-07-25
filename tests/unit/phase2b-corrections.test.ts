@@ -4,17 +4,27 @@ import path from "node:path";
 import { isCourseEditable, mapCourseGovernanceError } from "@/lib/courses.functions";
 
 describe("isCourseEditable — truth table", () => {
-  const cases: Array<[
-    { is_published?: boolean | null; review_status?: string | null },
-    boolean,
-    string,
-  ]> = [
+  const cases: Array<
+    [{ is_published?: boolean | null; review_status?: string | null }, boolean, string]
+  > = [
     [{ is_published: false, review_status: "draft" }, true, "draft + unpublished"],
     [{ is_published: false, review_status: "rejected" }, true, "rejected + unpublished"],
-    [{ is_published: false, review_status: "pending_review" }, false, "pending_review + unpublished"],
-    [{ is_published: false, review_status: "approved" }, false, "approved + unpublished (inconsistent)"],
+    [
+      { is_published: false, review_status: "pending_review" },
+      false,
+      "pending_review + unpublished",
+    ],
+    [
+      { is_published: false, review_status: "approved" },
+      false,
+      "approved + unpublished (inconsistent)",
+    ],
     [{ is_published: true, review_status: "draft" }, false, "draft + published (inconsistent)"],
-    [{ is_published: true, review_status: "rejected" }, false, "rejected + published (inconsistent)"],
+    [
+      { is_published: true, review_status: "rejected" },
+      false,
+      "rejected + published (inconsistent)",
+    ],
     [{ is_published: true, review_status: "approved" }, false, "approved + published"],
     [{ is_published: null, review_status: "draft" }, false, "null published"],
     [{ is_published: false, review_status: null }, false, "null status"],
@@ -38,17 +48,22 @@ describe("mapCourseGovernanceError — stable copy, no raw leakage", () => {
     expect(mapCourseGovernanceError(new Error("Course not found"))).toMatch(/not found/i);
   });
   it("maps invalid state", () => {
-    expect(mapCourseGovernanceError(new Error("Course not in published/approved state")))
-      .toMatch(/not in a state/i);
+    expect(mapCourseGovernanceError(new Error("Course not in published/approved state"))).toMatch(
+      /not in a state/i,
+    );
   });
   it("maps learner-history blocks", () => {
-    expect(mapCourseGovernanceError(new Error("Course has learner reviews")))
-      .toMatch(/learner history/i);
-    expect(mapCourseGovernanceError(new Error("Course has learner enrollments")))
-      .toMatch(/learner history/i);
+    expect(mapCourseGovernanceError(new Error("Course has learner reviews"))).toMatch(
+      /learner history/i,
+    );
+    expect(mapCourseGovernanceError(new Error("Course has learner enrollments"))).toMatch(
+      /learner history/i,
+    );
   });
   it("falls back to generic copy — never leaks raw Postgres text", () => {
-    const out = mapCourseGovernanceError(new Error('duplicate key value violates unique constraint "reviews_pkey"'));
+    const out = mapCourseGovernanceError(
+      new Error('duplicate key value violates unique constraint "reviews_pkey"'),
+    );
     expect(out).not.toMatch(/duplicate key/i);
     expect(out).not.toMatch(/pkey/i);
     expect(out).toMatch(/try again/i);

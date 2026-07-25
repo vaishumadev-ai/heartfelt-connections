@@ -1074,16 +1074,32 @@ export function isCourseEditable(input: {
 export function mapCourseGovernanceError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err ?? "");
   const s = raw.toLowerCase();
-  if (s.includes("not authenticated") || s.includes("unauthorized") || s.includes("admin only") || s.includes("42501") || s.includes("28000")) {
+  if (
+    s.includes("not authenticated") ||
+    s.includes("unauthorized") ||
+    s.includes("admin only") ||
+    s.includes("42501") ||
+    s.includes("28000")
+  ) {
     return "You don't have permission to perform this action.";
   }
   if (s.includes("course not found") || s.includes("42704")) {
     return "Course not found.";
   }
-  if (s.includes("not in published/approved state") || s.includes("not in a submittable state") || s.includes("not pending") || s.includes("22023")) {
+  if (
+    s.includes("not in published/approved state") ||
+    s.includes("not in a submittable state") ||
+    s.includes("not pending") ||
+    s.includes("22023")
+  ) {
     return "This course is not in a state that allows this action.";
   }
-  if (s.includes("learner enrollments") || s.includes("learner completions") || s.includes("learner reviews") || s.includes("learner history")) {
+  if (
+    s.includes("learner enrollments") ||
+    s.includes("learner completions") ||
+    s.includes("learner reviews") ||
+    s.includes("learner history")
+  ) {
     return "Learner history prevents editing this course.";
   }
   return "Something went wrong. Please try again in a moment.";
@@ -1100,10 +1116,9 @@ export const getAdminCourse = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row) return null;
-    const { data: lessons, error: lErr } = await context.supabase.rpc(
-      "get_admin_course_lessons",
-      { _course_id: data.courseId },
-    );
+    const { data: lessons, error: lErr } = await context.supabase.rpc("get_admin_course_lessons", {
+      _course_id: data.courseId,
+    });
     if (lErr) throw new Error(lErr.message);
     return {
       ...(row as AdminCourseDetail),

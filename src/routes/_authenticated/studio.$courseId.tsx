@@ -454,9 +454,7 @@ function LessonRow({
               onChange={(e) => setIsPreview(e.target.checked)}
               disabled={!isEditable}
             />
-            <span className="text-xs font-semibold text-muted-foreground">
-              Free preview lesson
-            </span>
+            <span className="text-xs font-semibold text-muted-foreground">Free preview lesson</span>
           </label>
           <label>
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">

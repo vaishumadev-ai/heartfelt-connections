@@ -3,14 +3,15 @@ import { useQueryClient, useMutation, useSuspenseQuery, queryOptions } from "@ta
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { getAdminCourse, unpublishForEdit, mapCourseGovernanceError } from "@/lib/courses.functions";
+import {
+  getAdminCourse,
+  unpublishForEdit,
+  mapCourseGovernanceError,
+} from "@/lib/courses.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/courses/$courseId")({
   head: () => ({
-    meta: [
-      { title: "Admin · Course detail — Mozok" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Admin · Course detail — Mozok" }, { name: "robots", content: "noindex" }],
   }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(
@@ -43,8 +44,7 @@ function AdminCourseDetail() {
   const [err, setErr] = useState<string | null>(null);
 
   const unpublish = useMutation({
-    mutationFn: (v: { reason: string }) =>
-      unpublishFn({ data: { courseId, reason: v.reason } }),
+    mutationFn: (v: { reason: string }) => unpublishFn({ data: { courseId, reason: v.reason } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course", courseId] });
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
@@ -124,9 +124,7 @@ function AdminCourseDetail() {
                     <div className="min-w-0">
                       <div className="truncate font-semibold">{l.title}</div>
                       {l.module_title && (
-                        <div className="text-[11px] text-muted-foreground">
-                          {l.module_title}
-                        </div>
+                        <div className="text-[11px] text-muted-foreground">{l.module_title}</div>
                       )}
                     </div>
                   </div>
@@ -157,8 +155,8 @@ function AdminCourseDetail() {
           </p>
           {!data.can_unpublish ? (
             <div className="mt-4 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
-              This course cannot be unpublished from here. It must be approved and published,
-              with zero enrollments and zero completions.
+              This course cannot be unpublished from here. It must be approved and published, with
+              zero enrollments and zero completions.
             </div>
           ) : (
             <form
@@ -186,7 +184,10 @@ function AdminCourseDetail() {
                 />
               </label>
               {err && (
-                <div className="mt-3 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+                <div
+                  className="mt-3 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive"
+                  role="alert"
+                >
                   {err}
                 </div>
               )}

@@ -84,9 +84,7 @@ function Studio() {
             </div>
           </div>
 
-          {isAdmin && !isInstructor && (
-            <AdminOnlyPanel />
-          )}
+          {isAdmin && !isInstructor && <AdminOnlyPanel />}
           {isInstructor && <InstructorPanel />}
           {!isInstructor && !isAdmin && (
             <ApplicationPanel
@@ -123,8 +121,8 @@ function AdminOnlyPanel() {
         </Link>
       </div>
       <p className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
-        You're signed in as an admin. Studio authoring is instructor-only. Apply for an
-        instructor role from a separate account if you want to author courses.
+        You're signed in as an admin. Studio authoring is instructor-only. Apply for an instructor
+        role from a separate account if you want to author courses.
       </p>
     </div>
   );

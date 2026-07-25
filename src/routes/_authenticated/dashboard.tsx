@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Bell, Menu, Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, FileCode, LogOut, BookOpen, Compass, GraduationCap } from "lucide-react";
+import { Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, FileCode, LogOut, BookOpen, Compass, GraduationCap } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { listCourses, type CourseCard } from "@/lib/courses.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { MobileMenu } from "@/components/MobileMenu";
 import heroPerson from "@/assets/doodle-learner.png";
 import megaphone from "@/assets/doodle-megaphone.png";
 import pencil from "@/assets/doodle-pencil.png";
@@ -90,9 +92,9 @@ function Dashboard() {
               <Link to="/browse" title="Browse"><Compass className="h-5 w-5" /></Link>
               <Link to="/learn" title="My learning"><BookOpen className="h-5 w-5" /></Link>
               <Link to="/studio" title="Studio"><GraduationCap className="h-5 w-5" /></Link>
-              <Bell className="h-5 w-5" />
+              <NotificationsBell />
               <button onClick={signOut} title="Sign out"><LogOut className="h-5 w-5" /></button>
-              <Menu className="h-5 w-5" />
+              <MobileMenu onSignOut={signOut} displayName={displayName} />
             </div>
           </nav>
 

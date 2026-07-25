@@ -522,17 +522,24 @@ export const getMyRoles = createServerFn({ method: "GET" })
 
 // Fail-closed role assertion for Studio server fns.
 // Throws if the RPC errors or the caller lacks the role.
+// Admins do NOT satisfy this gate — Studio server fns are ownership-
+// scoped and are for active instructors only. Admin governance work
+// runs through admin-scoped RPCs.
 // Exported for unit tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function assertActiveInstructor(supabase: any): Promise<void> {
   const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
   if (error) throw new Error(`Authorization check failed: ${error.message}`);
-  if (data === true) return;
-  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", {
-    _role: "admin",
-  });
-  if (aErr) throw new Error(`Authorization check failed: ${aErr.message}`);
-  if (adm !== true) throw new Error("Instructor role required");
+  if (data !== true) throw new Error("Instructor role required");
+}
+
+// Fail-closed editability pre-check. Returns true only when the DB helper
+// returns exactly true. Any RPC failure or non-true value denies editing.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCourseEditable(supabase: any, courseId: string): Promise<void> {
+  const { data, error } = await supabase.rpc("course_is_editable", { _course_id: courseId });
+  if (error) throw new Error(`Editability check failed: ${error.message}`);
+  if (data !== true) throw new Error("Course locked: not in an editable state");
 }
 
 export type MyApplication = {

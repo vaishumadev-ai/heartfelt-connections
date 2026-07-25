@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, Menu, Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, Code2, FileCode } from "lucide-react";
+import { Bell, Menu, Search, MoreHorizontal, Heart, ArrowRight, LayoutGrid, List, ChevronLeft, ChevronRight, Palette, FileCode } from "lucide-react";
 import heroPerson from "@/assets/hero-person.png";
 import megaphone from "@/assets/megaphone.png";
 import pencil from "@/assets/pencil.png";

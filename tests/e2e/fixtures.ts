@@ -198,12 +198,30 @@ export async function destroyFixtures(namespace: string): Promise<{ deletedCours
   if (!namespace) return { deletedCourses: 0 };
   const supabase = adminClient();
   // Safety: refuse to delete anything without a namespace prefix filter.
-  const { data, error } = await supabase
+  // Find the courses first, then remove children explicitly (no reliance on
+  // implicit FK cascades that may or may not exist on this schema).
+  const { data: courses, error: findErr } = await supabase
     .from("courses")
-    .delete()
+    .select("id")
     .eq("category", "fixtures")
-    .like("slug", `${namespace}-%`)
-    .select("id");
-  if (error) throw new Error(`fixture teardown failed: ${error.message}`);
-  return { deletedCourses: data?.length ?? 0 };
+    .like("slug", `${namespace}-%`);
+  if (findErr) throw new Error(`fixture teardown lookup failed: ${findErr.message}`);
+  const ids = (courses ?? []).map((c) => c.id);
+  if (ids.length === 0) return { deletedCourses: 0 };
+
+  // Order matters: remove children before parents. Any row not tied to a
+  // fixture course id is left alone.
+  const cascades: { table: "lessons" | "reviews" | "enrollments" | "lesson_completions" }[] = [
+    { table: "lesson_completions" },
+    { table: "enrollments" },
+    { table: "reviews" },
+    { table: "lessons" },
+  ];
+  for (const { table } of cascades) {
+    const { error } = await supabase.from(table).delete().in("course_id", ids);
+    if (error) throw new Error(`fixture teardown ${table} failed: ${error.message}`);
+  }
+  const { error: delErr } = await supabase.from("courses").delete().in("id", ids);
+  if (delErr) throw new Error(`fixture teardown courses failed: ${delErr.message}`);
+  return { deletedCourses: ids.length };
 }

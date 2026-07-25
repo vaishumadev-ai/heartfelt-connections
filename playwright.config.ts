@@ -66,13 +66,21 @@ export default defineConfig({
     // values directly on the child process env (no .env.local writes),
     // and strips SUPABASE_SERVICE_ROLE_KEY from the child env before build
     // and preview.
+    //
+    // reuseExistingServer is ALWAYS false. Reusing a server already listening
+    // on this port would bypass scripts/test-preview.ts entirely — meaning
+    // the production-guard, service-role sanitizer, and test-project overlay
+    // never run against the process actually serving requests. If the port is
+    // already occupied, Playwright fails to start webServer and the suite
+    // exits, which is the intended behavior: better a loud failure than a
+    // silent test run against an unknown process.
     command: `bun run scripts/test-preview.ts`,
     env: {
       PW_HOST: HOST,
       PW_PORT: String(PORT),
     },
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 240_000,
     stdout: "pipe",
     stderr: "pipe",

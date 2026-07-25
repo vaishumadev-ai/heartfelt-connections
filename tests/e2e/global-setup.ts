@@ -2,7 +2,13 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { FullConfig } from "@playwright/test";
 import { assertTestProject, assertValidFixtureNamespace } from "@/lib/testing/production-guard";
-import { createFixtures } from "./fixtures";
+import { createFixtures, destroyFixturesByIds, isValidUuid } from "./fixtures";
+import {
+  readFixtureState,
+  writeFixtureStateAtomic,
+  STATE_VERSION,
+  type FixtureState,
+} from "./fixture-state";
 
 export const FIXTURE_STATE_PATH = path.resolve(process.cwd(), ".e2e-fixture-state.json");
 
@@ -50,31 +56,92 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   console.log(`[e2e/global-setup] Using dedicated test project ref: ${ref}`);
 
+  // 1. If a stale state file exists, we require it to be structurally valid
+  //    AND scoped to the currently-configured test project. Valid stale state
+  //    is cleaned up (exact-ID delete + verify) before we start a new run.
+  //    Malformed stale state stops the run — we refuse to overwrite it.
+  const existing = await readFixtureState(FIXTURE_STATE_PATH, ref).catch((err: Error) => {
+    throw new Error(
+      `[e2e/global-setup] refusing to start with malformed state file: ${err.message}`,
+    );
+  });
+  if (existing) {
+    console.log(
+      `[e2e/global-setup] Cleaning up stale fixture state (namespace=${existing.namespace}).`,
+    );
+    await destroyFixturesByIds({
+      namespace: existing.namespace,
+      courseIds: [existing.freeCourseId, existing.paidCourseId],
+      expectedSlugs: [existing.freeSlug, existing.paidSlug],
+    });
+    await fs.rm(FIXTURE_STATE_PATH, { force: true });
+  }
+
+  // 2. Predetermine namespace, slugs, and UUIDs BEFORE any DB write so a
+  //    partial-failure cleanup only ever targets these exact ids.
   const rawNs = process.env.PW_FIXTURE_NAMESPACE || `pw-${Date.now().toString(36)}`;
   const namespace = assertValidFixtureNamespace(rawNs, "globalSetup");
   process.env.PW_FIXTURE_NAMESPACE = namespace;
+  const freeCourseId = crypto.randomUUID();
+  const paidCourseId = crypto.randomUUID();
+  const freeSlug = `${namespace}-free`;
+  const paidSlug = `${namespace}-paid`;
+  if (!isValidUuid(freeCourseId) || !isValidUuid(paidCourseId)) {
+    throw new Error("[e2e/global-setup] crypto.randomUUID() produced an invalid UUID.");
+  }
 
-  const created = await createFixtures();
-
-  const state = {
-    namespace: created.namespace,
-    freeSlug: created.freeSlug,
-    paidSlug: created.paidSlug,
-    freeCourseId: created.freeCourseId,
-    paidCourseId: created.paidCourseId,
-    createdAt: new Date().toISOString(),
+  // 3. Atomically publish a "creating" state before the first insert.
+  const now = new Date().toISOString();
+  const creating: FixtureState = {
+    stateVersion: STATE_VERSION,
+    status: "creating",
+    testProjectRef: ref,
+    namespace,
+    freeSlug,
+    paidSlug,
+    freeCourseId,
+    paidCourseId,
+    createdAt: now,
+    updatedAt: now,
   };
-  // Atomic state write: write to a temp path and rename into place so
-  // teardown never sees a half-written file.
-  const tmp = `${FIXTURE_STATE_PATH}.tmp-${process.pid}`;
-  await fs.writeFile(tmp, JSON.stringify(state, null, 2));
-  await fs.rename(tmp, FIXTURE_STATE_PATH);
+  await writeFixtureStateAtomic(FIXTURE_STATE_PATH, creating, { overwrite: false });
 
-  // Expose slugs to workers without inheriting the service-role key.
-  process.env.PW_KNOWN_SLUG = created.freeSlug;
-  process.env.PW_PAID_SLUG = created.paidSlug;
+  // 4. Seed fixtures with the predetermined ids. On any failure, run exact-ID
+  //    cleanup + verify and preserve the "creating" state so the operator can
+  //    inspect it. Only after cleanup verifies do we remove the state file.
+  try {
+    await createFixtures({
+      namespace,
+      freeCourseId,
+      paidCourseId,
+      freeSlug,
+      paidSlug,
+    });
+  } catch (err) {
+    try {
+      await destroyFixturesByIds({
+        namespace,
+        courseIds: [freeCourseId, paidCourseId],
+        expectedSlugs: [freeSlug, paidSlug],
+      });
+      await fs.rm(FIXTURE_STATE_PATH, { force: true });
+    } catch (cleanupErr) {
+      const cause = (cleanupErr as Error).message;
+      throw new Error(
+        `[e2e/global-setup] fixture creation failed and cleanup also failed; state file preserved for inspection. cause: ${cause}. original: ${(err as Error).message}`,
+      );
+    }
+    throw err;
+  }
+
+  // 5. Atomically transition state to "ready".
+  const ready: FixtureState = { ...creating, status: "ready", updatedAt: new Date().toISOString() };
+  await writeFixtureStateAtomic(FIXTURE_STATE_PATH, ready, { overwrite: true });
+
+  process.env.PW_KNOWN_SLUG = freeSlug;
+  process.env.PW_PAID_SLUG = paidSlug;
 
   console.log(
-    `[e2e/global-setup] Seeded fixtures: namespace=${created.namespace} free=${created.freeSlug} paid=${created.paidSlug}`,
+    `[e2e/global-setup] Seeded fixtures: namespace=${namespace} free=${freeSlug} paid=${paidSlug}`,
   );
 }

@@ -26,7 +26,7 @@ type Failures = {
 };
 
 type Allow = {
-  allowResponses?: { status: number; urlPattern: RegExp; max: number }[];
+  allowResponses?: { status: number; urlPattern: RegExp; min: number; max: number }[];
   consoleTextPatterns?: RegExp[];
 };
 
@@ -87,6 +87,10 @@ function assertNoFailures(f: Failures, allow: Allow = {}) {
   rules.forEach((rule, i) => {
     expect(
       usage[i],
+      `allowed response ${rule.status} ${rule.urlPattern} under expected minimum`,
+    ).toBeGreaterThanOrEqual(rule.min);
+    expect(
+      usage[i],
       `allowed response ${rule.status} ${rule.urlPattern} over budget`,
     ).toBeLessThanOrEqual(rule.max);
   });
@@ -142,11 +146,23 @@ test.describe("Course route – redirects & not-found", () => {
     await page.goto(`/courses/${unknown}`, { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: /Course not found/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Browse courses/i })).toBeVisible();
-    // Documented intentional 404: exactly the getCourseBySlug server-fn
-    // call for the unknown slug, status must be exactly 404, at most one
-    // occurrence. Any 401/403/429/5xx or unrelated server-fn 4xx fails.
+    // Documented intentional 404: exactly one getCourseBySlug server-fn call
+    // for this specific unknown slug returning status 404. The URL pattern
+    // pins the server-fn name AND either the raw or URL-encoded slug so an
+    // unrelated 404 elsewhere cannot satisfy the allowance. Any 401/403/429/
+    // 5xx or unrelated server-fn 4xx fails.
+    const slugPart = new RegExp(`(${unknown}|${encodeURIComponent(unknown)})`);
     assertNoFailures(f, {
-      allowResponses: [{ status: 404, urlPattern: /getCourseBySlug/, max: 1 }],
+      allowResponses: [
+        {
+          status: 404,
+          urlPattern: new RegExp(
+            `getCourseBySlug.*${slugPart.source}|${slugPart.source}.*getCourseBySlug`,
+          ),
+          min: 1,
+          max: 1,
+        },
+      ],
     });
   });
 });

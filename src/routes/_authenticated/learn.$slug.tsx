@@ -83,7 +83,7 @@ function Player() {
           <main className="rounded-3xl bg-card p-8">
             <div className="text-xs font-semibold uppercase tracking-wider text-foreground">{course.category} • {course.title}</div>
             <h1 className="mt-2 text-3xl font-bold md:text-4xl">{current.title}</h1>
-            <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-foreground from-[#111114] to-[#2a2a30] grid place-items-center">
+            <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-foreground   grid place-items-center">
               {current.video_url ? (
                 <video src={current.video_url} controls className="h-full w-full" />
               ) : (
@@ -97,7 +97,7 @@ function Player() {
               <button
                 onClick={() => mutation.mutate({ lessonId: current.id, courseId: course.id })}
                 disabled={mutation.isPending || isDone}
-                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-[#e6f4f8] text-foreground" : "bg-foreground text-background hover:brightness-110"} disabled:opacity-70`}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-secondary text-foreground" : "bg-foreground text-background hover:brightness-110"} disabled:opacity-70`}
               >
                 <CheckCircle2 className="h-4 w-4" /> {isDone ? "Completed" : mutation.isPending ? "Saving..." : "Mark complete"}
               </button>

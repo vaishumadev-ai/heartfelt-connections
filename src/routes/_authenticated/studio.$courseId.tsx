@@ -237,7 +237,7 @@ function EditCourse() {
 }
 
 const inputCls =
-  "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]";
+  "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground";
 
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (

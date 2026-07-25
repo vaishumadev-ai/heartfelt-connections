@@ -151,7 +151,7 @@ function Dashboard() {
                   )}
                 </div>
                 <div className="mt-8 flex items-center justify-between">
-                  <div className="rounded-full bg-[#e6f4f8] px-4 py-2 text-sm font-semibold text-foreground">{formatPrice(featured.price_cents)}</div>
+                  <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-foreground">{formatPrice(featured.price_cents)}</div>
                   <div className="text-sm text-muted-foreground">{featured.duration_label}</div>
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background">
                     <ArrowRight className="h-4 w-4" />
@@ -167,7 +167,7 @@ function Dashboard() {
         </main>
 
         <aside className="w-full space-y-6 lg:w-[360px]">
-          <div className="rounded-3xl bg-[#111114] p-6 text-background">
+          <div className="rounded-3xl bg-foreground p-6 text-background">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={avatar || avatarGeorge} alt={displayName} width={56} height={56} className="h-14 w-14 rounded-full object-cover" />
@@ -228,8 +228,8 @@ function Dashboard() {
               {[
                 { d: 13, wd: "Mon", active: true, dot: "bg-foreground" },
                 { d: 14, wd: "Tue", dot: "bg-foreground" },
-                { d: 15, wd: "Wed", dot: "bg-[#4aa9c9]" },
-                { d: 16, wd: "Thu", dot: "bg-[#c98a1a]" },
+                { d: 15, wd: "Wed", dot: "bg-foreground" },
+                { d: 16, wd: "Thu", dot: "bg-foreground" },
                 { d: 17, wd: "Fri", dot: "bg-foreground" },
               ].map((day) => (
                 <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-border" : ""}`}>
@@ -248,7 +248,7 @@ function Dashboard() {
 
 function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
-  const priceBg = course.icon_kind === "cyber" ? "bg-secondary" : "bg-[#e6f4f8]";
+  const priceBg = course.icon_kind === "cyber" ? "bg-secondary" : "bg-secondary";
   return (
     <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-card p-5 ring-1 ring-border transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
@@ -271,8 +271,8 @@ function SmallCard({ course }: { course: CourseCard }) {
 
 function tintFor(kind: string | null) {
   switch (kind) {
-    case "megaphone": return "bg-[#e6f4f8] text-foreground";
-    case "js": return "bg-[#fff4d6] text-[#c98a1a]";
+    case "megaphone": return "bg-secondary text-foreground";
+    case "js": return "bg-secondary text-foreground";
     case "html": return "bg-secondary text-foreground";
     case "pencil": return "bg-black text-background";
     case "cyber": return "bg-secondary text-foreground";

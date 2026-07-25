@@ -123,7 +123,7 @@ function InstructorPanel() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Course title"
-            className="rounded-full bg-card px-5 py-3 text-sm outline-none ring-1 ring-border focus:ring-[#ff5a6a]"
+            className="rounded-full bg-card px-5 py-3 text-sm outline-none ring-1 ring-border focus:ring-foreground"
           />
           <select
             value={category}

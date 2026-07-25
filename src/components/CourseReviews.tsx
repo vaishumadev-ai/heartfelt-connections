@@ -174,7 +174,7 @@ function ReviewForm({
         onChange={(e) => setBody(e.target.value.slice(0, MAX))}
         rows={3}
         placeholder="Share what you liked or what could improve..."
-        className="mt-3 w-full resize-none rounded-2xl bg-card p-4 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]"
+        className="mt-3 w-full resize-none rounded-2xl bg-card p-4 text-sm outline-none ring-1 ring-transparent focus:ring-foreground"
       />
       <div className="mt-2 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">{body.length}/{MAX}</span>

@@ -70,7 +70,7 @@ function BrowseCard({ course }: { course: CourseCard }) {
       <h3 className="mt-2 text-xl font-bold">{course.title}</h3>
       <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.subtitle}</p>
       <div className="mt-6 flex items-center justify-between">
-        <div className="rounded-full bg-[#e6f4f8] px-3 py-1.5 text-xs font-semibold">${(course.price_cents / 100).toFixed(2)}</div>
+        <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold">${(course.price_cents / 100).toFixed(2)}</div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Heart className="h-3 w-3 fill-foreground text-foreground" /> {course.likes}
           <span>•</span>

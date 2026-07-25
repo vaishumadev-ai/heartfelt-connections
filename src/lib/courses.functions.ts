@@ -368,14 +368,106 @@ export const getMyRoles = createServerFn({ method: "GET" })
     return (data ?? []).map((r) => r.role as string);
   });
 
-export const becomeInstructor = createServerFn({ method: "POST" })
+// Fail-closed role assertion for Studio server fns.
+// Throws if the RPC errors or the caller lacks the role.
+// Exported for unit tests.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function assertActiveInstructor(supabase: any): Promise<void> {
+  const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
+  if (error) throw new Error(`Authorization check failed: ${error.message}`);
+  if (data === true) return;
+  const { data: adm, error: aErr } = await supabase.rpc("current_user_has_role", {
+    _role: "admin",
+  });
+  if (aErr) throw new Error(`Authorization check failed: ${aErr.message}`);
+  if (adm !== true) throw new Error("Instructor role required");
+}
+
+export type MyApplication = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "withdrawn";
+  application_reason: string | null;
+  decision_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const getMyInstructorApplication = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .upsert({ user_id: userId, role: "instructor" }, { onConflict: "user_id,role" });
+  .handler(async ({ context }): Promise<MyApplication | null> => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("instructor_applications")
+      .select("id, status, application_reason, decision_reason, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as MyApplication | null) ?? null;
+  });
+
+export const applyForInstructor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { reason?: string | null } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("apply_for_instructor", {
+      _reason: data?.reason ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const withdrawInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("withdraw_instructor_application", {
+      _application_id: data.applicationId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const approveInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string; reason?: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("approve_instructor_application", {
+      _application_id: data.applicationId,
+      _reason: data.reason ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const rejectInstructorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { applicationId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { applicationId: d.applicationId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("reject_instructor_application", {
+      _application_id: data.applicationId,
+      _reason: data.reason,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const revokeInstructorRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { userId: d.userId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("revoke_instructor_role", {
+      _user_id: data.userId,
+      _reason: data.reason,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -395,13 +487,16 @@ export const listMyCourses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyCourse[]> => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data, error } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, price_cents, is_published, updated_at")
+      .select(
+        "id, slug, title, subtitle, category, price_cents, is_published, updated_at, review_status",
+      )
       .eq("instructor_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []) as MyCourse[];
   });
 
 export const createCourse = createServerFn({ method: "POST" })
@@ -409,6 +504,7 @@ export const createCourse = createServerFn({ method: "POST" })
   .inputValidator((d: { title: string; category: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const base = slugify(data.title);
     const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
     const { data: row, error } = await supabase
@@ -432,6 +528,7 @@ export const getMyCourse = createServerFn({ method: "GET" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data: course, error } = await supabase
       .from("courses")
       .select("*")
@@ -460,12 +557,15 @@ export const updateCourse = createServerFn({ method: "POST" })
       price_cents?: number;
       duration_label?: string | null;
       icon_kind?: string | null;
-      is_published?: boolean;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { courseId, ...rest } = data;
+    // is_published is column-level revoked; never accept it here even if a
+    // caller supplies it. Instructors publish only via submit_course_for_review
+    // → admin approve_course.
     const { error } = await supabase
       .from("courses")
       .update(rest)
@@ -480,6 +580,7 @@ export const deleteCourse = createServerFn({ method: "POST" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { error } = await supabase
       .from("courses")
       .delete()
@@ -504,6 +605,7 @@ export const upsertLesson = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     // Verify course ownership
     const { data: owned } = await supabase
       .from("courses")
@@ -548,6 +650,7 @@ export const deleteLesson = createServerFn({ method: "POST" })
   .inputValidator((d: { lessonId: string; courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await assertActiveInstructor(supabase);
     const { data: owned } = await supabase
       .from("courses")
       .select("id")
@@ -555,7 +658,52 @@ export const deleteLesson = createServerFn({ method: "POST" })
       .eq("instructor_id", userId)
       .maybeSingle();
     if (!owned) throw new Error("Not authorized");
-    const { error } = await supabase.from("lessons").delete().eq("id", data.lessonId);
+    // Add course_id to DELETE predicate — defense-in-depth against a guessed
+    // lessonId from another course.
+    const { error } = await supabase
+      .from("lessons")
+      .delete()
+      .eq("id", data.lessonId)
+      .eq("course_id", data.courseId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const submitCourseForReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertActiveInstructor(context.supabase);
+    const { error } = await context.supabase.rpc("submit_course_for_review", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const approveCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason?: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("approve_course", {
+      _course_id: data.courseId,
+      _reason: data.reason ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const rejectCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason: string }) => {
+    if (!d.reason?.trim()) throw new Error("Reason required");
+    return { courseId: d.courseId, reason: d.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("reject_course", {
+      _course_id: data.courseId,
+      _reason: data.reason,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -575,6 +723,17 @@ export const listCourseReviews = createServerFn({ method: "GET" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data }): Promise<ReviewItem[]> => {
     const supabase = pubClient();
+    // Public read policy already restricts to eligible authors, but we also
+    // filter server-side to guarantee ineligible historical rows are hidden
+    // from every consumer of this endpoint (defense-in-depth).
+    const { data: course } = await supabase
+      .from("courses")
+      .select("is_published, price_cents")
+      .eq("id", data.courseId)
+      .maybeSingle();
+    if (!course || !course.is_published || (course.price_cents ?? 0) !== 0) {
+      return [];
+    }
     const { data: rows, error } = await supabase
       .from("reviews")
       .select("id, user_id, rating, body, created_at")
@@ -583,13 +742,24 @@ export const listCourseReviews = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const list = rows ?? [];
     if (list.length === 0) return [];
-    const userIds = Array.from(new Set(list.map((r) => r.user_id)));
+    // Only surface reviews whose author has a matching free-published
+    // enrollment. Historical paid enrollments confer no review rights.
+    const authorIds = Array.from(new Set(list.map((r) => r.user_id)));
+    const { data: enrolls } = await supabase
+      .from("enrollments")
+      .select("user_id")
+      .eq("course_id", data.courseId)
+      .in("user_id", authorIds);
+    const eligible = new Set((enrolls ?? []).map((e) => e.user_id));
+    const gated = list.filter((r) => eligible.has(r.user_id));
+    if (gated.length === 0) return [];
+    const userIds = Array.from(new Set(gated.map((r) => r.user_id)));
     const { data: profs } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_url")
       .in("id", userIds);
     const byId = new Map((profs ?? []).map((p) => [p.id, p]));
-    return list.map((r) => ({
+    return gated.map((r) => ({
       ...r,
       author: byId.get(r.user_id)
         ? {
@@ -602,11 +772,17 @@ export const listCourseReviews = createServerFn({ method: "GET" })
 
 async function recomputeCourseRating(courseId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // Only aggregate ratings from eligible reviewers (free published enrollment).
   const { data: rows } = await supabaseAdmin
     .from("reviews")
-    .select("rating")
+    .select("rating, user_id")
     .eq("course_id", courseId);
-  const list = rows ?? [];
+  const { data: enrolls } = await supabaseAdmin
+    .from("enrollments")
+    .select("user_id")
+    .eq("course_id", courseId);
+  const eligible = new Set((enrolls ?? []).map((e) => e.user_id));
+  const list = (rows ?? []).filter((r) => eligible.has(r.user_id as string));
   const avg = list.length
     ? Math.round((list.reduce((s, r) => s + (r.rating as number), 0) / list.length) * 10) / 10
     : 0;
@@ -626,14 +802,13 @@ export const submitReview = createServerFn({ method: "POST" })
     return { courseId: d.courseId, rating, body };
   })
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Delete previous review from this user for the course, then insert (portable "upsert")
-    await supabase.from("reviews").delete().eq("user_id", userId).eq("course_id", data.courseId);
-    const { error } = await supabase.from("reviews").insert({
-      user_id: userId,
-      course_id: data.courseId,
-      rating: data.rating,
-      body: data.body,
+    const { supabase } = context;
+    // Atomic verified upsert. If it fails, the previous review is preserved
+    // (no delete-first-then-insert).
+    const { error } = await supabase.rpc("submit_review_verified", {
+      _course_id: data.courseId,
+      _rating: data.rating,
+      _body: data.body ?? "",
     });
     if (error) throw new Error(error.message);
     const rating = await recomputeCourseRating(data.courseId);

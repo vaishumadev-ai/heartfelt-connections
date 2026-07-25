@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          reason: string | null
+          subject_id: string | null
+          target_id: string | null
+          target_kind: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          subject_id?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          subject_id?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           audience: string[]
@@ -38,9 +74,14 @@ export type Database = {
           price_cents: number
           rating: number
           requirements: string[]
+          review_decided_at: string | null
+          review_decided_by: string | null
+          review_decision_reason: string | null
+          review_status: Database["public"]["Enums"]["course_review_status"]
           skills: string[]
           slug: string
           students_count: number
+          submitted_at: string | null
           subtitle: string | null
           title: string
           updated_at: string
@@ -68,9 +109,14 @@ export type Database = {
           price_cents?: number
           rating?: number
           requirements?: string[]
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_reason?: string | null
+          review_status?: Database["public"]["Enums"]["course_review_status"]
           skills?: string[]
           slug: string
           students_count?: number
+          submitted_at?: string | null
           subtitle?: string | null
           title: string
           updated_at?: string
@@ -98,9 +144,14 @@ export type Database = {
           price_cents?: number
           rating?: number
           requirements?: string[]
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_reason?: string | null
+          review_status?: Database["public"]["Enums"]["course_review_status"]
           skills?: string[]
           slug?: string
           students_count?: number
+          submitted_at?: string | null
           subtitle?: string | null
           title?: string
           updated_at?: string
@@ -148,6 +199,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      instructor_applications: {
+        Row: {
+          application_reason: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          status: Database["public"]["Enums"]["instructor_application_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_reason?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["instructor_application_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_reason?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["instructor_application_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       lesson_completions: {
         Row: {
@@ -359,9 +446,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_for_instructor: { Args: { _reason?: string }; Returns: string }
+      approve_course: {
+        Args: { _course_id: string; _reason?: string }
+        Returns: undefined
+      }
+      approve_instructor_application: {
+        Args: { _application_id: string; _reason?: string }
+        Returns: undefined
+      }
       complete_lesson: {
         Args: { _course_id: string; _lesson_id: string }
         Returns: number
+      }
+      current_user_has_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
       }
       get_course_curriculum: {
         Args: { _slug: string }
@@ -381,9 +481,39 @@ export type Database = {
         }
         Returns: boolean
       }
+      reject_course: {
+        Args: { _course_id: string; _reason: string }
+        Returns: undefined
+      }
+      reject_instructor_application: {
+        Args: { _application_id: string; _reason: string }
+        Returns: undefined
+      }
+      revoke_instructor_role: {
+        Args: { _reason: string; _user_id: string }
+        Returns: undefined
+      }
+      submit_course_for_review: {
+        Args: { _course_id: string }
+        Returns: undefined
+      }
+      submit_review_verified: {
+        Args: { _body: string; _course_id: string; _rating: number }
+        Returns: undefined
+      }
+      withdraw_instructor_application: {
+        Args: { _application_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "instructor" | "student"
+      course_review_status: "draft" | "pending_review" | "approved" | "rejected"
+      instructor_application_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "withdrawn"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -512,6 +642,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "instructor", "student"],
+      course_review_status: ["draft", "pending_review", "approved", "rejected"],
+      instructor_application_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "withdrawn",
+      ],
     },
   },
 } as const

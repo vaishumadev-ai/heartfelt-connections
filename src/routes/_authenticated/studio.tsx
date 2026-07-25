@@ -6,14 +6,21 @@ import { ArrowLeft, Plus, Pencil, Trash2, GraduationCap } from "lucide-react";
 import {
   listMyCourses,
   getMyRoles,
-  becomeInstructor,
+  applyForInstructor,
+  withdrawInstructorApplication,
+  getMyInstructorApplication,
   createCourse,
   deleteCourse,
   type MyCourse,
+  type MyApplication,
 } from "@/lib/courses.functions";
 
 const myCoursesQO = queryOptions({ queryKey: ["my-courses"], queryFn: () => listMyCourses() });
 const myRolesQO = queryOptions({ queryKey: ["my-roles"], queryFn: () => getMyRoles() });
+const myAppQO = queryOptions({
+  queryKey: ["my-instructor-app"],
+  queryFn: () => getMyInstructorApplication(),
+});
 
 export const Route = createFileRoute("/_authenticated/studio")({
   head: () => ({
@@ -25,27 +32,43 @@ export const Route = createFileRoute("/_authenticated/studio")({
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(myRolesQO);
-    context.queryClient.ensureQueryData(myCoursesQO);
+    context.queryClient.ensureQueryData(myAppQO);
   },
   component: Studio,
-  errorComponent: ({ error }) => <div className="p-8" role="alert">{error.message}</div>,
+  errorComponent: ({ error }) => (
+    <div className="p-8" role="alert">
+      {error.message}
+    </div>
+  ),
 });
 
 function Studio() {
   const { data: roles } = useSuspenseQuery(myRolesQO);
   const isInstructor = roles.includes("instructor") || roles.includes("admin");
   const qc = useQueryClient();
-  const becomeFn = useServerFn(becomeInstructor);
-  const become = useMutation({
-    mutationFn: () => becomeFn(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-roles"] }),
+  const applyFn = useServerFn(applyForInstructor);
+  const withdrawFn = useServerFn(withdrawInstructorApplication);
+  const { data: myApp } = useSuspenseQuery(myAppQO);
+  const apply = useMutation({
+    mutationFn: (v: { reason: string }) => applyFn({ data: { reason: v.reason } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-roles"] });
+      qc.invalidateQueries({ queryKey: ["my-instructor-app"] });
+    },
+  });
+  const withdraw = useMutation({
+    mutationFn: (id: string) => withdrawFn({ data: { applicationId: id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-instructor-app"] }),
   });
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black"
+          >
             <ArrowLeft className="h-4 w-4" /> Back to dashboard
           </Link>
         </div>
@@ -61,23 +84,87 @@ function Studio() {
           </div>
 
           {!isInstructor ? (
-            <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-              <h2 className="text-xl font-semibold">Become an instructor</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Publish courses on Mozok. It only takes a click.
-              </p>
-              <button
-                onClick={() => become.mutate()}
-                disabled={become.isPending}
-                className="mt-6 rounded-full bg-foreground px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {become.isPending ? "Enabling…" : "Enable instructor mode"}
-              </button>
-            </div>
+            <ApplicationPanel
+              app={myApp}
+              onApply={(reason) => apply.mutate({ reason })}
+              onWithdraw={(id) => withdraw.mutate(id)}
+              pending={apply.isPending || withdraw.isPending}
+            />
           ) : (
             <InstructorPanel />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ApplicationPanel({
+  app,
+  onApply,
+  onWithdraw,
+  pending,
+}: {
+  app: MyApplication | null;
+  onApply: (reason: string) => void;
+  onWithdraw: (id: string) => void;
+  pending: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  if (app && app.status === "pending") {
+    return (
+      <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+        <h2 className="text-xl font-semibold">Application pending review</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          An admin will review your request. You'll gain Studio access once approved.
+        </p>
+        {app.application_reason && (
+          <p className="mx-auto mt-4 max-w-md rounded-2xl bg-background p-3 text-left text-sm">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Your note</span>
+            <br />
+            {app.application_reason}
+          </p>
+        )}
+        <button
+          onClick={() => onWithdraw(app.id)}
+          disabled={pending}
+          className="mt-6 rounded-full bg-card px-5 py-2 text-sm font-semibold ring-1 ring-border disabled:opacity-60"
+        >
+          Withdraw application
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-dashed border-border p-8">
+      <h2 className="text-xl font-semibold">Apply to become an instructor</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Mozok is a curated platform. An admin reviews each application before you can build courses.
+      </p>
+      {app && app.status === "rejected" && app.decision_reason && (
+        <p className="mt-4 rounded-2xl bg-background p-3 text-sm">
+          <span className="text-xs font-semibold uppercase text-muted-foreground">
+            Previous decision
+          </span>
+          <br />
+          {app.decision_reason}
+        </p>
+      )}
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value.slice(0, 1000))}
+        rows={4}
+        placeholder="Tell us what you'd like to teach (optional)"
+        className="mt-4 w-full resize-none rounded-2xl bg-background p-4 text-sm outline-none ring-1 ring-border focus:ring-foreground"
+      />
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={() => onApply(reason.trim())}
+          disabled={pending}
+          className="rounded-full bg-foreground px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {pending ? "Submitting…" : "Submit application"}
+        </button>
       </div>
     </div>
   );
@@ -147,11 +234,16 @@ function InstructorPanel() {
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">Your courses</h2>
         {courses.length === 0 ? (
-          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">No courses yet. Create your first one above.</p>
+          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">
+            No courses yet. Create your first one above.
+          </p>
         ) : (
           <ul className="space-y-3">
             {courses.map((c: MyCourse) => (
-              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-card p-4 ring-1 ring-border">
+              <li
+                key={c.id}
+                className="flex items-center justify-between rounded-2xl bg-card p-4 ring-1 ring-border"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold">{c.title}</h3>
@@ -177,7 +269,8 @@ function InstructorPanel() {
                   </Link>
                   <button
                     onClick={() => {
-                      if (confirm(`Delete "${c.title}"? This cannot be undone.`)) remove.mutate(c.id);
+                      if (confirm(`Delete "${c.title}"? This cannot be undone.`))
+                        remove.mutate(c.id);
                     }}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-muted-foreground hover:-foreground"
                     title="Delete"

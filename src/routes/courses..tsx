@@ -24,7 +24,7 @@ import doodleLearner from "@/assets/doodle-learner.png";
 const courseQuery = (slug: string) =>
   queryOptions({ queryKey: ["course", slug], queryFn: () => getCourseBySlug({ data: { slug } }) });
 
-export const Route = createFileRoute("/courses/$slug")({
+export const Route = createFileRoute("/courses/")({
   head: ({ loaderData }) => {
     const c = loaderData as CourseDetail | undefined;
     if (!c) return { meta: [{ title: "Course not found — Mozok" }, { name: "robots", content: "noindex" }] };

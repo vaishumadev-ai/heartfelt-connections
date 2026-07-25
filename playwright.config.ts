@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { validateTestProject } from "./src/lib/testing/production-guard";
 
 const PORT = Number(process.env.PW_PORT ?? 4173);
 const HOST = process.env.PW_HOST ?? "127.0.0.1";
@@ -24,6 +25,19 @@ if (missingTestEnv.length > 0 && !process.env.PW_ALLOW_UNCONFIGURED) {
     ].join(" "),
   );
 }
+if (missingTestEnv.length === 0) {
+  const check = validateTestProject({
+    testSupabaseUrl: process.env.TEST_SUPABASE_URL,
+    supabaseUrl: process.env.SUPABASE_URL,
+    viteSupabaseUrl: process.env.VITE_SUPABASE_URL,
+    projectId: process.env.SUPABASE_PROJECT_ID ?? process.env.VITE_SUPABASE_PROJECT_ID,
+  });
+  if (!check.ok) {
+    throw new Error(`[playwright.config] ${check.reason}`);
+  }
+
+  console.log(`[playwright.config] production-guard OK; test project ref: ${check.ref}`);
+}
 
 // Viewports required by 1A-tests scope.
 const viewports = [
@@ -37,6 +51,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [["list"]],
   globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
@@ -46,8 +61,14 @@ export default defineConfig({
     use: { ...devices["Desktop Chrome"], viewport: { width: v.width, height: v.height } },
   })),
   webServer: {
-    // Build then preview: production-preview parity.
-    command: `bun run build && bun run preview --host ${HOST} --port ${PORT}`,
+    // Test-preview launcher writes a temp `.env.local` so Vite's env loader
+    // picks up the test Supabase project regardless of the committed `.env`.
+    // The launcher also strips SUPABASE_SERVICE_ROLE_KEY from the child env.
+    command: `bun run scripts/test-preview.ts`,
+    env: {
+      PW_HOST: HOST,
+      PW_PORT: String(PORT),
+    },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

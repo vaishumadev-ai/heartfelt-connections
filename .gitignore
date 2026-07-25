@@ -30,3 +30,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/
+.e2e-fixture-state.json
+.env.local
+.env.local.pw-backup

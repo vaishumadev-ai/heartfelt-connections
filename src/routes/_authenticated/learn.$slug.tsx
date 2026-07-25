@@ -402,6 +402,18 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
             )}
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+              {/* Visually-hidden completion status: authoritative a11y
+                  announcements independent of any toast. Success uses
+                  role=status/polite; failure uses role=alert. Cleared on
+                  lesson change and on retry. */}
+              <div className="sr-only" role="status" aria-live="polite" data-testid="completion-status-polite">
+                {completionStatus === "saving" && "Saving your progress."}
+                {completionStatus === "saved" && "Lesson complete. Progress saved."}
+              </div>
+              <div className="sr-only" role="alert" data-testid="completion-status-alert">
+                {completionStatus === "failed" &&
+                  "We couldn't save your progress. Please try again."}
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"

@@ -43,26 +43,16 @@ function EditCourse() {
   const deleteLessonFn = useServerFn(deleteLesson);
   const submitFn = useServerFn(submitCourseForReview);
 
-  if (!data) {
-    return (
-      <div className="p-8">
-        Course not found.{" "}
-        <Link to="/studio" className="text-foreground underline">
-          Back
-        </Link>
-      </div>
-    );
-  }
+  const course = data?.course;
+  const lessons = data?.lessons ?? [];
 
-  const { course, lessons } = data;
-
-  const [title, setTitle] = useState(course.title);
-  const [subtitle, setSubtitle] = useState(course.subtitle ?? "");
-  const [description, setDescription] = useState(course.description ?? "");
-  const [category, setCategory] = useState(course.category);
-  const [priceDollars, setPriceDollars] = useState((course.price_cents / 100).toFixed(2));
-  const [duration, setDuration] = useState(course.duration_label ?? "");
-  const [iconKind, setIconKind] = useState(course.icon_kind ?? "");
+  const [title, setTitle] = useState(course?.title ?? "");
+  const [subtitle, setSubtitle] = useState(course?.subtitle ?? "");
+  const [description, setDescription] = useState(course?.description ?? "");
+  const [category, setCategory] = useState(course?.category ?? "");
+  const [priceDollars, setPriceDollars] = useState(((course?.price_cents ?? 0) / 100).toFixed(2));
+  const [duration, setDuration] = useState(course?.duration_label ?? "");
+  const [iconKind, setIconKind] = useState(course?.icon_kind ?? "");
 
   const save = useMutation({
     mutationFn: () =>
@@ -114,6 +104,17 @@ function EditCourse() {
   });
 
   const [newLessonTitle, setNewLessonTitle] = useState("");
+
+  if (!data || !course) {
+    return (
+      <div className="p-8">
+        Course not found.{" "}
+        <Link to="/studio" className="text-foreground underline">
+          Back
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>

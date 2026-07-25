@@ -6,6 +6,7 @@ import { ArrowLeft, Play, Heart, Clock, CheckCircle2 } from "lucide-react";
 import { getCourseBySlug, enrollInCourse, type CourseDetail } from "@/lib/courses.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CourseReviews } from "@/components/CourseReviews";
 
 const courseQuery = (slug: string) =>
   queryOptions({
@@ -102,6 +103,7 @@ function CoursePage() {
                 </li>
               ))}
             </ul>
+            <CourseReviews courseId={course.id} />
           </div>
           <aside className="space-y-4">
             <div className="rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">

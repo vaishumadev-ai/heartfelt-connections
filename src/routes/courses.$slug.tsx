@@ -70,7 +70,7 @@ function CoursePage() {
   if (!course) return null;
 
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-6xl px-6 py-8">
         <Link to="/browse" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-black"><ArrowLeft className="h-4 w-4" /> Back to browse</Link>
         <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">

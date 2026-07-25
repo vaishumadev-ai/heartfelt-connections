@@ -75,7 +75,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="w-full max-w-md rounded-3xl bg-card p-8">
         <Link to="/" className="flex items-center gap-2 text-xl font-bold">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">

@@ -980,3 +980,77 @@ export const deleteMyReview = createServerFn({ method: "POST" })
     await recomputeCourseRating(data.courseId);
     return { ok: true };
   });
+
+// ============ Admin surface ============
+
+export type AdminCourseRow = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  instructor_id: string | null;
+  instructor_name: string | null;
+  is_published: boolean;
+  review_status: "draft" | "pending_review" | "approved" | "rejected";
+  enrollments_count: number;
+  completions_count: number;
+  reviews_count: number;
+  updated_at: string;
+};
+
+async function assertAdmin(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("current_user_has_role", { _role: "admin" });
+  if (error) throw new Error(`Authorization check failed: ${error.message}`);
+  if (data !== true) throw new Error("Admin only");
+}
+
+export const listAdminCourses = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminCourseRow[]> => {
+    await assertAdmin(context.supabase);
+    const { data, error } = await context.supabase.rpc("list_admin_courses");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AdminCourseRow[];
+  });
+
+export type AdminCourseDetail = AdminCourseRow & {
+  subtitle: string | null;
+  description: string | null;
+  review_decision_reason: string | null;
+  price_cents: number;
+  can_unpublish: boolean;
+};
+
+export const getAdminCourse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }): Promise<AdminCourseDetail | null> => {
+    await assertAdmin(context.supabase);
+    const { data: rows, error } = await context.supabase.rpc("get_admin_course", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return (row as AdminCourseDetail | undefined) ?? null;
+  });
+
+export const unpublishForEdit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; reason: string }) => {
+    const reason = (d.reason ?? "").trim();
+    if (!reason) throw new Error("Reason required");
+    if (reason.length > 1000) throw new Error("Reason too long");
+    if (!d.courseId) throw new Error("Missing courseId");
+    return { courseId: d.courseId, reason };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("unpublish_for_edit", {
+      _course_id: data.courseId,
+      _reason: data.reason,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

@@ -1,26 +1,29 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { destroyFixturesByIds } from "./fixtures";
-import { assertValidFixtureNamespace } from "@/lib/testing/production-guard";
+import { assertTestProject, assertValidFixtureNamespace } from "@/lib/testing/production-guard";
+import { readFixtureState } from "./fixture-state";
 
 const FIXTURE_STATE_PATH = path.resolve(process.cwd(), ".e2e-fixture-state.json");
 
 export default async function globalTeardown(): Promise<void> {
-  let state: {
-    namespace: string;
-    freeSlug: string;
-    paidSlug: string;
-    freeCourseId: string;
-    paidCourseId: string;
-  } | null = null;
-  try {
-    const raw = await fs.readFile(FIXTURE_STATE_PATH, "utf8");
-    state = JSON.parse(raw);
-  } catch {
-    // no state file — nothing to clean up
-  }
-  if (!state || !state.namespace || !state.freeCourseId || !state.paidCourseId) {
-    console.log("[e2e/global-teardown] No fixture namespace found; skipping cleanup.");
+  // Only ENOENT means "nothing to clean up". Anything else — invalid JSON,
+  // missing fields, wrong stateVersion, invalid namespace/UUIDs, project-ref
+  // mismatch — is a hard failure. We refuse to guess intent from a broken
+  // state file.
+  const { ref } = assertTestProject(
+    {
+      testSupabaseUrl: process.env.TEST_SUPABASE_URL,
+      supabaseUrl: process.env.SUPABASE_URL,
+      viteSupabaseUrl: process.env.VITE_SUPABASE_URL,
+      projectId: process.env.SUPABASE_PROJECT_ID,
+      viteProjectId: process.env.VITE_SUPABASE_PROJECT_ID,
+    },
+    "globalTeardown",
+  );
+  const state = await readFixtureState(FIXTURE_STATE_PATH, ref);
+  if (!state) {
+    console.log("[e2e/global-teardown] No fixture state file found; skipping cleanup.");
     return;
   }
   const namespace = assertValidFixtureNamespace(state.namespace, "globalTeardown");
@@ -31,6 +34,7 @@ export default async function globalTeardown(): Promise<void> {
   });
 
   console.log(`[e2e/global-teardown] Cleaned up namespace=${namespace} courses=${deletedCourses}`);
-  // Only remove the state file after verified cleanup succeeds.
+  // Only remove the state file after destroyFixturesByIds ran its post-delete
+  // verification and returned successfully.
   await fs.rm(FIXTURE_STATE_PATH, { force: true });
 }

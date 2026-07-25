@@ -76,7 +76,7 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.2)]">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8">
         <Link to="/" className="flex items-center gap-2 text-xl font-bold">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">
             <div className="h-2.5 w-2.5 rounded-full bg-black" />
@@ -135,7 +135,7 @@ function AuthPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#ff5a6a] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 hover:opacity-95 disabled:opacity-50"
+            className="w-full rounded-full bg-[#ff5a6a] px-4 py-3 text-sm font-semibold text-white/30 hover:opacity-95 disabled:opacity-50"
           >
             {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
           </button>

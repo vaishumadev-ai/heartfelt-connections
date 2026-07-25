@@ -58,7 +58,7 @@ function Player() {
   if (!data.enrolled) {
     return (
       <div className="min-h-screen grid place-items-center bg-[#f5f5f5]">
-        <div className="rounded-3xl bg-white p-10 text-center shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+        <div className="rounded-3xl bg-white p-10 text-center">
           <h1 className="text-2xl font-bold">Enroll to start learning</h1>
           <p className="mt-2 text-gray-500">You need to enroll in this course first.</p>
           <Link to="/courses/$slug" params={{ slug }} className="mt-4 inline-block rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white">Go to course</Link>
@@ -80,7 +80,7 @@ function Player() {
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Link to="/learn" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-black"><ArrowLeft className="h-4 w-4" /> My learning</Link>
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-          <main className="rounded-3xl bg-white p-8 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+          <main className="rounded-3xl bg-white p-8">
             <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{course.category} • {course.title}</div>
             <h1 className="mt-2 text-3xl font-bold md:text-4xl">{current.title}</h1>
             <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-gradient-to-br from-[#111114] to-[#2a2a30] grid place-items-center">
@@ -111,7 +111,7 @@ function Player() {
               )}
             </div>
           </main>
-          <aside className="rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+          <aside className="rounded-3xl bg-white p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Course progress</h3>
               <span className="text-sm font-semibold text-[#ff5a6a]">{pct}%</span>

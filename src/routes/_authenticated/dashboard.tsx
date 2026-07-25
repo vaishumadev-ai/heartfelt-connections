@@ -101,7 +101,7 @@ function Dashboard() {
             <div>
               <p className="text-2xl text-gray-700">Hi {displayName},</p>
               <h1 className="mt-1 text-4xl font-bold leading-tight md:text-5xl">What do you wanna learn?</h1>
-              <div className="mt-6 flex items-center rounded-full bg-white p-1.5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)] ring-1 ring-gray-100">
+              <div className="mt-6 flex items-center rounded-full bg-white p-1.5 ring-1 ring-gray-100">
                 <input
                   type="text"
                   value={search}
@@ -109,7 +109,7 @@ function Dashboard() {
                   placeholder="Search ..."
                   className="flex-1 bg-transparent px-5 py-2 text-sm outline-none placeholder:text-gray-400"
                 />
-                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff5a6a] text-white shadow-lg shadow-[#ff5a6a]/30">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff5a6a] text-white/30">
                   <Search className="h-5 w-5" />
                 </button>
               </div>
@@ -133,7 +133,7 @@ function Dashboard() {
 
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featured && (
-              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
                 <h3 className="text-3xl font-bold">{featured.title}</h3>
                 <p className="mt-1 text-sm text-gray-500">{featured.subtitle}</p>
                 <div className="mt-4 flex items-center justify-between">
@@ -232,7 +232,7 @@ function Dashboard() {
                 { d: 16, wd: "Thu", dot: "bg-[#c98a1a]" },
                 { d: 17, wd: "Fri", dot: "bg-[#ff5a6a]" },
               ].map((day) => (
-                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? "shadow-[0_10px_25px_-10px_rgba(0,0,0,0.15)] ring-1 ring-gray-100" : ""}`}>
+                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-gray-100" : ""}`}>
                   <div className={`mx-auto mb-2 h-1.5 w-1.5 rounded-full ${day.dot}`} />
                   <div className={`text-lg font-bold ${day.active ? "" : "text-gray-700"}`}>{day.d}</div>
                   <div className="text-[10px] text-gray-400">{day.wd}</div>
@@ -250,7 +250,7 @@ function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
   const priceBg = course.icon_kind === "cyber" ? "bg-[#fde2e4]" : "bg-[#e6f4f8]";
   return (
-    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold">{course.title}</h3>

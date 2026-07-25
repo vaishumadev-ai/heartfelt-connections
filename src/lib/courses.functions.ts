@@ -7,6 +7,7 @@ import {
   selectCurrentLesson,
   neighborIds,
   canTrackProgress,
+  clampProgress,
   type Entitlement,
 } from "@/lib/lesson-player-state";
 
@@ -331,8 +332,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       // Authoritative progress is enrollments.progress (maintained by the
       // complete_lesson RPC). Clamp to [0,100] defensively; do NOT
       // recompute from completedLessonIds.length.
-      const raw = (enr as { progress?: number | null } | null)?.progress ?? 0;
-      progress = Math.max(0, Math.min(100, Math.round(raw)));
+      progress = clampProgress((enr as { progress?: number | null } | null)?.progress ?? 0);
     }
 
     const buildBase = (): PlayerBase => ({

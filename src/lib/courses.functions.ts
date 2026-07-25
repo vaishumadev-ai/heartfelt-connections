@@ -6,7 +6,6 @@ import {
   orderLessons,
   selectCurrentLesson,
   neighborIds,
-  computeProgress,
   canTrackProgress,
   type Entitlement,
 } from "@/lib/lesson-player-state";
@@ -221,6 +220,8 @@ export type PlayerBase = {
   isEnrolled: boolean;
   canTrackProgress: boolean;
   progress: number | null;
+  courseComplete: boolean;
+  canSelfEnroll: boolean;
   completedLessonIds: string[];
 };
 
@@ -258,25 +259,31 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     if (cErr) throw new Error(cErr.message);
     if (!course) return { state: "course_not_found_or_hidden" };
 
-    const isOwner = course.instructor_id === userId;
-    // Fail-closed admin check.
-    const { data: isAdminData, error: roleErr } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-    if (roleErr) throw new Error(`Authorization check failed: ${roleErr.message}`);
+    // Fail-closed role checks. instructor_id match alone MUST NOT grant
+    // full access after the instructor role has been revoked; require the
+    // active instructor role (unless admin).
+    const [{ data: isAdminData, error: roleErrA }, { data: isInstructorData, error: roleErrI }] =
+      await Promise.all([
+        supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "instructor" }),
+      ]);
+    if (roleErrA) throw new Error(`Authorization check failed: ${roleErrA.message}`);
+    if (roleErrI) throw new Error(`Authorization check failed: ${roleErrI.message}`);
     const isAdmin = !!isAdminData;
+    const isActiveInstructor = !!isInstructorData;
+    const isOwner = course.instructor_id === userId && isActiveInstructor;
 
     if (!course.is_published && !isOwner && !isAdmin) {
       return { state: "course_not_found_or_hidden" };
     }
 
-    const { data: enr } = await supabase
+    const { data: enr, error: enrErr } = await supabase
       .from("enrollments")
-      .select("id, last_lesson_id")
+      .select("id, last_lesson_id, progress")
       .eq("user_id", userId)
       .eq("course_id", course.id)
       .maybeSingle();
+    if (enrErr) throw new Error(enrErr.message);
     const isEnrolled = !!enr;
 
     const entitlement = resolveLessonEntitlement({
@@ -291,6 +298,15 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       priceCents: course.price_cents,
       isPublished: course.is_published,
     });
+
+    // Self-enroll CTA: only true for the narrow published/free/unenrolled/
+    // non-owner/non-admin case. Not derived from `!isEnrolled` alone.
+    const canSelfEnroll =
+      course.is_published === true &&
+      (course.price_cents ?? 0) === 0 &&
+      !isEnrolled &&
+      !isOwner &&
+      !isAdmin;
 
     const courseDTO: PlayerCourseDTO = {
       id: course.id,
@@ -312,6 +328,11 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
         .eq("course_id", course.id);
       if (compErr) throw new Error(compErr.message);
       completedLessonIds = (comps ?? []).map((c) => c.lesson_id);
+      // Authoritative progress is enrollments.progress (maintained by the
+      // complete_lesson RPC). Clamp to [0,100] defensively; do NOT
+      // recompute from completedLessonIds.length.
+      const raw = (enr as { progress?: number | null } | null)?.progress ?? 0;
+      progress = Math.max(0, Math.min(100, Math.round(raw)));
     }
 
     const buildBase = (): PlayerBase => ({
@@ -320,6 +341,8 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       isEnrolled,
       canTrackProgress: trackable,
       progress,
+      courseComplete: trackable && progress === 100,
+      canSelfEnroll,
       completedLessonIds,
     });
 
@@ -343,10 +366,11 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     // safe metadata columns (RLS admits owners via the "Active instructors
     // manage own lessons" and admin policies).
     if (curriculum.length === 0 && (isOwner || isAdmin)) {
-      const { data: rows } = await supabase
+      const { data: rows, error: fallErr } = await supabase
         .from("lessons")
         .select("id, position, is_preview")
         .eq("course_id", course.id);
+      if (fallErr) throw new Error(fallErr.message);
       curriculum = orderLessons(
         (rows ?? []).map((r) => ({ id: r.id, position: r.position, is_preview: r.is_preview })),
       );
@@ -399,12 +423,6 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       }
     }
 
-    // Progress is derived from the FULL curriculum (all lessons), not the
-    // preview subset. Preview viewers already have progress=null.
-    if (trackable) {
-      progress = computeProgress(curriculum.length, completedLessonIds.length);
-    }
-
     // Selection uses canonically ordered authorized lessons.
     const lastLessonId: string | null = enr
       ? ((enr as { last_lesson_id?: string | null }).last_lesson_id ?? null)
@@ -426,7 +444,6 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
 
     return {
       ...buildBase(),
-      progress,
       state: "ready",
       lessons,
       current,

@@ -48,7 +48,9 @@ export interface SelectionInput<T extends LessonLike> {
  *   3. `lastLessonId` if it is present and not complete → resume-last.
  *   4. `lastLessonId` complete → first incomplete after it.
  *   5. Otherwise → first incomplete (wrapping from the start).
- *   6. If every lesson is complete → first lesson with reason "all-complete".
+ *   6. If every lesson is complete → the stored last lesson when still valid,
+ *      otherwise the final canonical lesson. Never resume a completed course
+ *      at lesson one merely because every id is complete.
  */
 export function selectCurrentLesson<T extends LessonLike>(
   input: SelectionInput<T>,
@@ -76,14 +78,17 @@ export function selectCurrentLesson<T extends LessonLike>(
     }
     const wrap = lessons.find((l) => !done.has(l.id));
     if (wrap) return { kind: "selected", lesson: wrap, reason: "first-incomplete" };
-    return { kind: "selected", lesson: lessons[0], reason: "all-complete" };
+    // Course fully complete: honor the stored last lesson.
+    return { kind: "selected", lesson: last, reason: "all-complete" };
   }
 
   const firstIncomplete = lessons.find((l) => !done.has(l.id));
   if (firstIncomplete) {
     return { kind: "selected", lesson: firstIncomplete, reason: "first-incomplete" };
   }
-  return { kind: "selected", lesson: lessons[0], reason: "all-complete" };
+  // Course fully complete with no valid stored last lesson: land on the
+  // final canonical lesson, never lesson one.
+  return { kind: "selected", lesson: lessons[lessons.length - 1], reason: "all-complete" };
 }
 
 /**

@@ -370,8 +370,9 @@ export const getMyRoles = createServerFn({ method: "GET" })
 
 // Fail-closed role assertion for Studio server fns.
 // Throws if the RPC errors or the caller lacks the role.
+// Exported for unit tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertActiveInstructor(supabase: any): Promise<void> {
+export async function assertActiveInstructor(supabase: any): Promise<void> {
   const { data, error } = await supabase.rpc("current_user_has_role", { _role: "instructor" });
   if (error) throw new Error(`Authorization check failed: ${error.message}`);
   if (data === true) return;

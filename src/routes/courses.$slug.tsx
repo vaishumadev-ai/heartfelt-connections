@@ -63,10 +63,7 @@ export const Route = createFileRoute("/courses/$slug")({
     const c = loaderData as CourseDetail | undefined;
     if (!c)
       return {
-        meta: [
-          { title: "Course not found — Mozok" },
-          { name: "robots", content: "noindex" },
-        ],
+        meta: [{ title: "Course not found — Mozok" }, { name: "robots", content: "noindex" }],
       };
     const title = `${c.title} — Mozok`;
     const desc = c.subtitle ?? c.description?.slice(0, 150) ?? "Learn on Mozok.";
@@ -443,11 +440,7 @@ function CoursePage() {
                   className="w-full"
                 >
                   {modules.map((m, i) => (
-                    <AccordionItem
-                      key={m.title + i}
-                      value={`m-${i}`}
-                      className="border-border"
-                    >
+                    <AccordionItem key={m.title + i} value={`m-${i}`} className="border-border">
                       <AccordionTrigger className="px-5 py-4 hover:no-underline">
                         <div className="flex flex-1 items-center justify-between pr-3 text-left">
                           <div>
@@ -585,9 +578,7 @@ function CoursePage() {
                 </div>
                 <div className="space-y-2">
                   {course.rating_breakdown.map((b) => {
-                    const pct = course.reviews_count
-                      ? (b.count / course.reviews_count) * 100
-                      : 0;
+                    const pct = course.reviews_count ? (b.count / course.reviews_count) * 100 : 0;
                     return (
                       <div key={b.stars} className="flex items-center gap-3 text-xs">
                         <span className="w-8 shrink-0">{b.stars}★</span>
@@ -613,11 +604,7 @@ function CoursePage() {
                 <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card">
                   <Accordion type="single" collapsible className="w-full">
                     {course.faq.map((f, i) => (
-                      <AccordionItem
-                        key={i}
-                        value={`faq-${i}`}
-                        className="border-border"
-                      >
+                      <AccordionItem key={i} value={`faq-${i}`} className="border-border">
                         <AccordionTrigger className="px-5 py-4 text-left hover:no-underline">
                           {f.q}
                         </AccordionTrigger>
@@ -653,9 +640,7 @@ function CoursePage() {
                           <Star className="h-3 w-3" /> {Number(r.rating).toFixed(1)}
                         </span>
                         <span>
-                          {r.price_cents === 0
-                            ? "Free"
-                            : `$${(r.price_cents / 100).toFixed(2)}`}
+                          {r.price_cents === 0 ? "Free" : `$${(r.price_cents / 100).toFixed(2)}`}
                         </span>
                       </div>
                     </Link>
@@ -699,10 +684,7 @@ function CoursePage() {
                   </div>
                   {renderPrimaryCta("desktop")}
                   {enrollmentStatus === "error" && (
-                    <p
-                      role="alert"
-                      className="mt-2 text-xs text-destructive"
-                    >
+                    <p role="alert" className="mt-2 text-xs text-destructive">
                       Couldn't check your enrollment. Tap Retry.
                     </p>
                   )}

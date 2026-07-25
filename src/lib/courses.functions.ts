@@ -769,14 +769,13 @@ export const submitReview = createServerFn({ method: "POST" })
     return { courseId: d.courseId, rating, body };
   })
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Delete previous review from this user for the course, then insert (portable "upsert")
-    await supabase.from("reviews").delete().eq("user_id", userId).eq("course_id", data.courseId);
-    const { error } = await supabase.from("reviews").insert({
-      user_id: userId,
-      course_id: data.courseId,
-      rating: data.rating,
-      body: data.body,
+    const { supabase } = context;
+    // Atomic verified upsert. If it fails, the previous review is preserved
+    // (no delete-first-then-insert).
+    const { error } = await supabase.rpc("submit_review_verified", {
+      _course_id: data.courseId,
+      _rating: data.rating,
+      _body: data.body ?? undefined,
     });
     if (error) throw new Error(error.message);
     const rating = await recomputeCourseRating(data.courseId);

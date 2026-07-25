@@ -146,23 +146,14 @@ export const enrollInCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Load & validate course first — fail closed before any write.
-    const { data: course, error: cErr } = await supabase
-      .from("courses")
-      .select("id, is_published, price_cents")
-      .eq("id", data.courseId)
-      .maybeSingle();
-    if (cErr) throw new Error(cErr.message);
-    assertFreePublishedCourse(course);
-    // Free published course — insert; RLS policy also enforces these preconditions.
-    // Idempotent: ignore duplicate-key on (user_id, course_id).
-    const { error } = await supabase
-      .from("enrollments")
-      .insert({ user_id: userId, course_id: data.courseId });
-    if (error && !/duplicate key|unique/i.test(error.message)) {
-      throw new Error(error.message);
-    }
+    // All free enrollments go through the guarded RPC, which uses a
+    // course-scoped advisory lock, re-checks publish/price, and inserts
+    // as auth.uid(). This closes the direct-INSERT race that could beat
+    // unpublish_for_edit and any client-side pre-check drift.
+    const { error } = await context.supabase.rpc("enroll_free_course", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 

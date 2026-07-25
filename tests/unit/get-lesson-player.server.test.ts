@@ -1,4 +1,5 @@
 /* @vitest-environment jsdom */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-constant-binary-expression */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Prevent real server-fn / auth middleware wiring.

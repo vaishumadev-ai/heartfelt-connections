@@ -79,11 +79,22 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!course) return null;
-    const { data: lessons } = await supabase
-      .from("lessons")
-      .select("id, title, position, duration_seconds, is_preview, module_title")
-      .eq("course_id", course.id)
-      .order("position", { ascending: true });
+    // Use SECURITY DEFINER RPC that returns only safe curriculum metadata
+    // (id, title, position, duration_seconds, is_preview, module_title) —
+    // never content or video_url.
+    const { data: curriculum, error: curErr } = await supabase.rpc(
+      "get_course_curriculum",
+      { _slug: data.slug },
+    );
+    if (curErr) throw new Error(curErr.message);
+    const lessons = (curriculum ?? []).map((r) => ({
+      id: r.lesson_id,
+      title: r.lesson_title,
+      position: r.lesson_position,
+      duration_seconds: r.duration_seconds,
+      is_preview: r.is_preview,
+      module_title: r.module_title,
+    }));
     const { data: related } = await supabase
       .from("courses")
       .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes")
@@ -99,7 +110,7 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     return {
       ...course,
       faq: (course.faq as { q: string; a: string }[]) ?? [],
-      lessons: lessons ?? [],
+      lessons,
       related: related ?? [],
       reviews_count: reviews?.length ?? 0,
       rating_breakdown: counts,
@@ -111,10 +122,27 @@ export const enrollInCourse = createServerFn({ method: "POST" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Load & validate course first — fail closed before any write.
+    const { data: course, error: cErr } = await supabase
+      .from("courses")
+      .select("id, is_published, price_cents")
+      .eq("id", data.courseId)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!course || !course.is_published) {
+      throw new Error("Course is not available for enrollment.");
+    }
+    if ((course.price_cents ?? 0) > 0) {
+      throw new Error("Checkout is not available yet for paid courses.");
+    }
+    // Free published course — insert; RLS policy also enforces these preconditions.
+    // Idempotent: ignore duplicate-key on (user_id, course_id).
     const { error } = await supabase
       .from("enrollments")
-      .upsert({ user_id: userId, course_id: data.courseId }, { onConflict: "user_id,course_id" });
-    if (error) throw new Error(error.message);
+      .insert({ user_id: userId, course_id: data.courseId });
+    if (error && !/duplicate key|unique/i.test(error.message)) {
+      throw new Error(error.message);
+    }
     return { ok: true };
   });
 
@@ -144,39 +172,82 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string; lessonId?: string }) => d)
   .handler(async ({ data, context }): Promise<LessonPlayer | null> => {
     const { supabase, userId } = context;
+    // 1) Resolve course; allow drafts only for owner/admin.
     const { data: course, error: cErr } = await supabase
       .from("courses")
-      .select("id, slug, title, category")
+      .select("id, slug, title, category, is_published, instructor_id")
       .eq("slug", data.slug)
-      .eq("is_published", true)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
     if (!course) return null;
-    const { data: lessons, error: lErr } = await supabase
-      .from("lessons")
-      .select("id, title, position, duration_seconds, content, video_url")
-      .eq("course_id", course.id)
-      .order("position", { ascending: true });
-    if (lErr) throw new Error(lErr.message);
-    if (!lessons || lessons.length === 0) return null;
-    const current = (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
+
+    // 2) Authorize BEFORE fetching protected content.
+    const isOwner = course.instructor_id === userId;
+    const { data: isAdminData } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    const isAdmin = !!isAdminData;
+
+    if (!course.is_published && !isOwner && !isAdmin) return null;
+
     const { data: enr } = await supabase
       .from("enrollments")
       .select("id")
       .eq("user_id", userId)
       .eq("course_id", course.id)
       .maybeSingle();
+    const enrolled = !!enr;
+    const fullAccess = isOwner || isAdmin || enrolled;
+
+    // 3) Fetch content according to entitlement — never fetch-then-filter.
+    let lessons: LessonPlayer["lessons"];
+    if (fullAccess) {
+      const { data: rows, error: lErr } = await supabase
+        .from("lessons")
+        .select("id, title, position, duration_seconds, content, video_url")
+        .eq("course_id", course.id)
+        .order("position", { ascending: true });
+      if (lErr) throw new Error(lErr.message);
+      lessons = rows ?? [];
+    } else {
+      // Public preview only — protected lessons are never returned.
+      const { data: rows, error: lErr } = await supabase
+        .from("lessons")
+        .select("id, title, position, duration_seconds, content, video_url, is_preview")
+        .eq("course_id", course.id)
+        .eq("is_preview", true)
+        .order("position", { ascending: true });
+      if (lErr) throw new Error(lErr.message);
+      lessons = (rows ?? []).map(({ is_preview: _p, ...rest }) => rest);
+    }
+
+    if (lessons.length === 0) return null;
+
+    // If a specific lessonId was requested but is not in the returned
+    // (authorized) set, fail closed rather than silently swapping to lesson 0.
+    if (data.lessonId && !lessons.some((l) => l.id === data.lessonId)) {
+      if (!fullAccess) {
+        // Requesting a protected lesson without entitlement: deny.
+        return null;
+      }
+    }
+
+    const current =
+      (data.lessonId && lessons.find((l) => l.id === data.lessonId)) || lessons[0];
+
     const { data: comps } = await supabase
       .from("lesson_completions")
       .select("lesson_id")
       .eq("user_id", userId)
       .eq("course_id", course.id);
+
     return {
-      course,
+      course: { id: course.id, slug: course.slug, title: course.title, category: course.category },
       lessons,
       current,
       completedIds: (comps ?? []).map((c) => c.lesson_id),
-      enrolled: !!enr,
+      enrolled,
     };
   });
 
@@ -184,24 +255,20 @@ export const markLessonComplete = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { lessonId: string; courseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Upsert completion
-    const { error } = await supabase
-      .from("lesson_completions")
-      .upsert({ user_id: userId, course_id: data.courseId, lesson_id: data.lessonId }, { onConflict: "user_id,lesson_id" });
+    const { supabase } = context;
+    // Delegate to the SECURITY DEFINER RPC that atomically:
+    //   - verifies auth.uid()
+    //   - verifies course is published
+    //   - verifies lesson.course_id = _course_id (rejects cross-course pairs)
+    //   - verifies a real enrollment exists for the authenticated user
+    //   - inserts completion and recomputes progress
+    // Any failure raises and the client sees no mutation.
+    const { data: progress, error } = await supabase.rpc("complete_lesson", {
+      _course_id: data.courseId,
+      _lesson_id: data.lessonId,
+    });
     if (error) throw new Error(error.message);
-    // Recompute progress
-    const [{ count: total }, { count: done }] = await Promise.all([
-      supabase.from("lessons").select("id", { count: "exact", head: true }).eq("course_id", data.courseId),
-      supabase.from("lesson_completions").select("id", { count: "exact", head: true }).eq("course_id", data.courseId).eq("user_id", userId),
-    ]);
-    const progress = total && total > 0 ? Math.round(((done ?? 0) / total) * 100) : 0;
-    await supabase
-      .from("enrollments")
-      .update({ progress, last_lesson_id: data.lessonId })
-      .eq("user_id", userId)
-      .eq("course_id", data.courseId);
-    return { progress };
+    return { progress: (progress as number) ?? 0 };
   });
 
 // ============ Instructor Studio ============

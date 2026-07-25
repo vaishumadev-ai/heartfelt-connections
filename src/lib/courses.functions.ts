@@ -414,7 +414,7 @@ export const applyForInstructor = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { error } = await supabase.rpc("apply_for_instructor", {
-      _reason: data?.reason ?? null,
+      _reason: data?.reason ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -437,7 +437,7 @@ export const approveInstructorApplication = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("approve_instructor_application", {
       _application_id: data.applicationId,
-      _reason: data.reason ?? null,
+      _reason: data.reason ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };

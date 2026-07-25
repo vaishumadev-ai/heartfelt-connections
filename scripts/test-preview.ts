@@ -16,6 +16,7 @@
  */
 import { spawn } from "node:child_process";
 import { assertTestProject, extractProjectRef } from "../src/lib/testing/production-guard";
+import { sanitizeChildEnv } from "../src/lib/testing/env-sanitizer";
 
 const TEST_URL = process.env.TEST_SUPABASE_URL;
 const TEST_ANON = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;
@@ -61,12 +62,24 @@ const overlay: Record<string, string> = {
   VITE_SUPABASE_PROJECT_ID: ref,
 };
 
-const parentEnv = { ...process.env };
-// Strip service-role env from the child preview/build; fixture setup runs
-// in the parent (Playwright globalSetup), which retains access to it.
-delete parentEnv.SUPABASE_SERVICE_ROLE_KEY;
-delete parentEnv.TEST_SUPABASE_SERVICE_ROLE_KEY;
-const childEnv = { ...parentEnv, ...overlay };
+// Route the whole environment through the pure sanitizer. The sanitizer
+// rejects any VITE_* whose name looks like a service-role slot or whose
+// value matches a known service-role key, and strips the two known
+// service-role env variables from the child env. See
+// src/lib/testing/env-sanitizer.ts for the rules and unit tests.
+const sanitized = sanitizeChildEnv({
+  parentEnv: process.env,
+  overlay,
+  serviceRoleValues: [
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    process.env.TEST_SUPABASE_SERVICE_ROLE_KEY ?? "",
+  ],
+});
+if (!sanitized.ok) {
+  console.error(`[test-preview] refusing to spawn build/preview: ${sanitized.reason}`);
+  process.exit(2);
+}
+const childEnv = sanitized.env;
 
 const cwd = process.cwd();
 const host = process.env.PW_HOST ?? "127.0.0.1";

@@ -472,6 +472,21 @@ export const markLessonComplete = createServerFn({ method: "POST" })
     return { progress: (progress as number) ?? 0 };
   });
 
+export const setLastLesson = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; lessonId: string }) => d)
+  .handler(async ({ data, context }) => {
+    // set_last_lesson RPC atomically requires:
+    //   auth.uid, published free course, active enrollment, lesson in course.
+    // Any other combination raises SQLSTATE 42501; progress is never touched.
+    const { error } = await context.supabase.rpc("set_last_lesson", {
+      _course_id: data.courseId,
+      _lesson_id: data.lessonId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Instructor Studio ============
 
 function slugify(s: string) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ const reviewsQO = (courseId: string) =>
   });
 
 export function CourseReviews({ courseId }: { courseId: string }) {
-  const { data: reviews } = useSuspenseQuery(reviewsQO(courseId));
+  const { data: reviews = [] } = useQuery(reviewsQO(courseId));
   const qc = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
 

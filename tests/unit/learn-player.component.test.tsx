@@ -9,6 +9,7 @@ import React from "react";
 // ---------- Module boundary mocks ----------
 
 const navigateSpy = vi.fn();
+const routerInvalidateSpy = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (_config: unknown) => ({
     useParams: () => ({ slug: "test-slug" }),
@@ -20,6 +21,7 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
   useNavigate: () => navigateSpy,
+  useRouter: () => ({ invalidate: routerInvalidateSpy }),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -96,6 +98,8 @@ beforeEach(() => {
   markLessonCompleteMock.mockReset();
   setLastLessonMock.mockReset();
   setLastLessonMock.mockResolvedValue(undefined);
+  navigateSpy.mockReset();
+  routerInvalidateSpy.mockReset();
 });
 
 // ---------- Tests ----------

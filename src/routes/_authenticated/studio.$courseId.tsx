@@ -346,6 +346,7 @@ function Field({
 function LessonRow({
   lesson,
   courseId,
+  isEditable,
   onDelete,
 }: {
   lesson: {
@@ -355,8 +356,11 @@ function LessonRow({
     duration_seconds: number | null;
     content: string | null;
     video_url: string | null;
+    is_preview?: boolean;
+    module_title?: string | null;
   };
   courseId: string;
+  isEditable: boolean;
   onDelete: () => void;
 }) {
   const qc = useQueryClient();
@@ -366,6 +370,8 @@ function LessonRow({
   const [content, setContent] = useState(lesson.content ?? "");
   const [videoUrl, setVideoUrl] = useState(lesson.video_url ?? "");
   const [dur, setDur] = useState(lesson.duration_seconds?.toString() ?? "");
+  const [isPreview, setIsPreview] = useState<boolean>(lesson.is_preview ?? false);
+  const [moduleTitle, setModuleTitle] = useState<string>(lesson.module_title ?? "");
 
   const save = useMutation({
     mutationFn: () =>
@@ -378,6 +384,8 @@ function LessonRow({
           content: content || null,
           video_url: videoUrl || null,
           duration_seconds: dur ? parseInt(dur, 10) : null,
+          is_preview: isPreview,
+          module_title: moduleTitle.trim() || null,
         },
       }),
     onSuccess: () => {

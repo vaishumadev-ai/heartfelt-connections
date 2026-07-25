@@ -183,7 +183,7 @@ function EditCourse() {
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30 disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> {save.isPending ? "Saving…" : "Save changes"}
             </button>
@@ -327,7 +327,7 @@ function LessonRow({
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white/30 disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> Save lesson
             </button>

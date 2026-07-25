@@ -32,14 +32,14 @@ function LearnPage() {
         <h1 className="mt-6 text-4xl font-bold md:text-5xl">My learning</h1>
         <p className="mt-2 text-gray-500">{data.length} course{data.length === 1 ? "" : "s"} enrolled</p>
         {data.length === 0 ? (
-          <div className="mt-10 rounded-3xl bg-white p-10 text-center shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+          <div className="mt-10 rounded-3xl bg-white p-10 text-center">
             <p className="text-gray-600">You haven't enrolled in any courses yet.</p>
             <Link to="/browse" className="mt-4 inline-block rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white">Browse courses</Link>
           </div>
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {data.map((e) => e.course && (
-              <Link key={e.course.id} to="/learn/$slug" params={{ slug: e.course.slug }} className="group block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] transition hover:-translate-y-1">
+              <Link key={e.course.id} to="/learn/$slug" params={{ slug: e.course.slug }} className="group block rounded-3xl bg-white p-6 transition hover:-translate-y-1">
                 <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{e.course.category}</div>
                 <h3 className="mt-2 text-xl font-bold">{e.course.title}</h3>
                 <p className="mt-1 text-sm text-gray-500">{e.course.subtitle}</p>

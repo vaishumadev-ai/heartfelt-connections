@@ -44,7 +44,7 @@ function Index() {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/auth" className="hidden text-sm font-medium text-gray-700 hover:text-black md:inline">Sign in</Link>
-            <Link to="/auth" className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 hover:opacity-95">
+            <Link to="/auth" className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white/30 hover:opacity-95">
               Get started
             </Link>
           </div>
@@ -62,7 +62,7 @@ function Index() {
               Bite-sized courses, real progress tracking, and a growing library of skills — from languages to code to design.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30">
+              <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30">
                 Start learning <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/auth" className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold hover:bg-gray-50">

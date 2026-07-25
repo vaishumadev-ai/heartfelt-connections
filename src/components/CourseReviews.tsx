@@ -181,7 +181,7 @@ function ReviewForm({
         <button
           type="submit"
           disabled={pending || rating < 1}
-          className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 disabled:opacity-60"
+          className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white/30 disabled:opacity-60"
         >
           {pending ? "Saving…" : existing ? "Update review" : "Post review"}
         </button>

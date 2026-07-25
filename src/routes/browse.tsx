@@ -46,7 +46,7 @@ function Browse() {
         </div>
         <h1 className="mt-10 text-4xl font-bold md:text-5xl">Browse all courses</h1>
         <p className="mt-2 text-gray-500">Find your next skill. {courses.length} courses available.</p>
-        <div className="mt-6 flex items-center rounded-full bg-white p-1.5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.15)]">
+        <div className="mt-6 flex items-center rounded-full bg-white p-1.5">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses..." className="flex-1 bg-transparent px-5 py-2 text-sm outline-none" />
           <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff5a6a] text-white"><Search className="h-5 w-5" /></button>
         </div>
@@ -65,7 +65,7 @@ function Browse() {
 
 function BrowseCard({ course }: { course: CourseCard }) {
   return (
-    <Link to="/courses/$slug" params={{ slug: course.slug }} className="group block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] ring-1 ring-gray-100 transition-all hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.25)]">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="group block rounded-3xl bg-white p-6 ring-1 ring-gray-100 transition-all hover:-translate-y-1 hover:">
       <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{course.category}</div>
       <h3 className="mt-2 text-xl font-bold">{course.title}</h3>
       <p className="mt-1 text-sm text-gray-500 line-clamp-2">{course.subtitle}</p>

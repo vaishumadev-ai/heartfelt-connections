@@ -74,7 +74,7 @@ function CoursePage() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <Link to="/browse" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-black"><ArrowLeft className="h-4 w-4" /> Back to browse</Link>
         <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-          <div className="rounded-3xl bg-white p-8 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+          <div className="rounded-3xl bg-white p-8">
             <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{course.category}</div>
             <h1 className="mt-2 text-4xl font-bold md:text-5xl">{course.title}</h1>
             <p className="mt-3 text-lg text-gray-600">{course.subtitle}</p>
@@ -106,14 +106,14 @@ function CoursePage() {
             <CourseReviews courseId={course.id} />
           </div>
           <aside className="space-y-4">
-            <div className="rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)]">
+            <div className="rounded-3xl bg-white p-6">
               <div className="text-3xl font-bold">${(course.price_cents / 100).toFixed(2)}</div>
               <div className="mt-1 text-xs text-gray-500">One-time payment • Lifetime access</div>
               {userId ? (
                 <button
                   disabled={mutation.isPending}
                   onClick={() => mutation.mutate()}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff5a6a]/30 transition hover:brightness-110 disabled:opacity-60"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30 transition hover:brightness-110 disabled:opacity-60"
                 >
                   {mutation.isPending ? "Enrolling..." : <><CheckCircle2 className="h-4 w-4" /> Enroll now</>}
                 </button>

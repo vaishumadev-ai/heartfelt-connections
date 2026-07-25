@@ -108,16 +108,14 @@ export function neighborIds<T extends LessonLike>(
 }
 
 /**
- * Nullable progress contract: 0..100 rounded integer, or null when progress
- * cannot be tracked for this viewer (owner/admin inspection, preview viewer,
- * historical paid enrollment, etc.).
+ * Defensive clamp for a database-supplied progress value in [0..100].
+ * The single production authority is `enrollments.progress`, maintained by
+ * the `complete_lesson` RPC. This helper NEVER computes from completion
+ * counts; it only rounds and clamps whatever the database returned.
  */
-export function computeProgress(totalLessons: number, doneCount: number): number {
-  if (totalLessons <= 0) return 0;
-  const raw = Math.round((Math.max(0, doneCount) / totalLessons) * 100);
-  if (raw < 0) return 0;
-  if (raw > 100) return 100;
-  return raw;
+export function clampProgress(value: number | null | undefined): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 export function canTrackProgress(input: {

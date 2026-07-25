@@ -1,5 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  queryOptions,
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  useQueryErrorResetBoundary,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
@@ -48,7 +54,33 @@ export const Route = createFileRoute("/_authenticated/learn/$slug")({
       </div>
     </div>
   ),
-  errorComponent: ({ error, reset }) => (
+  errorComponent: PlayerErrorComponent,
+});
+
+/**
+ * Route error boundary for the lesson player.
+ *
+ * Retry follows the supported TanStack Query + Router pattern:
+ *   - `useQueryErrorResetBoundary().reset()` clears Query's boundary state
+ *     so the next `useSuspenseQuery` re-runs `queryFn` instead of re-throwing
+ *     the cached error.
+ *   - `reset()` clears the Router `CatchBoundary` so the route component
+ *     re-mounts.
+ *   - `router.invalidate({ forcePending: true })` re-runs the route loader
+ *     (which primes the Query cache) so the player receives fresh data.
+ *
+ * No raw error surface is exposed: `error.message`, `error.name`, and any
+ * SQL/PostgREST/policy/table/function details never render.
+ */
+export function PlayerErrorComponent({ reset }: { error: Error; reset: () => void }) {
+  const queryErrorReset = useQueryErrorResetBoundary();
+  const router = useRouter();
+  const onRetry = () => {
+    queryErrorReset.reset();
+    reset();
+    router.invalidate({ forcePending: true });
+  };
+  return (
     <div className="min-h-screen grid place-items-center bg-background">
       <div className="rounded-3xl bg-card p-10 text-center max-w-md" role="alert">
         <h1 className="text-2xl font-bold">We couldn't load this lesson</h1>
@@ -56,19 +88,16 @@ export const Route = createFileRoute("/_authenticated/learn/$slug")({
           Something went wrong loading this lesson. Please try again.
         </p>
         <button
-          onClick={() => {
-            reset();
-          }}
+          type="button"
+          onClick={onRetry}
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background"
         >
           Retry
         </button>
-        {/* Discard the raw error surface — no console.error, no leak. */}
-        <span className="sr-only">{error.name}</span>
       </div>
     </div>
-  ),
-});
+  );
+}
 
 function Player() {
   const { slug } = Route.useParams();
@@ -89,6 +118,11 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Accessible completion status. Authoritative source for a11y regardless
+  // of whether the toast is visible. Cleared on lesson change and on retry.
+  const [completionStatus, setCompletionStatus] = useState<"idle" | "saving" | "saved" | "failed">(
+    "idle",
+  );
 
   const q = queryOptions({
     queryKey: ["lesson-player", slug, lessonId ?? "resume"] as const,
@@ -101,12 +135,21 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
   const inFlightRef = useRef(false);
   const mutation = useMutation({
     mutationFn: (input: { lessonId: string; courseId: string }) => markDone({ data: input }),
+    onMutate: () => {
+      // Starting (or retrying) a completion clears any prior failure message.
+      setCompletionStatus("saving");
+    },
     onSuccess: (res) => {
+      setCompletionStatus("saved");
       toast.success(`Lesson complete — ${res.progress}%`);
       qc.invalidateQueries({ queryKey: ["lesson-player", slug] });
       qc.invalidateQueries({ queryKey: ["my-enrollments"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: () => {
+      // Stable learner copy — never surface raw server/database error text.
+      setCompletionStatus("failed");
+      toast.error("We couldn't save your progress. Please try again.");
+    },
     onSettled: () => {
       inFlightRef.current = false;
     },
@@ -117,6 +160,12 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
     inFlightRef.current = true;
     mutation.mutate({ lessonId: currentLessonId, courseId });
   };
+
+  // Navigating to another lesson clears stale completion messaging.
+  const currentLessonKey = data.state === "ready" ? data.current.id : null;
+  useEffect(() => {
+    setCompletionStatus("idle");
+  }, [currentLessonKey]);
 
   // URL replace-once on server-resolved resume. Runs when the URL has no
   // explicit ?lesson and the server picked a lesson (ready state).
@@ -172,24 +221,40 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
   }
 
   if (data.state === "no_preview_available") {
-    // Message follows canSelfEnroll rather than !isEnrolled: paid unenrolled
-    // viewers and historical paid enrollments get neutral copy.
+    // Message follows canSelfEnroll — neutral copy covers paid unenrolled,
+    // historical paid enrollments, and any other non-self-enroll path.
     const canEnroll = data.canSelfEnroll;
     return (
       <StateShell
         title="No preview available"
-        message={canEnroll ? "Enroll to unlock the course." : "Paid access is not available yet."}
-        cta={{ label: "Go to course", to: "/courses/$slug", params: { slug } }}
+        message={canEnroll ? "Enroll to unlock the course." : "Full access isn't available yet."}
+        cta={
+          canEnroll
+            ? { label: "Go to course", to: "/courses/$slug", params: { slug } }
+            : { label: "My learning", to: "/learn" }
+        }
       />
     );
   }
 
   if (data.state === "protected_lesson_requested") {
+    // Copy is gated by canSelfEnroll so we never suggest enrollment when it
+    // wouldn't grant access (paid course, historical paid enrollment, or
+    // anyone with no self-enroll path).
+    if (data.canSelfEnroll) {
+      return (
+        <StateShell
+          title="Lesson locked"
+          message="Enroll to unlock this lesson."
+          cta={{ label: "Go to course", to: "/courses/$slug", params: { slug } }}
+        />
+      );
+    }
     return (
       <StateShell
         title="Lesson locked"
-        message="This lesson requires enrollment. Preview lessons remain available."
-        cta={{ label: "Go to course", to: "/courses/$slug", params: { slug } }}
+        message="This lesson isn't available with your current access."
+        cta={{ label: "My learning", to: "/learn" }}
       />
     );
   }
@@ -337,6 +402,23 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
             )}
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+              {/* Visually-hidden completion status: authoritative a11y
+                  announcements independent of any toast. Success uses
+                  role=status/polite; failure uses role=alert. Cleared on
+                  lesson change and on retry. */}
+              <div
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                data-testid="completion-status-polite"
+              >
+                {completionStatus === "saving" && "Saving your progress."}
+                {completionStatus === "saved" && "Lesson complete. Progress saved."}
+              </div>
+              <div className="sr-only" role="alert" data-testid="completion-status-alert">
+                {completionStatus === "failed" &&
+                  "We couldn't save your progress. Please try again."}
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"

@@ -169,3 +169,212 @@ export const markLessonComplete = createServerFn({ method: "POST" })
       .eq("course_id", data.courseId);
     return { progress };
   });
+
+// ============ Instructor Studio ============
+
+function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 60) || `course-${Date.now()}`;
+}
+
+export const getMyRoles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => r.role as string);
+  });
+
+export const becomeInstructor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "instructor" }, { onConflict: "user_id,role" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export type MyCourse = {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  category: string;
+  price_cents: number;
+  is_published: boolean;
+  updated_at: string;
+};
+
+export const listMyCourses = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MyCourse[]> => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("courses")
+      .select("id, slug, title, subtitle, category, price_cents, is_published, updated_at")
+      .eq("instructor_id", userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const createCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { title: string; category: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const base = slugify(data.title);
+    const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+    const { data: row, error } = await supabase
+      .from("courses")
+      .insert({
+        title: data.title,
+        category: data.category,
+        slug,
+        instructor_id: userId,
+        is_published: false,
+        price_cents: 0,
+      })
+      .select("id, slug")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const getMyCourse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: course, error } = await supabase
+      .from("courses")
+      .select("*")
+      .eq("id", data.courseId)
+      .eq("instructor_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!course) return null;
+    const { data: lessons } = await supabase
+      .from("lessons")
+      .select("id, title, position, duration_seconds, content, video_url")
+      .eq("course_id", course.id)
+      .order("position", { ascending: true });
+    return { course, lessons: lessons ?? [] };
+  });
+
+export const updateCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    courseId: string;
+    title?: string;
+    subtitle?: string | null;
+    description?: string | null;
+    category?: string;
+    price_cents?: number;
+    duration_label?: string | null;
+    icon_kind?: string | null;
+    is_published?: boolean;
+  }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { courseId, ...rest } = data;
+    const { error } = await supabase
+      .from("courses")
+      .update(rest)
+      .eq("id", courseId)
+      .eq("instructor_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteCourse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("courses")
+      .delete()
+      .eq("id", data.courseId)
+      .eq("instructor_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const upsertLesson = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    lessonId?: string;
+    courseId: string;
+    title: string;
+    position: number;
+    duration_seconds?: number | null;
+    content?: string | null;
+    video_url?: string | null;
+  }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Verify course ownership
+    const { data: owned } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("id", data.courseId)
+      .eq("instructor_id", userId)
+      .maybeSingle();
+    if (!owned) throw new Error("Not authorized");
+    if (data.lessonId) {
+      const { error } = await supabase
+        .from("lessons")
+        .update({
+          title: data.title,
+          position: data.position,
+          duration_seconds: data.duration_seconds ?? null,
+          content: data.content ?? null,
+          video_url: data.video_url ?? null,
+        })
+        .eq("id", data.lessonId)
+        .eq("course_id", data.courseId);
+      if (error) throw new Error(error.message);
+      return { id: data.lessonId };
+    }
+    const { data: row, error } = await supabase
+      .from("lessons")
+      .insert({
+        course_id: data.courseId,
+        title: data.title,
+        position: data.position,
+        duration_seconds: data.duration_seconds ?? null,
+        content: data.content ?? null,
+        video_url: data.video_url ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteLesson = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { lessonId: string; courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: owned } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("id", data.courseId)
+      .eq("instructor_id", userId)
+      .maybeSingle();
+    if (!owned) throw new Error("Not authorized");
+    const { error } = await supabase.from("lessons").delete().eq("id", data.lessonId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

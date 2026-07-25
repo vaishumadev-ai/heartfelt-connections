@@ -17,6 +17,7 @@ import { Route as CoursesSlugRouteImport } from './routes/courses.$slug'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as CoursesRouteImport } from './routes/courses.'
 import { Route as AuthenticatedStudioCourseIdRouteImport } from './routes/_authenticated/studio.$courseId'
 import { Route as AuthenticatedLearnSlugRouteImport } from './routes/_authenticated/learn.$slug'
 
@@ -59,6 +60,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const CoursesRoute = CoursesRouteImport.update({
+  id: '/courses/',
+  path: '/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedStudioCourseIdRoute =
   AuthenticatedStudioCourseIdRouteImport.update({
     id: '/$courseId',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/courses/': typeof CoursesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/learn': typeof AuthenticatedLearnRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/courses': typeof CoursesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/learn': typeof AuthenticatedLearnRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/courses/': typeof CoursesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/learn': typeof AuthenticatedLearnRouteWithChildren
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/browse'
+    | '/courses/'
     | '/dashboard'
     | '/learn'
     | '/studio'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/browse'
+    | '/courses'
     | '/dashboard'
     | '/learn'
     | '/studio'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/browse'
+    | '/courses/'
     | '/_authenticated/dashboard'
     | '/_authenticated/learn'
     | '/_authenticated/studio'
@@ -148,6 +160,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BrowseRoute: typeof BrowseRoute
+  CoursesRoute: typeof CoursesRoute
   CoursesSlugRoute: typeof CoursesSlugRoute
 }
 
@@ -209,6 +222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/courses/': {
+      id: '/courses/'
+      path: '/courses'
+      fullPath: '/courses/'
+      preLoaderRoute: typeof CoursesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/studio/$courseId': {
       id: '/_authenticated/studio/$courseId'
       path: '/$courseId'
@@ -268,6 +288,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BrowseRoute: BrowseRoute,
+  CoursesRoute: CoursesRoute,
   CoursesSlugRoute: CoursesSlugRoute,
 }
 export const routeTree = rootRouteImport

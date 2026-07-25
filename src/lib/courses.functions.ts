@@ -49,7 +49,22 @@ export const listCourses = createServerFn({ method: "GET" }).handler(async (): P
 export type CourseDetail = CourseCard & {
   description: string | null;
   cover_url: string | null;
-  lessons: { id: string; title: string; position: number; duration_seconds: number | null }[];
+  level: string;
+  language: string;
+  learn_outcomes: string[];
+  skills: string[];
+  requirements: string[];
+  audience: string[];
+  faq: { q: string; a: string }[];
+  students_count: number;
+  instructor_name: string | null;
+  instructor_title: string | null;
+  instructor_bio: string | null;
+  certificate: boolean;
+  lessons: { id: string; title: string; position: number; duration_seconds: number | null; is_preview: boolean; module_title: string | null }[];
+  related: CourseCard[];
+  reviews_count: number;
+  rating_breakdown: { stars: number; count: number }[];
 };
 
 export const getCourseBySlug = createServerFn({ method: "GET" })
@@ -58,7 +73,7 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     const supabase = pubClient();
     const { data: course, error } = await supabase
       .from("courses")
-      .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, description, cover_url")
+      .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes, description, cover_url, level, language, learn_outcomes, skills, requirements, audience, faq, students_count, instructor_name, instructor_title, instructor_bio, certificate")
       .eq("slug", data.slug)
       .eq("is_published", true)
       .maybeSingle();
@@ -66,10 +81,29 @@ export const getCourseBySlug = createServerFn({ method: "GET" })
     if (!course) return null;
     const { data: lessons } = await supabase
       .from("lessons")
-      .select("id, title, position, duration_seconds")
+      .select("id, title, position, duration_seconds, is_preview, module_title")
       .eq("course_id", course.id)
       .order("position", { ascending: true });
-    return { ...course, lessons: lessons ?? [] };
+    const { data: related } = await supabase
+      .from("courses")
+      .select("id, slug, title, subtitle, category, icon_kind, price_cents, duration_label, rating, likes")
+      .eq("category", course.category)
+      .eq("is_published", true)
+      .neq("id", course.id)
+      .limit(3);
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("rating")
+      .eq("course_id", course.id);
+    const counts = [5,4,3,2,1].map((stars) => ({ stars, count: (reviews ?? []).filter(r => r.rating === stars).length }));
+    return {
+      ...course,
+      faq: (course.faq as { q: string; a: string }[]) ?? [],
+      lessons: lessons ?? [],
+      related: related ?? [],
+      reviews_count: reviews?.length ?? 0,
+      rating_breakdown: counts,
+    };
   });
 
 export const enrollInCourse = createServerFn({ method: "POST" })

@@ -23,8 +23,8 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <div className="min-h-screen bg-[#f5f5f5] p-4 md:p-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-5 lg:flex-row">
+    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+      <div className="flex min-h-screen w-full flex-col gap-5 p-4 md:p-6 lg:flex-row">
         {/* MAIN */}
         <main className="flex-1 rounded-3xl bg-white p-6 md:p-10">
           {/* Nav */}

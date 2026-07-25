@@ -120,9 +120,9 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
   const [mobileOpen, setMobileOpen] = useState(false);
   // Accessible completion status. Authoritative source for a11y regardless
   // of whether the toast is visible. Cleared on lesson change and on retry.
-  const [completionStatus, setCompletionStatus] = useState<
-    "idle" | "saving" | "saved" | "failed"
-  >("idle");
+  const [completionStatus, setCompletionStatus] = useState<"idle" | "saving" | "saved" | "failed">(
+    "idle",
+  );
 
   const q = queryOptions({
     queryKey: ["lesson-player", slug, lessonId ?? "resume"] as const,
@@ -406,7 +406,12 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
                   announcements independent of any toast. Success uses
                   role=status/polite; failure uses role=alert. Cleared on
                   lesson change and on retry. */}
-              <div className="sr-only" role="status" aria-live="polite" data-testid="completion-status-polite">
+              <div
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                data-testid="completion-status-polite"
+              >
                 {completionStatus === "saving" && "Saving your progress."}
                 {completionStatus === "saved" && "Lesson complete. Progress saved."}
               </div>

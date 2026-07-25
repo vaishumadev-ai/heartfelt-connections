@@ -422,9 +422,7 @@ describe("Lesson player — completion accessibility live regions", () => {
     const btn = await screen.findByRole("button", { name: /mark complete/i });
     await user.click(btn);
     const polite = await screen.findByTestId("completion-status-polite");
-    await waitFor(() =>
-      expect(polite).toHaveTextContent(/lesson complete\. progress saved/i),
-    );
+    await waitFor(() => expect(polite).toHaveTextContent(/lesson complete\. progress saved/i));
     // No raw error text ever appears.
     expect(screen.queryByText(/boom|policy|postgres|RLS|permission/i)).toBeNull();
   });
@@ -473,7 +471,11 @@ describe("Lesson player — error boundary retry recovery", () => {
   // Manual ErrorBoundary + QueryErrorResetBoundary mirrors the Router
   // errorComponent contract without pulling the whole router into tests.
   class TestErrorBoundary extends React.Component<
-    { fallback: (props: { error: Error; reset: () => void }) => React.ReactElement; onReset?: () => void; children: React.ReactNode },
+    {
+      fallback: (props: { error: Error; reset: () => void }) => React.ReactElement;
+      onReset?: () => void;
+      children: React.ReactNode;
+    },
     { error: Error | null }
   > {
     state = { error: null as Error | null };
@@ -498,9 +500,7 @@ describe("Lesson player — error boundary retry recovery", () => {
     // First call fails with a leak-shaped raw error, second call succeeds.
     getLessonPlayerMock
       .mockRejectedValueOnce(
-        new Error(
-          "permission denied for function get_course_curriculum (policy courses_admin)",
-        ),
+        new Error("permission denied for function get_course_curriculum (policy courses_admin)"),
       )
       .mockResolvedValueOnce(readyDTO({ progress: 0 }));
     const qc = new QueryClient({

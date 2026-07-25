@@ -39,7 +39,7 @@ function LearnPage() {
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {data.map((e) => e.course && (
-              <Link key={e.course.id} to="/courses/$slug" params={{ slug: e.course.slug }} className="group block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] transition hover:-translate-y-1">
+              <Link key={e.course.id} to="/learn/$slug" params={{ slug: e.course.slug }} className="group block rounded-3xl bg-white p-6 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] transition hover:-translate-y-1">
                 <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{e.course.category}</div>
                 <h3 className="mt-2 text-xl font-bold">{e.course.title}</h3>
                 <p className="mt-1 text-sm text-gray-500">{e.course.subtitle}</p>

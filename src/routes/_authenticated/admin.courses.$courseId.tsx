@@ -3,14 +3,15 @@ import { useQueryClient, useMutation, useSuspenseQuery, queryOptions } from "@ta
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { getAdminCourse, unpublishForEdit } from "@/lib/courses.functions";
+import {
+  getAdminCourse,
+  unpublishForEdit,
+  mapCourseGovernanceError,
+} from "@/lib/courses.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/courses/$courseId")({
   head: () => ({
-    meta: [
-      { title: "Admin · Course detail — Mozok" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Admin · Course detail — Mozok" }, { name: "robots", content: "noindex" }],
   }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin/courses/$courseId")(
   component: AdminCourseDetail,
   errorComponent: ({ error }) => (
     <div className="p-8" role="alert">
-      {error.message}
+      {mapCourseGovernanceError(error)}
     </div>
   ),
   notFoundComponent: () => <div className="p-8">Course not found.</div>,
@@ -43,15 +44,14 @@ function AdminCourseDetail() {
   const [err, setErr] = useState<string | null>(null);
 
   const unpublish = useMutation({
-    mutationFn: (v: { reason: string }) =>
-      unpublishFn({ data: { courseId, reason: v.reason } }),
+    mutationFn: (v: { reason: string }) => unpublishFn({ data: { courseId, reason: v.reason } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course", courseId] });
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
       qc.invalidateQueries({ queryKey: ["courses"] });
       navigate({ to: "/admin/courses" });
     },
-    onError: (e: Error) => setErr(e.message),
+    onError: (e: Error) => setErr(mapCourseGovernanceError(e)),
   });
 
   if (!data) {
@@ -102,6 +102,49 @@ function AdminCourseDetail() {
         </div>
 
         <div className="mt-6 rounded-3xl bg-card p-6 md:p-8 ring-1 ring-border">
+          <h2 className="text-lg font-bold">Lessons</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Read-only metadata. Content and video URLs are never shown here.
+          </p>
+          {data.lessons.length === 0 ? (
+            <div className="mt-4 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+              No lessons.
+            </div>
+          ) : (
+            <ol className="mt-4 space-y-2">
+              {data.lessons.map((l) => (
+                <li
+                  key={l.id}
+                  className="flex items-center justify-between rounded-2xl bg-background p-3 text-sm"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-xs font-bold">
+                      {l.position}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold">{l.title}</div>
+                      {l.module_title && (
+                        <div className="text-[11px] text-muted-foreground">{l.module_title}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    {l.is_preview && (
+                      <span className="rounded-full bg-foreground/10 px-2 py-0.5 font-semibold">
+                        Preview
+                      </span>
+                    )}
+                    {l.duration_seconds != null && (
+                      <span>{Math.round(l.duration_seconds / 60)}m</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="mt-6 rounded-3xl bg-card p-6 md:p-8 ring-1 ring-border">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-foreground" />
             <h2 className="text-lg font-bold">Unpublish for edit</h2>
@@ -112,8 +155,8 @@ function AdminCourseDetail() {
           </p>
           {!data.can_unpublish ? (
             <div className="mt-4 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
-              This course cannot be unpublished from here. It must be approved and published,
-              with zero enrollments and zero completions.
+              This course cannot be unpublished from here. It must be approved and published, with
+              zero enrollments and zero completions.
             </div>
           ) : (
             <form
@@ -141,7 +184,10 @@ function AdminCourseDetail() {
                 />
               </label>
               {err && (
-                <div className="mt-3 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+                <div
+                  className="mt-3 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive"
+                  role="alert"
+                >
                   {err}
                 </div>
               )}

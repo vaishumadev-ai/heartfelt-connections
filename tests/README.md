@@ -13,11 +13,11 @@ Two suites:
 
 All three must be set. The suite refuses to load without them.
 
-| Variable | Purpose |
-|----------|---------|
-| `TEST_SUPABASE_URL` | `https://<test-ref>.supabase.co` — dedicated test project |
-| `TEST_SUPABASE_PUBLISHABLE_KEY` | Test project publishable/anon key |
-| `TEST_SUPABASE_SERVICE_ROLE_KEY` | Test project service-role key (Node fixtures only) |
+| Variable                         | Purpose                                                   |
+| -------------------------------- | --------------------------------------------------------- |
+| `TEST_SUPABASE_URL`              | `https://<test-ref>.supabase.co` — dedicated test project |
+| `TEST_SUPABASE_PUBLISHABLE_KEY`  | Test project publishable/anon key                         |
+| `TEST_SUPABASE_SERVICE_ROLE_KEY` | Test project service-role key (Node fixtures only)        |
 
 Optional:
 

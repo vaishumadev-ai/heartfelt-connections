@@ -41,7 +41,10 @@ function adminClient(): SupabaseClient {
 }
 
 function nsPrefix(): string {
-  const stamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[^0-9]/g, "")
+    .slice(0, 14);
   const rand = Math.random().toString(36).slice(2, 6);
   return `pw-${stamp}-${rand}`;
 }
@@ -90,7 +93,8 @@ export async function createFixtures(): Promise<FixtureSlugs> {
       slug: freeSlug,
       title: `[${namespace}] Free Course Fixture`,
       subtitle: "A deterministic free course used by the Playwright E2E suite.",
-      description: "This course is created by the E2E fixture bootstrap and cleaned up in teardown.",
+      description:
+        "This course is created by the E2E fixture bootstrap and cleaned up in teardown.",
       category: "fixtures",
       price_cents: 0,
     })
@@ -178,7 +182,8 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     },
   ];
   const { error: paidLessonsErr } = await supabase.from("lessons").insert(paidLessons);
-  if (paidLessonsErr) throw new Error(`fixture paid lessons insert failed: ${paidLessonsErr.message}`);
+  if (paidLessonsErr)
+    throw new Error(`fixture paid lessons insert failed: ${paidLessonsErr.message}`);
 
   return {
     namespace,

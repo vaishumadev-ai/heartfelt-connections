@@ -175,9 +175,7 @@ test.describe("Course route – valid fixture course", () => {
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
 
-    const faqTrigger = page
-      .getByRole("button", { name: /Do I need prior experience\?/i })
-      .first();
+    const faqTrigger = page.getByRole("button", { name: /Do I need prior experience\?/i }).first();
     if (await faqTrigger.isVisible().catch(() => false)) {
       await faqTrigger.focus();
       await page.keyboard.press("Enter");

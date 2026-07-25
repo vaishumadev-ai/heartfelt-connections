@@ -12,9 +12,7 @@ export type GuardInput = {
   fixtureClientUrl?: string;
 };
 
-export type GuardResult =
-  | { ok: true; ref: string }
-  | { ok: false; reason: string };
+export type GuardResult = { ok: true; ref: string } | { ok: false; reason: string };
 
 /** Extract the Supabase project ref (subdomain) from a URL, or null. */
 export function extractProjectRef(url: string | undefined | null): string | null {
@@ -66,7 +64,10 @@ export function validateTestProject(input: GuardInput): GuardResult {
   }
   const ref = extractProjectRef(input.testSupabaseUrl);
   if (!ref) {
-    return { ok: false, reason: `TEST_SUPABASE_URL '${input.testSupabaseUrl}' is not a recognizable *.supabase.co URL.` };
+    return {
+      ok: false,
+      reason: `TEST_SUPABASE_URL '${input.testSupabaseUrl}' is not a recognizable *.supabase.co URL.`,
+    };
   }
   return { ok: true, ref };
 }

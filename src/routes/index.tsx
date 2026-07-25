@@ -2,10 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Search, Sparkles, GraduationCap, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import heroPerson from "@/assets/hero-person.png";
-import megaphone from "@/assets/megaphone.png";
-import pencil from "@/assets/pencil.png";
-import cyberHead from "@/assets/cyber-head.png";
+import heroPerson from "@/assets/doodle-learner.png";
+import megaphone from "@/assets/doodle-megaphone.png";
+import pencil from "@/assets/doodle-pencil.png";
+import cyberHead from "@/assets/doodle-cyber.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({

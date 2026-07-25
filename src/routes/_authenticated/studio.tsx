@@ -42,7 +42,7 @@ function Studio() {
   });
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
@@ -51,7 +51,7 @@ function Studio() {
         </div>
         <div className="rounded-3xl bg-card p-6 md:p-10">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff5a6a]/10 text-[#ff5a6a]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground/10 text-foreground">
               <GraduationCap className="h-6 w-6" />
             </div>
             <div>
@@ -69,7 +69,7 @@ function Studio() {
               <button
                 onClick={() => become.mutate()}
                 disabled={become.isPending}
-                className="mt-6 rounded-full bg-[#ff5a6a] px-6 py-2.5 text-sm font-semibold text-background/30 disabled:opacity-60"
+                className="mt-6 rounded-full bg-foreground px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {become.isPending ? "Enabling…" : "Enable instructor mode"}
               </button>
@@ -115,7 +115,7 @@ function InstructorPanel() {
           if (!title.trim()) return;
           create.mutate({ title: title.trim(), category });
         }}
-        className="rounded-2xl bg-[#f5f5f5] p-5"
+        className="rounded-2xl bg-background p-5"
       >
         <h2 className="mb-3 text-sm font-semibold text-foreground">Create a new course</h2>
         <div className="grid gap-3 md:grid-cols-[1fr_200px_auto]">
@@ -137,7 +137,7 @@ function InstructorPanel() {
           <button
             type="submit"
             disabled={create.isPending}
-            className="flex items-center justify-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-background/30 disabled:opacity-60"
+            className="flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             <Plus className="h-4 w-4" /> Create
           </button>
@@ -147,7 +147,7 @@ function InstructorPanel() {
       <div>
         <h2 className="mb-4 text-sm font-semibold text-foreground">Your courses</h2>
         {courses.length === 0 ? (
-          <p className="rounded-2xl bg-[#f5f5f5] p-6 text-sm text-muted-foreground">No courses yet. Create your first one above.</p>
+          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">No courses yet. Create your first one above.</p>
         ) : (
           <ul className="space-y-3">
             {courses.map((c: MyCourse) => (
@@ -179,7 +179,7 @@ function InstructorPanel() {
                     onClick={() => {
                       if (confirm(`Delete "${c.title}"? This cannot be undone.`)) remove.mutate(c.id);
                     }}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f5f5] text-muted-foreground hover:-foreground"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-muted-foreground hover:-foreground"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />

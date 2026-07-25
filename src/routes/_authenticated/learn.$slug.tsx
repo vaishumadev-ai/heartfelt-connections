@@ -46,7 +46,7 @@ function Player() {
 
   if (!data) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5]">
+      <div className="min-h-screen grid place-items-center bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold">No lessons available</h1>
           <Link to="/browse" className="mt-4 inline-block rounded-full bg-black px-5 py-2 text-sm text-background">Browse courses</Link>
@@ -57,11 +57,11 @@ function Player() {
 
   if (!data.enrolled) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5]">
+      <div className="min-h-screen grid place-items-center bg-background">
         <div className="rounded-3xl bg-card p-10 text-center">
           <h1 className="text-2xl font-bold">Enroll to start learning</h1>
           <p className="mt-2 text-muted-foreground">You need to enroll in this course first.</p>
-          <Link to="/courses/$slug" params={{ slug }} className="mt-4 inline-block rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-background">Go to course</Link>
+          <Link to="/courses/$slug" params={{ slug }} className="mt-4 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background">Go to course</Link>
         </div>
       </div>
     );
@@ -76,12 +76,12 @@ function Player() {
   const pct = Math.round((doneCount / lessons.length) * 100);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Link to="/learn" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-black"><ArrowLeft className="h-4 w-4" /> My learning</Link>
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           <main className="rounded-3xl bg-card p-8">
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{course.category} • {course.title}</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-foreground">{course.category} • {course.title}</div>
             <h1 className="mt-2 text-3xl font-bold md:text-4xl">{current.title}</h1>
             <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-foreground from-[#111114] to-[#2a2a30] grid place-items-center">
               {current.video_url ? (
@@ -97,7 +97,7 @@ function Player() {
               <button
                 onClick={() => mutation.mutate({ lessonId: current.id, courseId: course.id })}
                 disabled={mutation.isPending || isDone}
-                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-[#e6f4f8] text-foreground" : "bg-[#ff5a6a] text-background hover:brightness-110"} disabled:opacity-70`}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition ${isDone ? "bg-[#e6f4f8] text-foreground" : "bg-foreground text-background hover:brightness-110"} disabled:opacity-70`}
               >
                 <CheckCircle2 className="h-4 w-4" /> {isDone ? "Completed" : mutation.isPending ? "Saving..." : "Mark complete"}
               </button>
@@ -114,10 +114,10 @@ function Player() {
           <aside className="rounded-3xl bg-card p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Course progress</h3>
-              <span className="text-sm font-semibold text-[#ff5a6a]">{pct}%</span>
+              <span className="text-sm font-semibold text-foreground">{pct}%</span>
             </div>
             <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full rounded-full bg-[#ff5a6a] transition-all" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${pct}%` }} />
             </div>
             <ul className="mt-6 space-y-1">
               {lessons.map((l) => {
@@ -127,7 +127,7 @@ function Player() {
                   <li key={l.id}>
                     <button
                       onClick={() => navigate({ to: "/learn/$slug", params: { slug }, search: { lesson: l.id } })}
-                      className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${active ? "bg-[#f5f5f5]" : "hover:bg-background"}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${active ? "bg-background" : "hover:bg-background"}`}
                     >
                       {done ? <CheckCircle2 className="h-5 w-5 text-foreground" /> : <Circle className="h-5 w-5 text-muted-foreground/50" />}
                       <div className="flex-1 min-w-0">

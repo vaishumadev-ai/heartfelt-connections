@@ -75,13 +75,13 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="w-full max-w-md rounded-3xl bg-card p-8">
         <Link to="/" className="flex items-center gap-2 text-xl font-bold">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">
             <div className="h-2.5 w-2.5 rounded-full bg-black" />
           </div>
-          <span>Moz<span className="text-[#ff5a6a]">ok</span></span>
+          <span>Moz<span className="text-foreground">ok</span></span>
         </Link>
 
         <h1 className="mt-6 text-2xl font-bold">
@@ -112,7 +112,7 @@ function AuthPage() {
               placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-[#ff5a6a]"
+              className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-foreground"
             />
           )}
           <input
@@ -121,7 +121,7 @@ function AuthPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-[#ff5a6a]"
+            className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-foreground"
           />
           <input
             type="password"
@@ -130,12 +130,12 @@ function AuthPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-[#ff5a6a]"
+            className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-foreground"
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#ff5a6a] px-4 py-3 text-sm font-semibold text-background/30 hover:opacity-95 disabled:opacity-50"
+            className="w-full rounded-full bg-foreground px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-95 disabled:opacity-50"
           >
             {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
           </button>
@@ -146,7 +146,7 @@ function AuthPage() {
           <button
             type="button"
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="font-semibold text-[#ff5a6a]"
+            className="font-semibold text-foreground"
           >
             {mode === "signin" ? "Sign up" : "Sign in"}
           </button>

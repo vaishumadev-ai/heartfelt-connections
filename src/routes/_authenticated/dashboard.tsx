@@ -76,7 +76,7 @@ function Dashboard() {
   const subscribed = filtered.slice(3, 7);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="flex min-h-screen w-full flex-col gap-5 p-4 md:p-6 lg:flex-row">
         <main className="flex-1 rounded-3xl bg-card p-6 md:p-10">
           <nav className="flex items-center justify-between">
@@ -84,7 +84,7 @@ function Dashboard() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">
                 <div className="h-2.5 w-2.5 rounded-full bg-black" />
               </div>
-              <span>Moz<span className="text-[#ff5a6a]">ok</span></span>
+              <span>Moz<span className="text-foreground">ok</span></span>
             </div>
             <div className="flex items-center gap-5 text-foreground">
               <Link to="/browse" title="Browse"><Compass className="h-5 w-5" /></Link>
@@ -109,7 +109,7 @@ function Dashboard() {
                   placeholder="Search ..."
                   className="flex-1 bg-transparent px-5 py-2 text-sm outline-none placeholder:text-muted-foreground"
                 />
-                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff5a6a] text-background/30">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-primary-foreground">
                   <Search className="h-5 w-5" />
                 </button>
               </div>
@@ -120,7 +120,7 @@ function Dashboard() {
             <div className="flex gap-6 text-sm">
               <button className="relative pb-2 font-semibold">
                 All
-                <span className="absolute inset-x-0 -bottom-[1px] mx-auto h-0.5 w-6 rounded-full bg-[#ff5a6a]" />
+                <span className="absolute inset-x-0 -bottom-[1px] mx-auto h-0.5 w-6 rounded-full bg-foreground" />
               </button>
               <button className="pb-2 text-muted-foreground">New</button>
               <button className="pb-2 text-muted-foreground">Popular</button>
@@ -140,9 +140,9 @@ function Dashboard() {
                   <div className="flex items-center gap-3">
                     <img src={avatar || avatarUser} alt="" width={48} height={48} className="h-12 w-12 rounded-full object-cover" loading="lazy" />
                     <div>
-                      <div className="text-2xl font-bold text-[#4aa9c9]">{Number(featured.rating).toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-foreground">{Number(featured.rating).toFixed(1)}</div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Heart className="h-3 w-3 fill-[#ff5a6a] text-[#ff5a6a]" /> {featured.likes}
+                        <Heart className="h-3 w-3 fill-foreground text-foreground" /> {featured.likes}
                       </div>
                     </div>
                   </div>
@@ -153,7 +153,7 @@ function Dashboard() {
                 <div className="mt-8 flex items-center justify-between">
                   <div className="rounded-full bg-[#e6f4f8] px-4 py-2 text-sm font-semibold text-foreground">{formatPrice(featured.price_cents)}</div>
                   <div className="text-sm text-muted-foreground">{featured.duration_label}</div>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a6a] text-background">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background">
                     <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
@@ -174,7 +174,7 @@ function Dashboard() {
                 <div>
                   <div className="text-lg font-semibold">{displayName}</div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full bg-[#ff5a6a]" /> Online
+                    <span className="h-2 w-2 rounded-full bg-foreground" /> Online
                   </div>
                 </div>
               </div>
@@ -191,14 +191,14 @@ function Dashboard() {
             <div className="flex gap-6 border-b border-border pb-3 text-sm">
               <button className="relative pb-1 font-semibold">
                 Subscribed
-                <span className="absolute inset-x-0 -bottom-[13px] mx-auto h-0.5 w-16 rounded-full bg-[#ff5a6a]" />
+                <span className="absolute inset-x-0 -bottom-[13px] mx-auto h-0.5 w-16 rounded-full bg-foreground" />
               </button>
               <button className="text-muted-foreground">Upcoming</button>
               <button className="text-muted-foreground">Passed</button>
             </div>
             <ul className="mt-4 space-y-2">
               {subscribed.map((c, i) => (
-                <li key={c.id} className={`flex items-center justify-between rounded-2xl p-3 ${i === 1 ? "bg-[#f5f5f5]" : ""}`}>
+                <li key={c.id} className={`flex items-center justify-between rounded-2xl p-3 ${i === 1 ? "bg-background" : ""}`}>
                   <div className="flex items-center gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${tintFor(c.icon_kind)}`}>
                       {glyphFor(c.icon_kind, c.title)}
@@ -226,11 +226,11 @@ function Dashboard() {
             </div>
             <div className="mt-4 grid grid-cols-5 gap-2 text-center">
               {[
-                { d: 13, wd: "Mon", active: true, dot: "bg-[#ff5a6a]" },
-                { d: 14, wd: "Tue", dot: "bg-[#ff5a6a]" },
+                { d: 13, wd: "Mon", active: true, dot: "bg-foreground" },
+                { d: 14, wd: "Tue", dot: "bg-foreground" },
                 { d: 15, wd: "Wed", dot: "bg-[#4aa9c9]" },
                 { d: 16, wd: "Thu", dot: "bg-[#c98a1a]" },
-                { d: 17, wd: "Fri", dot: "bg-[#ff5a6a]" },
+                { d: 17, wd: "Fri", dot: "bg-foreground" },
               ].map((day) => (
                 <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-border" : ""}`}>
                   <div className={`mx-auto mb-2 h-1.5 w-1.5 rounded-full ${day.dot}`} />
@@ -248,7 +248,7 @@ function Dashboard() {
 
 function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
-  const priceBg = course.icon_kind === "cyber" ? "bg-[#fde2e4]" : "bg-[#e6f4f8]";
+  const priceBg = course.icon_kind === "cyber" ? "bg-secondary" : "bg-[#e6f4f8]";
   return (
     <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-card p-5 ring-1 ring-border transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
@@ -261,7 +261,7 @@ function SmallCard({ course }: { course: CourseCard }) {
       <div className="mt-6 flex items-center justify-between">
         <div className={`rounded-full ${priceBg} px-3 py-1.5 text-xs font-semibold`}>{formatPrice(course.price_cents)}</div>
         <div className="text-xs text-muted-foreground">{course.duration_label}</div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a] text-background">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
           <ArrowRight className="h-4 w-4" />
         </span>
       </div>
@@ -271,12 +271,12 @@ function SmallCard({ course }: { course: CourseCard }) {
 
 function tintFor(kind: string | null) {
   switch (kind) {
-    case "megaphone": return "bg-[#e6f4f8] text-[#4aa9c9]";
+    case "megaphone": return "bg-[#e6f4f8] text-foreground";
     case "js": return "bg-[#fff4d6] text-[#c98a1a]";
-    case "html": return "bg-[#fde2e4] text-[#c9576a]";
+    case "html": return "bg-secondary text-foreground";
     case "pencil": return "bg-black text-background";
-    case "cyber": return "bg-[#fde2e4] text-[#c9576a]";
-    default: return "bg-[#f5f5f5] text-foreground";
+    case "cyber": return "bg-secondary text-foreground";
+    default: return "bg-background text-foreground";
   }
 }
 

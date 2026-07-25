@@ -81,14 +81,14 @@ export function CourseReviews({ courseId }: { courseId: string }) {
           pending={submit.isPending || remove.isPending}
         />
       ) : (
-        <div className="mt-4 rounded-2xl bg-[#f9f9f9] p-4 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
           Sign in to leave a review.
         </div>
       )}
 
       <ul className="mt-6 space-y-3">
         {others.length === 0 && !mine && (
-          <li className="rounded-2xl bg-[#f9f9f9] p-4 text-sm text-muted-foreground">
+          <li className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
             No reviews yet. Be the first!
           </li>
         )}
@@ -128,7 +128,7 @@ function ReviewForm({
         if (rating < 1) return toast.error("Pick a star rating");
         onSubmit({ rating, body: body.trim().slice(0, MAX) });
       }}
-      className="mt-4 rounded-2xl bg-[#f9f9f9] p-5"
+      className="mt-4 rounded-2xl bg-secondary p-5"
     >
       <div className="flex items-center justify-between">
         <div>
@@ -181,7 +181,7 @@ function ReviewForm({
         <button
           type="submit"
           disabled={pending || rating < 1}
-          className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-background/30 disabled:opacity-60"
+          className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {pending ? "Saving…" : existing ? "Update review" : "Post review"}
         </button>
@@ -199,7 +199,7 @@ function ReviewCard({ r }: { r: ReviewItem }) {
         {r.author?.avatar_url ? (
           <img src={r.author.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
         ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a]/10 text-sm font-bold text-[#ff5a6a]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground/10 text-sm font-bold text-foreground">
             {initial}
           </div>
         )}

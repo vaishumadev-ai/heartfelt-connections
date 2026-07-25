@@ -43,7 +43,7 @@ function EditCourse() {
   if (!data) {
     return (
       <div className="p-8">
-        Course not found. <Link to="/studio" className="text-[#ff5a6a] underline">Back</Link>
+        Course not found. <Link to="/studio" className="text-foreground underline">Back</Link>
       </div>
     );
   }
@@ -102,7 +102,7 @@ function EditCourse() {
   const [newLessonTitle, setNewLessonTitle] = useState("");
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-4xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <Link to="/studio" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
@@ -183,7 +183,7 @@ function EditCourse() {
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-background/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> {save.isPending ? "Saving…" : "Save changes"}
             </button>
@@ -204,7 +204,7 @@ function EditCourse() {
               />
             ))}
             {lessons.length === 0 && (
-              <li className="rounded-2xl bg-[#f5f5f5] p-4 text-sm text-muted-foreground">No lessons yet.</li>
+              <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">No lessons yet.</li>
             )}
           </ul>
 
@@ -237,7 +237,7 @@ function EditCourse() {
 }
 
 const inputCls =
-  "w-full rounded-2xl bg-[#f5f5f5] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]";
+  "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]";
 
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
@@ -285,7 +285,7 @@ function LessonRow({
   });
 
   return (
-    <li className="rounded-2xl bg-[#f5f5f5]">
+    <li className="rounded-2xl bg-background">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-xs font-bold">
@@ -327,7 +327,7 @@ function LessonRow({
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-background/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> Save lesson
             </button>

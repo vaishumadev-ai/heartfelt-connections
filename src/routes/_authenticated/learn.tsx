@@ -26,7 +26,7 @@ function LearnPage() {
   const fetchFn = useServerFn(listMyEnrollments);
   const { data } = useSuspenseQuery(makeQuery(fetchFn));
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-6xl px-6 py-10">
         <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-black"><ArrowLeft className="h-4 w-4" /> Dashboard</Link>
         <h1 className="mt-6 text-4xl font-bold md:text-5xl">My learning</h1>
@@ -34,21 +34,21 @@ function LearnPage() {
         {data.length === 0 ? (
           <div className="mt-10 rounded-3xl bg-card p-10 text-center">
             <p className="text-muted-foreground">You haven't enrolled in any courses yet.</p>
-            <Link to="/browse" className="mt-4 inline-block rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-background">Browse courses</Link>
+            <Link to="/browse" className="mt-4 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background">Browse courses</Link>
           </div>
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {data.map((e) => e.course && (
               <Link key={e.course.id} to="/learn/$slug" params={{ slug: e.course.slug }} className="group block rounded-3xl bg-card p-6 transition hover:-translate-y-1">
-                <div className="text-xs font-semibold uppercase tracking-wider text-[#ff5a6a]">{e.course.category}</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-foreground">{e.course.category}</div>
                 <h3 className="mt-2 text-xl font-bold">{e.course.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{e.course.subtitle}</p>
                 <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-[#ff5a6a] transition-all" style={{ width: `${e.progress}%` }} />
+                  <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${e.progress}%` }} />
                 </div>
                 <div className="mt-4 flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{e.progress}% complete</span>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a] text-background transition-transform group-hover:translate-x-1"><ArrowRight className="h-4 w-4" /></span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background transition-transform group-hover:translate-x-1"><ArrowRight className="h-4 w-4" /></span>
                 </div>
               </Link>
             ))}

@@ -1041,17 +1041,74 @@ export type AdminCourseDetail = AdminCourseRow & {
   can_unpublish: boolean;
 };
 
+export type AdminLessonMeta = {
+  id: string;
+  title: string;
+  position: number;
+  duration_seconds: number | null;
+  module_title: string | null;
+  is_preview: boolean;
+};
+
+export type AdminCourseDetailWithLessons = AdminCourseDetail & {
+  lessons: AdminLessonMeta[];
+};
+
+/**
+ * Pure editability rule. Fail-closed: any state that isn't the exact
+ * `draft` or `rejected` string with `is_published === false` locks the
+ * course. Exported for unit tests and UI gating.
+ */
+export function isCourseEditable(input: {
+  is_published?: boolean | null;
+  review_status?: string | null;
+}): boolean {
+  if (input.is_published !== false) return false;
+  return input.review_status === "draft" || input.review_status === "rejected";
+}
+
+/**
+ * Stable, learner/admin-safe error copy. Raw Supabase / Postgres
+ * error messages are never surfaced to end users.
+ */
+export function mapCourseGovernanceError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const s = raw.toLowerCase();
+  if (s.includes("not authenticated") || s.includes("unauthorized") || s.includes("admin only") || s.includes("42501") || s.includes("28000")) {
+    return "You don't have permission to perform this action.";
+  }
+  if (s.includes("course not found") || s.includes("42704")) {
+    return "Course not found.";
+  }
+  if (s.includes("not in published/approved state") || s.includes("not in a submittable state") || s.includes("not pending") || s.includes("22023")) {
+    return "This course is not in a state that allows this action.";
+  }
+  if (s.includes("learner enrollments") || s.includes("learner completions") || s.includes("learner reviews") || s.includes("learner history")) {
+    return "Learner history prevents editing this course.";
+  }
+  return "Something went wrong. Please try again in a moment.";
+}
+
 export const getAdminCourse = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string }) => d)
-  .handler(async ({ data, context }): Promise<AdminCourseDetail | null> => {
+  .handler(async ({ data, context }): Promise<AdminCourseDetailWithLessons | null> => {
     await assertAdmin(context.supabase);
     const { data: rows, error } = await context.supabase.rpc("get_admin_course", {
       _course_id: data.courseId,
     });
     if (error) throw new Error(error.message);
     const row = Array.isArray(rows) ? rows[0] : rows;
-    return (row as AdminCourseDetail | undefined) ?? null;
+    if (!row) return null;
+    const { data: lessons, error: lErr } = await context.supabase.rpc(
+      "get_admin_course_lessons",
+      { _course_id: data.courseId },
+    );
+    if (lErr) throw new Error(lErr.message);
+    return {
+      ...(row as AdminCourseDetail),
+      lessons: (lessons ?? []) as AdminLessonMeta[],
+    };
   });
 
 export const unpublishForEdit = createServerFn({ method: "POST" })

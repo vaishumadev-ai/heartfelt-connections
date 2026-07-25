@@ -430,11 +430,24 @@ export const listCourseReviews = createServerFn({ method: "GET" })
     const supabase = pubClient();
     const { data: rows, error } = await supabase
       .from("reviews")
-      .select("id, user_id, rating, body, created_at, author:profiles(display_name, avatar_url)")
+      .select("id, user_id, rating, body, created_at")
       .eq("course_id", data.courseId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (rows ?? []) as unknown as ReviewItem[];
+    const list = rows ?? [];
+    if (list.length === 0) return [];
+    const userIds = Array.from(new Set(list.map((r) => r.user_id)));
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url")
+      .in("id", userIds);
+    const byId = new Map((profs ?? []).map((p) => [p.id, p]));
+    return list.map((r) => ({
+      ...r,
+      author: byId.get(r.user_id)
+        ? { display_name: byId.get(r.user_id)!.display_name, avatar_url: byId.get(r.user_id)!.avatar_url }
+        : null,
+    })) as ReviewItem[];
   });
 
 async function recomputeCourseRating(courseId: string) {

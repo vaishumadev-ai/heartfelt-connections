@@ -67,7 +67,7 @@ export function CourseReviews({ courseId }: { courseId: string }) {
         <div className="flex items-center gap-2 text-sm">
           <StarRow value={Math.round(avg)} readOnly />
           <span className="font-semibold">{avg.toFixed(1)}</span>
-          <span className="text-gray-500">({reviews.length})</span>
+          <span className="text-muted-foreground">({reviews.length})</span>
         </div>
       </div>
 
@@ -81,14 +81,14 @@ export function CourseReviews({ courseId }: { courseId: string }) {
           pending={submit.isPending || remove.isPending}
         />
       ) : (
-        <div className="mt-4 rounded-2xl bg-[#f9f9f9] p-4 text-sm text-gray-600">
+        <div className="mt-4 rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
           Sign in to leave a review.
         </div>
       )}
 
       <ul className="mt-6 space-y-3">
         {others.length === 0 && !mine && (
-          <li className="rounded-2xl bg-[#f9f9f9] p-4 text-sm text-gray-500">
+          <li className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
             No reviews yet. Be the first!
           </li>
         )}
@@ -128,7 +128,7 @@ function ReviewForm({
         if (rating < 1) return toast.error("Pick a star rating");
         onSubmit({ rating, body: body.trim().slice(0, MAX) });
       }}
-      className="mt-4 rounded-2xl bg-[#f9f9f9] p-5"
+      className="mt-4 rounded-2xl bg-secondary p-5"
     >
       <div className="flex items-center justify-between">
         <div>
@@ -147,13 +147,13 @@ function ReviewForm({
                 >
                   <Star
                     className={`h-6 w-6 transition ${
-                      active ? "fill-[#ffb547] text-[#ffb547]" : "text-gray-300"
+                      active ? "fill-foreground text-foreground" : "text-muted-foreground/50"
                     }`}
                   />
                 </button>
               );
             })}
-            <span className="ml-2 text-xs text-gray-500">
+            <span className="ml-2 text-xs text-muted-foreground">
               {rating ? `${rating} / 5` : "Tap a star"}
             </span>
           </div>
@@ -162,7 +162,7 @@ function ReviewForm({
           <button
             type="button"
             onClick={onDelete}
-            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 ring-1 ring-gray-300 hover:text-red-500"
+            className="flex items-center gap-1 rounded-full bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground ring-1 ring-border hover:-foreground"
           >
             <Trash2 className="h-3 w-3" /> Delete
           </button>
@@ -174,14 +174,14 @@ function ReviewForm({
         onChange={(e) => setBody(e.target.value.slice(0, MAX))}
         rows={3}
         placeholder="Share what you liked or what could improve..."
-        className="mt-3 w-full resize-none rounded-2xl bg-white p-4 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]"
+        className="mt-3 w-full resize-none rounded-2xl bg-card p-4 text-sm outline-none ring-1 ring-transparent focus:ring-foreground"
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-gray-400">{body.length}/{MAX}</span>
+        <span className="text-xs text-muted-foreground">{body.length}/{MAX}</span>
         <button
           type="submit"
           disabled={pending || rating < 1}
-          className="rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white/30 disabled:opacity-60"
+          className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {pending ? "Saving…" : existing ? "Update review" : "Post review"}
         </button>
@@ -194,24 +194,24 @@ function ReviewCard({ r }: { r: ReviewItem }) {
   const name = r.author?.display_name || "Learner";
   const initial = name.charAt(0).toUpperCase();
   return (
-    <li className="rounded-2xl bg-white p-5 ring-1 ring-gray-300">
+    <li className="rounded-2xl bg-card p-5 ring-1 ring-border">
       <div className="flex items-center gap-3">
         {r.author?.avatar_url ? (
           <img src={r.author.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
         ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a]/10 text-sm font-bold text-[#ff5a6a]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground/10 text-sm font-bold text-foreground">
             {initial}
           </div>
         )}
         <div className="flex-1">
           <div className="text-sm font-semibold">{name}</div>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <StarRow value={r.rating} readOnly small />
             <span>{new Date(r.created_at).toLocaleDateString()}</span>
           </div>
         </div>
       </div>
-      {r.body && <p className="mt-3 whitespace-pre-line text-sm text-gray-700">{r.body}</p>}
+      {r.body && <p className="mt-3 whitespace-pre-line text-sm text-foreground">{r.body}</p>}
     </li>
   );
 }
@@ -223,7 +223,7 @@ function StarRow({ value, readOnly, small }: { value: number; readOnly?: boolean
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`${size} ${n <= value ? "fill-[#ffb547] text-[#ffb547]" : "text-gray-300"}`}
+          className={`${size} ${n <= value ? "fill-foreground text-foreground" : "text-muted-foreground/50"}`}
           aria-hidden={readOnly}
         />
       ))}

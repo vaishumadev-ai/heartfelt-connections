@@ -42,34 +42,34 @@ function Studio() {
   });
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-gray-600 hover:text-black">
+          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
             <ArrowLeft className="h-4 w-4" /> Back to dashboard
           </Link>
         </div>
-        <div className="rounded-3xl bg-white p-6 md:p-10">
+        <div className="rounded-3xl bg-card p-6 md:p-10">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff5a6a]/10 text-[#ff5a6a]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground/10 text-foreground">
               <GraduationCap className="h-6 w-6" />
             </div>
             <div>
               <h1 className="text-3xl font-bold">Instructor Studio</h1>
-              <p className="text-sm text-gray-500">Create and manage your courses.</p>
+              <p className="text-sm text-muted-foreground">Create and manage your courses.</p>
             </div>
           </div>
 
           {!isInstructor ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+            <div className="rounded-2xl border border-dashed border-border p-8 text-center">
               <h2 className="text-xl font-semibold">Become an instructor</h2>
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Publish courses on Mozok. It only takes a click.
               </p>
               <button
                 onClick={() => become.mutate()}
                 disabled={become.isPending}
-                className="mt-6 rounded-full bg-[#ff5a6a] px-6 py-2.5 text-sm font-semibold text-white/30 disabled:opacity-60"
+                className="mt-6 rounded-full bg-foreground px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {become.isPending ? "Enabling…" : "Enable instructor mode"}
               </button>
@@ -115,20 +115,20 @@ function InstructorPanel() {
           if (!title.trim()) return;
           create.mutate({ title: title.trim(), category });
         }}
-        className="rounded-2xl bg-[#f5f5f5] p-5"
+        className="rounded-2xl bg-background p-5"
       >
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">Create a new course</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Create a new course</h2>
         <div className="grid gap-3 md:grid-cols-[1fr_200px_auto]">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Course title"
-            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-300 focus:ring-[#ff5a6a]"
+            className="rounded-full bg-card px-5 py-3 text-sm outline-none ring-1 ring-border focus:ring-foreground"
           />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-300"
+            className="rounded-full bg-card px-5 py-3 text-sm outline-none ring-1 ring-border"
           >
             {["Development", "Design", "Marketing", "Language", "Security", "Business"].map((c) => (
               <option key={c}>{c}</option>
@@ -137,7 +137,7 @@ function InstructorPanel() {
           <button
             type="submit"
             disabled={create.isPending}
-            className="flex items-center justify-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30 disabled:opacity-60"
+            className="flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             <Plus className="h-4 w-4" /> Create
           </button>
@@ -145,25 +145,25 @@ function InstructorPanel() {
       </form>
 
       <div>
-        <h2 className="mb-4 text-sm font-semibold text-gray-700">Your courses</h2>
+        <h2 className="mb-4 text-sm font-semibold text-foreground">Your courses</h2>
         {courses.length === 0 ? (
-          <p className="rounded-2xl bg-[#f5f5f5] p-6 text-sm text-gray-500">No courses yet. Create your first one above.</p>
+          <p className="rounded-2xl bg-background p-6 text-sm text-muted-foreground">No courses yet. Create your first one above.</p>
         ) : (
           <ul className="space-y-3">
             {courses.map((c: MyCourse) => (
-              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-gray-300">
+              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-card p-4 ring-1 ring-border">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold">{c.title}</h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        c.is_published ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        c.is_published ? "-foreground -foreground" : "-foreground -foreground"
                       }`}
                     >
                       {c.is_published ? "Published" : "Draft"}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {c.category} · ${(c.price_cents / 100).toFixed(2)}
                   </div>
                 </div>
@@ -171,7 +171,7 @@ function InstructorPanel() {
                   <Link
                     to="/studio/$courseId"
                     params={{ courseId: c.id }}
-                    className="flex items-center gap-1 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white"
+                    className="flex items-center gap-1 rounded-full bg-black px-4 py-2 text-xs font-semibold text-background"
                   >
                     <Pencil className="h-3 w-3" /> Edit
                   </Link>
@@ -179,7 +179,7 @@ function InstructorPanel() {
                     onClick={() => {
                       if (confirm(`Delete "${c.title}"? This cannot be undone.`)) remove.mutate(c.id);
                     }}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f5f5] text-gray-500 hover:text-red-500"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-muted-foreground hover:-foreground"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />

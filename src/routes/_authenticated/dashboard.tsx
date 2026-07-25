@@ -76,17 +76,17 @@ function Dashboard() {
   const subscribed = filtered.slice(3, 7);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="flex min-h-screen w-full flex-col gap-5 p-4 md:p-6 lg:flex-row">
-        <main className="flex-1 rounded-3xl bg-white p-6 md:p-10">
+        <main className="flex-1 rounded-3xl bg-card p-6 md:p-10">
           <nav className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xl font-bold">
               <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">
                 <div className="h-2.5 w-2.5 rounded-full bg-black" />
               </div>
-              <span>Moz<span className="text-[#ff5a6a]">ok</span></span>
+              <span>Moz<span className="text-foreground">ok</span></span>
             </div>
-            <div className="flex items-center gap-5 text-gray-700">
+            <div className="flex items-center gap-5 text-foreground">
               <Link to="/browse" title="Browse"><Compass className="h-5 w-5" /></Link>
               <Link to="/learn" title="My learning"><BookOpen className="h-5 w-5" /></Link>
               <Link to="/studio" title="Studio"><GraduationCap className="h-5 w-5" /></Link>
@@ -99,33 +99,33 @@ function Dashboard() {
           <section className="mt-8 grid grid-cols-1 items-center gap-6 md:grid-cols-[240px_1fr]">
             <img src={heroPerson} alt="Learner illustration" width={240} height={240} className="w-48 md:w-full" />
             <div>
-              <p className="text-2xl text-gray-700">Hi {displayName},</p>
+              <p className="text-2xl text-foreground">Hi {displayName},</p>
               <h1 className="mt-1 text-4xl font-bold leading-tight md:text-5xl">What do you wanna learn?</h1>
-              <div className="mt-6 flex items-center rounded-full bg-white p-1.5 ring-1 ring-gray-300">
+              <div className="mt-6 flex items-center rounded-full bg-card p-1.5 ring-1 ring-border">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search ..."
-                  className="flex-1 bg-transparent px-5 py-2 text-sm outline-none placeholder:text-gray-400"
+                  className="flex-1 bg-transparent px-5 py-2 text-sm outline-none placeholder:text-muted-foreground"
                 />
-                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff5a6a] text-white/30">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-primary-foreground">
                   <Search className="h-5 w-5" />
                 </button>
               </div>
             </div>
           </section>
 
-          <div className="mt-10 flex items-center justify-between border-b border-gray-300 pb-2">
+          <div className="mt-10 flex items-center justify-between border-b border-border pb-2">
             <div className="flex gap-6 text-sm">
               <button className="relative pb-2 font-semibold">
                 All
-                <span className="absolute inset-x-0 -bottom-[1px] mx-auto h-0.5 w-6 rounded-full bg-[#ff5a6a]" />
+                <span className="absolute inset-x-0 -bottom-[1px] mx-auto h-0.5 w-6 rounded-full bg-foreground" />
               </button>
-              <button className="pb-2 text-gray-500">New</button>
-              <button className="pb-2 text-gray-500">Popular</button>
+              <button className="pb-2 text-muted-foreground">New</button>
+              <button className="pb-2 text-muted-foreground">Popular</button>
             </div>
-            <div className="flex items-center gap-3 text-gray-500">
+            <div className="flex items-center gap-3 text-muted-foreground">
               <List className="h-5 w-5" />
               <LayoutGrid className="h-5 w-5" />
             </div>
@@ -133,16 +133,16 @@ function Dashboard() {
 
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featured && (
-              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 ring-1 ring-gray-300 transition-transform hover:-translate-y-1">
+              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-card p-6 ring-1 ring-border transition-transform hover:-translate-y-1">
                 <h3 className="text-3xl font-bold">{featured.title}</h3>
-                <p className="mt-1 text-sm text-gray-500">{featured.subtitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{featured.subtitle}</p>
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img src={avatar || avatarUser} alt="" width={48} height={48} className="h-12 w-12 rounded-full object-cover" loading="lazy" />
                     <div>
-                      <div className="text-2xl font-bold text-[#4aa9c9]">{Number(featured.rating).toFixed(1)}</div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Heart className="h-3 w-3 fill-[#ff5a6a] text-[#ff5a6a]" /> {featured.likes}
+                      <div className="text-2xl font-bold text-foreground">{Number(featured.rating).toFixed(1)}</div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Heart className="h-3 w-3 fill-foreground text-foreground" /> {featured.likes}
                       </div>
                     </div>
                   </div>
@@ -151,9 +151,9 @@ function Dashboard() {
                   )}
                 </div>
                 <div className="mt-8 flex items-center justify-between">
-                  <div className="rounded-full bg-[#e6f4f8] px-4 py-2 text-sm font-semibold text-gray-800">{formatPrice(featured.price_cents)}</div>
-                  <div className="text-sm text-gray-500">{featured.duration_label}</div>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
+                  <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-foreground">{formatPrice(featured.price_cents)}</div>
+                  <div className="text-sm text-muted-foreground">{featured.duration_label}</div>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background">
                     <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
@@ -167,48 +167,48 @@ function Dashboard() {
         </main>
 
         <aside className="w-full space-y-6 lg:w-[360px]">
-          <div className="rounded-3xl bg-[#111114] p-6 text-white">
+          <div className="rounded-3xl bg-foreground p-6 text-background">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={avatar || avatarGeorge} alt={displayName} width={56} height={56} className="h-14 w-14 rounded-full object-cover" />
                 <div>
                   <div className="text-lg font-semibold">{displayName}</div>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span className="h-2 w-2 rounded-full bg-[#ff5a6a]" /> Online
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="h-2 w-2 rounded-full bg-foreground" /> Online
                   </div>
                 </div>
               </div>
-              <MoreHorizontal className="h-5 w-5 text-gray-400" />
+              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="mt-6 grid grid-cols-3 text-center">
-              <div><div className="text-xs text-gray-400">Score</div><div className="mt-1 text-xl font-bold">9.7</div></div>
-              <div className="border-x border-white/10"><div className="text-xs text-gray-400">Earned coins</div><div className="mt-1 text-xl font-bold">10.5K</div></div>
-              <div><div className="text-xs text-gray-400">Followers</div><div className="mt-1 text-xl font-bold">100K</div></div>
+              <div><div className="text-xs text-muted-foreground">Score</div><div className="mt-1 text-xl font-bold">9.7</div></div>
+              <div className="border-x border-white/10"><div className="text-xs text-muted-foreground">Earned coins</div><div className="mt-1 text-xl font-bold">10.5K</div></div>
+              <div><div className="text-xs text-muted-foreground">Followers</div><div className="mt-1 text-xl font-bold">100K</div></div>
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-6">
-            <div className="flex gap-6 border-b border-gray-300 pb-3 text-sm">
+          <div className="rounded-3xl bg-card p-6">
+            <div className="flex gap-6 border-b border-border pb-3 text-sm">
               <button className="relative pb-1 font-semibold">
                 Subscribed
-                <span className="absolute inset-x-0 -bottom-[13px] mx-auto h-0.5 w-16 rounded-full bg-[#ff5a6a]" />
+                <span className="absolute inset-x-0 -bottom-[13px] mx-auto h-0.5 w-16 rounded-full bg-foreground" />
               </button>
-              <button className="text-gray-400">Upcoming</button>
-              <button className="text-gray-400">Passed</button>
+              <button className="text-muted-foreground">Upcoming</button>
+              <button className="text-muted-foreground">Passed</button>
             </div>
             <ul className="mt-4 space-y-2">
               {subscribed.map((c, i) => (
-                <li key={c.id} className={`flex items-center justify-between rounded-2xl p-3 ${i === 1 ? "bg-[#f5f5f5]" : ""}`}>
+                <li key={c.id} className={`flex items-center justify-between rounded-2xl p-3 ${i === 1 ? "bg-background" : ""}`}>
                   <div className="flex items-center gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${tintFor(c.icon_kind)}`}>
                       {glyphFor(c.icon_kind, c.title)}
                     </div>
                     <div>
                       <div className="text-sm font-semibold">{c.title}</div>
-                      <div className="text-xs text-gray-400">{c.subtitle}</div>
+                      <div className="text-xs text-muted-foreground">{c.subtitle}</div>
                     </div>
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-xs font-semibold text-gray-500">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground">
                     {50 + i * 10}
                   </div>
                 </li>
@@ -216,26 +216,26 @@ function Dashboard() {
             </ul>
           </div>
 
-          <div className="rounded-3xl bg-white p-6">
+          <div className="rounded-3xl bg-card p-6">
             <div className="flex items-center justify-between">
               <h4 className="text-lg font-semibold">Calendar</h4>
-              <div className="flex items-center gap-3 text-gray-400">
+              <div className="flex items-center gap-3 text-muted-foreground">
                 <ChevronLeft className="h-4 w-4" />
                 <ChevronRight className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-4 grid grid-cols-5 gap-2 text-center">
               {[
-                { d: 13, wd: "Mon", active: true, dot: "bg-[#ff5a6a]" },
-                { d: 14, wd: "Tue", dot: "bg-[#ff5a6a]" },
-                { d: 15, wd: "Wed", dot: "bg-[#4aa9c9]" },
-                { d: 16, wd: "Thu", dot: "bg-[#c98a1a]" },
-                { d: 17, wd: "Fri", dot: "bg-[#ff5a6a]" },
+                { d: 13, wd: "Mon", active: true, dot: "bg-foreground" },
+                { d: 14, wd: "Tue", dot: "bg-foreground" },
+                { d: 15, wd: "Wed", dot: "bg-foreground" },
+                { d: 16, wd: "Thu", dot: "bg-foreground" },
+                { d: 17, wd: "Fri", dot: "bg-foreground" },
               ].map((day) => (
-                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-gray-300" : ""}`}>
+                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-border" : ""}`}>
                   <div className={`mx-auto mb-2 h-1.5 w-1.5 rounded-full ${day.dot}`} />
-                  <div className={`text-lg font-bold ${day.active ? "" : "text-gray-700"}`}>{day.d}</div>
-                  <div className="text-[10px] text-gray-400">{day.wd}</div>
+                  <div className={`text-lg font-bold ${day.active ? "" : "text-foreground"}`}>{day.d}</div>
+                  <div className="text-[10px] text-muted-foreground">{day.wd}</div>
                 </div>
               ))}
             </div>
@@ -248,20 +248,20 @@ function Dashboard() {
 
 function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
-  const priceBg = course.icon_kind === "cyber" ? "bg-[#fde2e4]" : "bg-[#e6f4f8]";
+  const priceBg = course.icon_kind === "cyber" ? "bg-secondary" : "bg-secondary";
   return (
-    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 ring-1 ring-gray-300 transition-transform hover:-translate-y-1">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-card p-5 ring-1 ring-border transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold">{course.title}</h3>
-          <p className="mt-1 text-sm text-gray-500">{course.subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{course.subtitle}</p>
         </div>
         {img && <img src={img} alt="" width={120} height={90} className="h-20 w-28 object-contain" loading="lazy" />}
       </div>
       <div className="mt-6 flex items-center justify-between">
         <div className={`rounded-full ${priceBg} px-3 py-1.5 text-xs font-semibold`}>{formatPrice(course.price_cents)}</div>
-        <div className="text-xs text-gray-500">{course.duration_label}</div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ff5a6a] text-white">
+        <div className="text-xs text-muted-foreground">{course.duration_label}</div>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
           <ArrowRight className="h-4 w-4" />
         </span>
       </div>
@@ -271,12 +271,12 @@ function SmallCard({ course }: { course: CourseCard }) {
 
 function tintFor(kind: string | null) {
   switch (kind) {
-    case "megaphone": return "bg-[#e6f4f8] text-[#4aa9c9]";
-    case "js": return "bg-[#fff4d6] text-[#c98a1a]";
-    case "html": return "bg-[#fde2e4] text-[#c9576a]";
-    case "pencil": return "bg-black text-white";
-    case "cyber": return "bg-[#fde2e4] text-[#c9576a]";
-    default: return "bg-[#f5f5f5] text-gray-700";
+    case "megaphone": return "bg-secondary text-foreground";
+    case "js": return "bg-secondary text-foreground";
+    case "html": return "bg-secondary text-foreground";
+    case "pencil": return "bg-black text-background";
+    case "cyber": return "bg-secondary text-foreground";
+    default: return "bg-background text-foreground";
   }
 }
 

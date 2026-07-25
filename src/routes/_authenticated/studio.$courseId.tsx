@@ -43,7 +43,7 @@ function EditCourse() {
   if (!data) {
     return (
       <div className="p-8">
-        Course not found. <Link to="/studio" className="text-[#ff5a6a] underline">Back</Link>
+        Course not found. <Link to="/studio" className="text-foreground underline">Back</Link>
       </div>
     );
   }
@@ -102,17 +102,17 @@ function EditCourse() {
   const [newLessonTitle, setNewLessonTitle] = useState("");
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
       <div className="mx-auto max-w-4xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
-          <Link to="/studio" className="flex items-center gap-2 text-sm text-gray-600 hover:text-black">
+          <Link to="/studio" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">
             <ArrowLeft className="h-4 w-4" /> Studio
           </Link>
           <div className="flex items-center gap-2">
             <button
               onClick={() => publish.mutate(!course.is_published)}
               disabled={publish.isPending}
-              className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white"
+              className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-semibold text-background"
             >
               {course.is_published ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               {course.is_published ? "Unpublish" : "Publish"}
@@ -120,7 +120,7 @@ function EditCourse() {
             {course.is_published && (
               <button
                 onClick={() => navigate({ to: "/courses/$slug", params: { slug: course.slug } })}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold ring-1 ring-gray-300"
+                className="rounded-full bg-card px-4 py-2 text-xs font-semibold ring-1 ring-border"
               >
                 View live
               </button>
@@ -128,7 +128,7 @@ function EditCourse() {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white p-6 md:p-8">
+        <div className="rounded-3xl bg-card p-6 md:p-8">
           <h1 className="text-2xl font-bold">Course details</h1>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Field label="Title">
@@ -183,14 +183,14 @@ function EditCourse() {
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-6 py-3 text-sm font-semibold text-white/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> {save.isPending ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>
 
-        <div className="mt-6 rounded-3xl bg-white p-6 md:p-8">
+        <div className="mt-6 rounded-3xl bg-card p-6 md:p-8">
           <h2 className="text-xl font-bold">Lessons</h2>
           <ul className="mt-4 space-y-2">
             {lessons.map((l) => (
@@ -204,7 +204,7 @@ function EditCourse() {
               />
             ))}
             {lessons.length === 0 && (
-              <li className="rounded-2xl bg-[#f5f5f5] p-4 text-sm text-gray-500">No lessons yet.</li>
+              <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">No lessons yet.</li>
             )}
           </ul>
 
@@ -225,7 +225,7 @@ function EditCourse() {
             />
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white"
+              className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background"
             >
               <Plus className="h-4 w-4" /> Add
             </button>
@@ -237,12 +237,12 @@ function EditCourse() {
 }
 
 const inputCls =
-  "w-full rounded-2xl bg-[#f5f5f5] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[#ff5a6a]";
+  "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground";
 
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
     <label className={`block ${full ? "md:col-span-2" : ""}`}>
-      <span className="mb-1.5 block text-xs font-semibold text-gray-600">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -285,10 +285,10 @@ function LessonRow({
   });
 
   return (
-    <li className="rounded-2xl bg-[#f5f5f5]">
+    <li className="rounded-2xl bg-background">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-xs font-bold">
             {lesson.position}
           </span>
           <span className="text-sm font-semibold">{lesson.title}</span>
@@ -296,38 +296,38 @@ function LessonRow({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold"
+            className="rounded-full bg-card px-3 py-1.5 text-xs font-semibold"
           >
             {open ? "Close" : "Edit"}
           </button>
-          <button onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-red-500">
+          <button onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
       {open && (
-        <div className="grid gap-3 border-t border-gray-300/60 p-4 md:grid-cols-2">
+        <div className="grid gap-3 border-t border-border/60 p-4 md:grid-cols-2">
           <label className="md:col-span-2">
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Title</span>
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Title</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
           </label>
           <label>
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Video URL</span>
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Video URL</span>
             <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className={inputCls} />
           </label>
           <label>
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Duration (seconds)</span>
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Duration (seconds)</span>
             <input value={dur} onChange={(e) => setDur(e.target.value)} inputMode="numeric" className={inputCls} />
           </label>
           <label className="md:col-span-2">
-            <span className="mb-1 block text-xs font-semibold text-gray-600">Content</span>
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">Content</span>
             <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} className={`${inputCls} resize-none`} />
           </label>
           <div className="md:col-span-2 flex justify-end">
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex items-center gap-2 rounded-full bg-[#ff5a6a] px-5 py-2.5 text-sm font-semibold text-white/30 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> Save lesson
             </button>

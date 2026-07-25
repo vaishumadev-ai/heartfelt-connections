@@ -93,7 +93,7 @@ function Player() {
             {current.content && (
               <div className="mt-6 whitespace-pre-line text-gray-700 leading-relaxed">{current.content}</div>
             )}
-            <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
+            <div className="mt-8 flex items-center justify-between border-t border-gray-300 pt-6">
               <button
                 onClick={() => mutation.mutate({ lessonId: current.id, courseId: course.id })}
                 disabled={mutation.isPending || isDone}

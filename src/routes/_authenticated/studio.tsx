@@ -61,7 +61,7 @@ function Studio() {
           </div>
 
           {!isInstructor ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center">
+            <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
               <h2 className="text-xl font-semibold">Become an instructor</h2>
               <p className="mt-2 text-sm text-gray-500">
                 Publish courses on Mozok. It only takes a click.
@@ -123,12 +123,12 @@ function InstructorPanel() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Course title"
-            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-200 focus:ring-[#ff5a6a]"
+            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-300 focus:ring-[#ff5a6a]"
           />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-200"
+            className="rounded-full bg-white px-5 py-3 text-sm outline-none ring-1 ring-gray-300"
           >
             {["Development", "Design", "Marketing", "Language", "Security", "Business"].map((c) => (
               <option key={c}>{c}</option>
@@ -151,7 +151,7 @@ function InstructorPanel() {
         ) : (
           <ul className="space-y-3">
             {courses.map((c: MyCourse) => (
-              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-gray-100">
+              <li key={c.id} className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-gray-300">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold">{c.title}</h3>

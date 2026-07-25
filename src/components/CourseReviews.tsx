@@ -162,7 +162,7 @@ function ReviewForm({
           <button
             type="button"
             onClick={onDelete}
-            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 ring-1 ring-gray-200 hover:text-red-500"
+            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 ring-1 ring-gray-300 hover:text-red-500"
           >
             <Trash2 className="h-3 w-3" /> Delete
           </button>
@@ -194,7 +194,7 @@ function ReviewCard({ r }: { r: ReviewItem }) {
   const name = r.author?.display_name || "Learner";
   const initial = name.charAt(0).toUpperCase();
   return (
-    <li className="rounded-2xl bg-white p-5 ring-1 ring-gray-100">
+    <li className="rounded-2xl bg-white p-5 ring-1 ring-gray-300">
       <div className="flex items-center gap-3">
         {r.author?.avatar_url ? (
           <img src={r.author.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />

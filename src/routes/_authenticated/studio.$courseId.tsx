@@ -120,7 +120,7 @@ function EditCourse() {
             {course.is_published && (
               <button
                 onClick={() => navigate({ to: "/courses/$slug", params: { slug: course.slug } })}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold ring-1 ring-gray-200"
+                className="rounded-full bg-white px-4 py-2 text-xs font-semibold ring-1 ring-gray-300"
               >
                 View live
               </button>
@@ -306,7 +306,7 @@ function LessonRow({
         </div>
       </div>
       {open && (
-        <div className="grid gap-3 border-t border-gray-200/60 p-4 md:grid-cols-2">
+        <div className="grid gap-3 border-t border-gray-300/60 p-4 md:grid-cols-2">
           <label className="md:col-span-2">
             <span className="mb-1 block text-xs font-semibold text-gray-600">Title</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />

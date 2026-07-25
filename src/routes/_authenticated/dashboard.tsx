@@ -101,7 +101,7 @@ function Dashboard() {
             <div>
               <p className="text-2xl text-gray-700">Hi {displayName},</p>
               <h1 className="mt-1 text-4xl font-bold leading-tight md:text-5xl">What do you wanna learn?</h1>
-              <div className="mt-6 flex items-center rounded-full bg-white p-1.5 ring-1 ring-gray-100">
+              <div className="mt-6 flex items-center rounded-full bg-white p-1.5 ring-1 ring-gray-300">
                 <input
                   type="text"
                   value={search}
@@ -116,7 +116,7 @@ function Dashboard() {
             </div>
           </section>
 
-          <div className="mt-10 flex items-center justify-between border-b border-gray-100 pb-2">
+          <div className="mt-10 flex items-center justify-between border-b border-gray-300 pb-2">
             <div className="flex gap-6 text-sm">
               <button className="relative pb-2 font-semibold">
                 All
@@ -133,7 +133,7 @@ function Dashboard() {
 
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featured && (
-              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+              <Link to="/courses/$slug" params={{ slug: featured.slug }} className="row-span-2 block rounded-3xl bg-white p-6 ring-1 ring-gray-300 transition-transform hover:-translate-y-1">
                 <h3 className="text-3xl font-bold">{featured.title}</h3>
                 <p className="mt-1 text-sm text-gray-500">{featured.subtitle}</p>
                 <div className="mt-4 flex items-center justify-between">
@@ -188,7 +188,7 @@ function Dashboard() {
           </div>
 
           <div className="rounded-3xl bg-white p-6">
-            <div className="flex gap-6 border-b border-gray-100 pb-3 text-sm">
+            <div className="flex gap-6 border-b border-gray-300 pb-3 text-sm">
               <button className="relative pb-1 font-semibold">
                 Subscribed
                 <span className="absolute inset-x-0 -bottom-[13px] mx-auto h-0.5 w-16 rounded-full bg-[#ff5a6a]" />
@@ -208,7 +208,7 @@ function Dashboard() {
                       <div className="text-xs text-gray-400">{c.subtitle}</div>
                     </div>
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-xs font-semibold text-gray-500">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-xs font-semibold text-gray-500">
                     {50 + i * 10}
                   </div>
                 </li>
@@ -232,7 +232,7 @@ function Dashboard() {
                 { d: 16, wd: "Thu", dot: "bg-[#c98a1a]" },
                 { d: 17, wd: "Fri", dot: "bg-[#ff5a6a]" },
               ].map((day) => (
-                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-gray-100" : ""}`}>
+                <div key={day.d} className={`rounded-2xl py-3 ${day.active ? " ring-1 ring-gray-300" : ""}`}>
                   <div className={`mx-auto mb-2 h-1.5 w-1.5 rounded-full ${day.dot}`} />
                   <div className={`text-lg font-bold ${day.active ? "" : "text-gray-700"}`}>{day.d}</div>
                   <div className="text-[10px] text-gray-400">{day.wd}</div>
@@ -250,7 +250,7 @@ function SmallCard({ course }: { course: CourseCard }) {
   const img = iconFor(course.icon_kind);
   const priceBg = course.icon_kind === "cyber" ? "bg-[#fde2e4]" : "bg-[#e6f4f8]";
   return (
-    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 ring-1 ring-gray-100 transition-transform hover:-translate-y-1">
+    <Link to="/courses/$slug" params={{ slug: course.slug }} className="block rounded-3xl bg-white p-5 ring-1 ring-gray-300 transition-transform hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold">{course.title}</h3>

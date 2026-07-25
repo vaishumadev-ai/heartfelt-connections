@@ -20,6 +20,20 @@ export type FixtureSlugs = {
   paidCourseId: string;
 };
 
+export type FixtureIds = {
+  namespace: string;
+  freeCourseId: string;
+  paidCourseId: string;
+  freeSlug: string;
+  paidSlug: string;
+};
+
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v);
+}
+
 function isNewKey(v: string) {
   return v.startsWith("sb_publishable_") || v.startsWith("sb_secret_");
 }
@@ -111,16 +125,24 @@ async function verifyTestSchema(supabase: SupabaseClient): Promise<void> {
 }
 
 /** Insert a deterministic set of fixtures and return the identifying slugs. */
-export async function createFixtures(): Promise<FixtureSlugs> {
-  const rawNs = process.env.PW_FIXTURE_NAMESPACE || nsPrefix();
+export async function createFixtures(ids?: FixtureIds): Promise<FixtureSlugs> {
+  const rawNs = ids?.namespace ?? process.env.PW_FIXTURE_NAMESPACE ?? nsPrefix();
   const namespace = assertValidFixtureNamespace(rawNs, "fixtures");
   process.env.PW_FIXTURE_NAMESPACE = namespace;
 
   const supabase = adminClient();
   await verifyTestSchema(supabase);
 
-  const freeSlug = `${namespace}-free`;
-  const paidSlug = `${namespace}-paid`;
+  const freeSlug = ids?.freeSlug ?? `${namespace}-free`;
+  const paidSlug = ids?.paidSlug ?? `${namespace}-paid`;
+  const freeCourseId = ids?.freeCourseId ?? crypto.randomUUID();
+  const paidCourseId = ids?.paidCourseId ?? crypto.randomUUID();
+  if (!isValidUuid(freeCourseId) || !isValidUuid(paidCourseId)) {
+    throw new Error(`[fixtures] predetermined course IDs must be valid UUIDs.`);
+  }
+  if (!freeSlug.startsWith(`${namespace}-`) || !paidSlug.startsWith(`${namespace}-`)) {
+    throw new Error(`[fixtures] slugs must start with namespace '${namespace}-'.`);
+  }
 
   const baseCourse = {
     is_published: true,
@@ -175,6 +197,7 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     .from("courses")
     .insert({
       ...baseCourse,
+      id: freeCourseId,
       slug: freeSlug,
       title: `[${namespace}] Free Course Fixture`,
       subtitle: "A deterministic free course used by the Playwright E2E suite.",
@@ -194,6 +217,7 @@ export async function createFixtures(): Promise<FixtureSlugs> {
     .from("courses")
     .insert({
       ...baseCourse,
+      id: paidCourseId,
       slug: paidSlug,
       title: `[${namespace}] Paid Course Fixture`,
       subtitle: "A deterministic paid course used by the Playwright E2E suite.",
@@ -359,6 +383,31 @@ export async function destroyFixturesByIds(input: {
   }
   const { error: delErr } = await supabase.from("courses").delete().in("id", verifiedIds);
   if (delErr) throw new Error(`fixture teardown courses failed: ${delErr.message}`);
+
+  // Post-delete verification — the caller asked us to remove exactly these
+  // rows. If any remain we surface it loudly with the table and ids so the
+  // operator can investigate rather than silently reporting success.
+  const verifyTables: ("courses" | "lessons" | "reviews" | "enrollments" | "lesson_completions")[] = [
+    "courses",
+    "lessons",
+    "reviews",
+    "enrollments",
+    "lesson_completions",
+  ];
+  for (const table of verifyTables) {
+    const col = table === "courses" ? "id" : "course_id";
+    const { data: remaining, error: verErr } = await supabase
+      .from(table)
+      .select("id")
+      .in(col, verifiedIds);
+    if (verErr) throw new Error(`fixture teardown verify ${table} failed: ${verErr.message}`);
+    if ((remaining ?? []).length > 0) {
+      const rest = (remaining ?? []).map((r) => (r as { id: string }).id).join(",");
+      throw new Error(
+        `[fixtures/teardown] rows remain in ${table} after delete for course ids [${verifiedIds.join(",")}]: ${rest}`,
+      );
+    }
+  }
   return { deletedCourses: verifiedIds.length };
 }
 

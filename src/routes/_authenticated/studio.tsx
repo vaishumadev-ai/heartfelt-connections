@@ -44,7 +44,8 @@ export const Route = createFileRoute("/_authenticated/studio")({
 
 function Studio() {
   const { data: roles } = useSuspenseQuery(myRolesQO);
-  const isInstructor = roles.includes("instructor") || roles.includes("admin");
+  const isInstructor = roles.includes("instructor");
+  const isAdmin = roles.includes("admin");
   const qc = useQueryClient();
   const applyFn = useServerFn(applyForInstructor);
   const withdrawFn = useServerFn(withdrawInstructorApplication);
@@ -83,18 +84,48 @@ function Studio() {
             </div>
           </div>
 
-          {!isInstructor ? (
+          {isAdmin && !isInstructor && (
+            <AdminOnlyPanel />
+          )}
+          {isInstructor && <InstructorPanel />}
+          {!isInstructor && !isAdmin && (
             <ApplicationPanel
               app={myApp}
               onApply={(reason) => apply.mutate({ reason })}
               onWithdraw={(id) => withdraw.mutate(id)}
               pending={apply.isPending || withdraw.isPending}
             />
-          ) : (
-            <InstructorPanel />
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AdminOnlyPanel() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between rounded-2xl bg-foreground/5 p-4 ring-1 ring-border">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5" />
+          <div>
+            <div className="text-sm font-semibold">Admin console</div>
+            <div className="text-xs text-muted-foreground">
+              Review pending courses and manage curation.
+            </div>
+          </div>
+        </div>
+        <Link
+          to="/admin/courses"
+          className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-primary-foreground"
+        >
+          Open admin
+        </Link>
+      </div>
+      <p className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+        You're signed in as an admin. Studio authoring is instructor-only. Apply for an
+        instructor role from a separate account if you want to author courses.
+      </p>
     </div>
   );
 }

@@ -42,7 +42,7 @@ function Studio() {
   });
 
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
         <div className="mb-6 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black">

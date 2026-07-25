@@ -76,7 +76,7 @@ function Player() {
   const pct = Math.round((doneCount / lessons.length) * 100);
 
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Link to="/learn" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-black"><ArrowLeft className="h-4 w-4" /> My learning</Link>
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">

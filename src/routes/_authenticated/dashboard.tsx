@@ -76,7 +76,7 @@ function Dashboard() {
   const subscribed = filtered.slice(3, 7);
 
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="flex min-h-screen w-full flex-col gap-5 p-4 md:p-6 lg:flex-row">
         <main className="flex-1 rounded-3xl bg-card p-6 md:p-10">
           <nav className="flex items-center justify-between">

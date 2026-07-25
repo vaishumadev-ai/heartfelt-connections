@@ -33,7 +33,7 @@ function Index() {
   if (checking) return <div className="min-h-screen bg-background" />;
 
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col p-4 md:p-6">
         <nav className="flex items-center justify-between rounded-3xl bg-card px-6 py-4">
           <div className="flex items-center gap-2 text-xl font-bold">

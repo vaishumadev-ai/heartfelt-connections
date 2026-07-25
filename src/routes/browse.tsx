@@ -33,7 +33,7 @@ function Browse() {
     return okCat && okSearch;
   });
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-xl font-bold">

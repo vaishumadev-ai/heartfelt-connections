@@ -26,7 +26,7 @@ function LearnPage() {
   const fetchFn = useServerFn(listMyEnrollments);
   const { data } = useSuspenseQuery(makeQuery(fetchFn));
   return (
-    <div className="min-h-screen bg-background" style={{ fontFamily: "Instrument Serif, serif" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-6xl px-6 py-10">
         <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-black"><ArrowLeft className="h-4 w-4" /> Dashboard</Link>
         <h1 className="mt-6 text-4xl font-bold md:text-5xl">My learning</h1>

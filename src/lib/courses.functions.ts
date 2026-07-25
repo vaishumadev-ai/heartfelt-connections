@@ -718,6 +718,17 @@ export const listCourseReviews = createServerFn({ method: "GET" })
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data }): Promise<ReviewItem[]> => {
     const supabase = pubClient();
+    // Public read policy already restricts to eligible authors, but we also
+    // filter server-side to guarantee ineligible historical rows are hidden
+    // from every consumer of this endpoint (defense-in-depth).
+    const { data: course } = await supabase
+      .from("courses")
+      .select("is_published, price_cents")
+      .eq("id", data.courseId)
+      .maybeSingle();
+    if (!course || !course.is_published || (course.price_cents ?? 0) !== 0) {
+      return [];
+    }
     const { data: rows, error } = await supabase
       .from("reviews")
       .select("id, user_id, rating, body, created_at")
@@ -726,13 +737,24 @@ export const listCourseReviews = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const list = rows ?? [];
     if (list.length === 0) return [];
-    const userIds = Array.from(new Set(list.map((r) => r.user_id)));
+    // Only surface reviews whose author has a matching free-published
+    // enrollment. Historical paid enrollments confer no review rights.
+    const authorIds = Array.from(new Set(list.map((r) => r.user_id)));
+    const { data: enrolls } = await supabase
+      .from("enrollments")
+      .select("user_id")
+      .eq("course_id", data.courseId)
+      .in("user_id", authorIds);
+    const eligible = new Set((enrolls ?? []).map((e) => e.user_id));
+    const gated = list.filter((r) => eligible.has(r.user_id));
+    if (gated.length === 0) return [];
+    const userIds = Array.from(new Set(gated.map((r) => r.user_id)));
     const { data: profs } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_url")
       .in("id", userIds);
     const byId = new Map((profs ?? []).map((p) => [p.id, p]));
-    return list.map((r) => ({
+    return gated.map((r) => ({
       ...r,
       author: byId.get(r.user_id)
         ? {
@@ -745,11 +767,17 @@ export const listCourseReviews = createServerFn({ method: "GET" })
 
 async function recomputeCourseRating(courseId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // Only aggregate ratings from eligible reviewers (free published enrollment).
   const { data: rows } = await supabaseAdmin
     .from("reviews")
-    .select("rating")
+    .select("rating, user_id")
     .eq("course_id", courseId);
-  const list = rows ?? [];
+  const { data: enrolls } = await supabaseAdmin
+    .from("enrollments")
+    .select("user_id")
+    .eq("course_id", courseId);
+  const eligible = new Set((enrolls ?? []).map((e) => e.user_id));
+  const list = (rows ?? []).filter((r) => eligible.has(r.user_id as string));
   const avg = list.length
     ? Math.round((list.reduce((s, r) => s + (r.rating as number), 0) / list.length) * 10) / 10
     : 0;

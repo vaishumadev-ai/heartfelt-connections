@@ -26,20 +26,15 @@ describe("assertActiveInstructor", () => {
     expect(s.calls[0]).toEqual({ fn: "current_user_has_role", args: { _role: "instructor" } });
   });
 
-  it("passes when the caller is an admin (fallback)", async () => {
-    const s = stub([
-      { data: false, error: null },
-      { data: true, error: null },
-    ]);
-    await expect(assertActiveInstructor(s)).resolves.toBeUndefined();
-    expect(s.calls[1]).toEqual({ fn: "current_user_has_role", args: { _role: "admin" } });
+  it("denies an admin who is not also an instructor (Studio is instructor-only)", async () => {
+    const s = stub([{ data: false, error: null }]);
+    await expect(assertActiveInstructor(s)).rejects.toThrow(/instructor role required/i);
+    // Never consults the admin role — Studio gate is strictly instructor.
+    expect(s.calls.length).toBe(1);
   });
 
   it("denies a plain authenticated user", async () => {
-    const s = stub([
-      { data: false, error: null },
-      { data: false, error: null },
-    ]);
+    const s = stub([{ data: false, error: null }]);
     await expect(assertActiveInstructor(s)).rejects.toThrow(/instructor role required/i);
   });
 
@@ -48,20 +43,9 @@ describe("assertActiveInstructor", () => {
     await expect(assertActiveInstructor(s)).rejects.toThrow(/authorization check failed/i);
   });
 
-  it("fails CLOSED when the admin fallback query errors", async () => {
-    const s = stub([
-      { data: false, error: null },
-      { data: null, error: { message: "boom" } },
-    ]);
-    await expect(assertActiveInstructor(s)).rejects.toThrow(/authorization check failed/i);
-  });
-
   it("does not treat non-boolean truthy values as authorization", async () => {
     // Any non-`true` value must be treated as "no", never coerced.
-    const s = stub([
-      { data: "yes" as unknown as boolean, error: null },
-      { data: 1 as unknown as boolean, error: null },
-    ]);
+    const s = stub([{ data: "yes" as unknown as boolean, error: null }]);
     await expect(assertActiveInstructor(s)).rejects.toThrow(/instructor role required/i);
   });
 });

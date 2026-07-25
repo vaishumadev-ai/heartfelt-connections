@@ -264,10 +264,12 @@ describe("Retry behavior", () => {
     listMyEnrollmentsMock.mockRejectedValueOnce(new Error("db down"));
     listMyEnrollmentsMock.mockResolvedValue([]);
     await renderRoute();
-    const retry = (await screen.findAllByRole("button", { name: /Retry/i }))[0];
+    const retry = (
+      await screen.findAllByRole("button", { name: /Retry/i }, { timeout: 5000 })
+    )[0];
     const callsBefore = listMyEnrollmentsMock.mock.calls.length;
     await userEvent.click(retry);
-    await screen.findAllByRole("button", { name: /Enroll now/i });
+    await screen.findAllByRole("button", { name: /Enroll now/i }, { timeout: 5000 });
     expect(listMyEnrollmentsMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });

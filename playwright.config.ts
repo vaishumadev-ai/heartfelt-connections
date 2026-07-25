@@ -35,7 +35,7 @@ if (missingTestEnv.length === 0) {
   if (!check.ok) {
     throw new Error(`[playwright.config] ${check.reason}`);
   }
-  // eslint-disable-next-line no-console
+
   console.log(`[playwright.config] production-guard OK; test project ref: ${check.ref}`);
 }
 

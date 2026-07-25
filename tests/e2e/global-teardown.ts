@@ -14,12 +14,11 @@ export default async function globalTeardown(): Promise<void> {
     // no state file — nothing to clean up
   }
   if (!namespace) {
-    // eslint-disable-next-line no-console
     console.log("[e2e/global-teardown] No fixture namespace found; skipping cleanup.");
     return;
   }
   const { deletedCourses } = await destroyFixtures(namespace);
-  // eslint-disable-next-line no-console
+
   console.log(`[e2e/global-teardown] Cleaned up namespace=${namespace} courses=${deletedCourses}`);
   await fs.rm(FIXTURE_STATE_PATH, { force: true });
 }

@@ -46,7 +46,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     },
     "globalSetup",
   );
-  // eslint-disable-next-line no-console
+
   console.log(`[e2e/global-setup] Using dedicated test project ref: ${ref}`);
 
   const namespace = process.env.PW_FIXTURE_NAMESPACE || `pw-${Date.now().toString(36)}`;
@@ -68,7 +68,6 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   process.env.PW_KNOWN_SLUG = created.freeSlug;
   process.env.PW_PAID_SLUG = created.paidSlug;
 
-  // eslint-disable-next-line no-console
   console.log(
     `[e2e/global-setup] Seeded fixtures: namespace=${created.namespace} free=${created.freeSlug} paid=${created.paidSlug}`,
   );

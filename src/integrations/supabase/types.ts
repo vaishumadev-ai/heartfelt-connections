@@ -359,6 +359,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_lesson: {
+        Args: { _course_id: string; _lesson_id: string }
+        Returns: number
+      }
+      get_course_curriculum: {
+        Args: { _slug: string }
+        Returns: {
+          duration_seconds: number
+          is_preview: boolean
+          lesson_id: string
+          lesson_position: number
+          lesson_title: string
+          module_title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -252,13 +252,17 @@ describe("Retry behavior", () => {
 
   it("retry after enrollment error refetches enrollments", async () => {
     resolvedAuth("user-1");
+    // useQuery retries once inside the component, so we need both initial
+    // attempts to fail before the Retry CTA appears.
     listMyEnrollmentsMock.mockRejectedValueOnce(new Error("db down"));
-    listMyEnrollmentsMock.mockResolvedValueOnce([]);
+    listMyEnrollmentsMock.mockRejectedValueOnce(new Error("db down"));
+    listMyEnrollmentsMock.mockResolvedValue([]);
     await renderRoute();
     const retry = (await screen.findAllByRole("button", { name: /Retry/i }))[0];
+    const callsBefore = listMyEnrollmentsMock.mock.calls.length;
     await userEvent.click(retry);
     await screen.findAllByRole("button", { name: /Enroll now/i });
-    expect(listMyEnrollmentsMock).toHaveBeenCalledTimes(2);
+    expect(listMyEnrollmentsMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });
 

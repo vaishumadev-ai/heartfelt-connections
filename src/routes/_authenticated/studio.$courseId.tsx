@@ -9,6 +9,8 @@ import {
   upsertLesson,
   deleteLesson,
   submitCourseForReview,
+  isCourseEditable,
+  mapCourseGovernanceError,
 } from "@/lib/courses.functions";
 
 export const Route = createFileRoute("/_authenticated/studio/$courseId")({
@@ -23,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/studio/$courseId")({
   component: EditCourse,
   errorComponent: ({ error }) => (
     <div className="p-8" role="alert">
-      {error.message}
+      {mapCourseGovernanceError(error)}
     </div>
   ),
   notFoundComponent: () => <div className="p-8">Course not found.</div>,
@@ -91,7 +93,10 @@ function EditCourse() {
     rejected: "Rejected",
   };
   const canSubmit = rs === "draft" || rs === "rejected";
-  const isEditable = rs === "draft" || rs === "rejected";
+  const isEditable = isCourseEditable({
+    is_published: course?.is_published,
+    review_status: rs,
+  });
   const lockedMessage =
     rs === "pending_review"
       ? "This course is awaiting admin review. Content is locked until a decision is made."

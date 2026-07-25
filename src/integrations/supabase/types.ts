@@ -459,9 +459,33 @@ export type Database = {
         Args: { _course_id: string; _lesson_id: string }
         Returns: number
       }
+      course_is_editable: { Args: { _course_id: string }; Returns: boolean }
       current_user_has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
+      }
+      enroll_free_course: { Args: { _course_id: string }; Returns: string }
+      get_admin_course: {
+        Args: { _course_id: string }
+        Returns: {
+          can_unpublish: boolean
+          category: string
+          completions_count: number
+          description: string
+          enrollments_count: number
+          id: string
+          instructor_id: string
+          instructor_name: string
+          is_published: boolean
+          price_cents: number
+          review_decision_reason: string
+          review_status: Database["public"]["Enums"]["course_review_status"]
+          reviews_count: number
+          slug: string
+          subtitle: string
+          title: string
+          updated_at: string
+        }[]
       }
       get_course_curriculum: {
         Args: { _slug: string }
@@ -480,6 +504,23 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_admin_courses: {
+        Args: never
+        Returns: {
+          category: string
+          completions_count: number
+          enrollments_count: number
+          id: string
+          instructor_id: string
+          instructor_name: string
+          is_published: boolean
+          review_status: Database["public"]["Enums"]["course_review_status"]
+          reviews_count: number
+          slug: string
+          title: string
+          updated_at: string
+        }[]
       }
       reject_course: {
         Args: { _course_id: string; _reason: string }
@@ -503,6 +544,10 @@ export type Database = {
       }
       submit_review_verified: {
         Args: { _body: string; _course_id: string; _rating: number }
+        Returns: undefined
+      }
+      unpublish_for_edit: {
+        Args: { _course_id: string; _reason: string }
         Returns: undefined
       }
       withdraw_instructor_application: {

@@ -708,4 +708,111 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     await user.click(screen.getByRole("button", { name: /discard and navigate/i }));
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
   });
+
+  it("bookmark failure preserves prior state, remains retryable; note delete failure retains note", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonBookmarkMock.mockResolvedValue(null);
+    addLessonBookmarkMock.mockRejectedValueOnce(new Error("boom"));
+    getLessonNoteMock.mockResolvedValue({
+      id: "n1",
+      course_id: "c1",
+      lesson_id: "l1",
+      body: "Existing note",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    deleteLessonNoteMock.mockRejectedValueOnce(new Error("nope"));
+    await renderPlayer();
+    const user = userEvent.setup();
+    const btn = await screen.findByTestId("bookmark-button");
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    await user.click(btn);
+    await waitFor(() => expect(addLessonBookmarkMock).toHaveBeenCalledTimes(1));
+    // Prior authoritative state retained: still not bookmarked, retryable.
+    await waitFor(() => expect(btn).toHaveAttribute("aria-pressed", "false"));
+    expect(btn).not.toBeDisabled();
+    addLessonBookmarkMock.mockResolvedValueOnce({ ok: true });
+    await user.click(btn);
+    await waitFor(() => expect(addLessonBookmarkMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(btn).toHaveAttribute("aria-pressed", "true"));
+
+    // Delete failure retains note
+    await user.click(screen.getByTestId("note-delete-trigger"));
+    await user.click(await screen.findByTestId("note-delete-confirm"));
+    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledTimes(1));
+    expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(
+      "Existing note",
+    );
+  });
+
+  it("completion invalidates learner-dashboard cache", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ current: baseLesson("l2", 2, false), prevId: "l1", nextId: "l3" }),
+    );
+    markLessonCompleteMock.mockResolvedValue({ progress: 66, courseComplete: false });
+    const { qc } = await renderPlayer({ lessonId: "l2" });
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /mark complete/i }));
+    await waitFor(() =>
+      expect(
+        invalidate.mock.calls.some(
+          (c) =>
+            (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("stale response from lesson A does not populate lesson B", async () => {
+    // Simulates prior lesson A note fetch resolving after switch to lesson B.
+    let resolveA: (v: unknown) => void = () => {};
+    getLessonNoteMock.mockImplementationOnce(
+      () => new Promise((r) => { resolveA = r; }),
+    );
+    getLessonPlayerMock.mockResolvedValueOnce(readyDTO());
+    const { rerender, qc } = await (async () => {
+      const mod = await import("@/routes/_authenticated/learn.$slug");
+      const qc = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: 0, staleTime: Infinity },
+          mutations: { retry: false },
+        },
+      });
+      const utils = render(
+        <QueryClientProvider client={qc}>
+          <mod.PlayerBody slug="test-slug" lessonId="l1" />
+        </QueryClientProvider>,
+      );
+      return { ...utils, qc };
+    })();
+    await screen.findByTestId("note-textarea");
+    // Switch to lesson B; fetch returns a distinct body.
+    getLessonPlayerMock.mockResolvedValueOnce(
+      readyDTO({ current: baseLesson("l2", 2, false), prevId: "l1", nextId: "l3" }),
+    );
+    getLessonNoteMock.mockResolvedValueOnce({
+      id: "n2",
+      course_id: "c1",
+      lesson_id: "l2",
+      body: "Lesson B body",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    rerender(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" lessonId="l2" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() =>
+      expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(
+        "Lesson B body",
+      ),
+    );
+    // Now resolve the stale A response — it must not overwrite lesson B state.
+    act(() => resolveA({ id: "n1", course_id: "c1", lesson_id: "l1", body: "STALE A", created_at: "x", updated_at: "x" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe("Lesson B body");
+  });
 });

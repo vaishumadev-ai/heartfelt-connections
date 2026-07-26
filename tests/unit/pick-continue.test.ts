@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { pickContinue, type LearnerEnrollmentDTO } from "@/lib/learner.functions";
 
-function e(
-  id: string,
-  progress: number,
-  last_activity_at: string,
-): LearnerEnrollmentDTO {
+function e(id: string, progress: number, last_activity_at: string): LearnerEnrollmentDTO {
   return {
     id,
     course_id: `c-${id}`,

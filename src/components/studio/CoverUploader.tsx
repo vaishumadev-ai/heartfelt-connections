@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useUnsavedGuard } from "@/components/lesson-tools/UnsavedGuard";
 
 type UploadState =
   | { kind: "idle" }
@@ -84,6 +85,32 @@ export function CoverUploader({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inFlight = useRef(false);
   const [state, setState] = useState<UploadState>({ kind: "idle" });
+  const guard = useUnsavedGuard();
+
+  // Register the uploader as an "unsafe navigation" source with the shared
+  // UnsavedGuard registry. Any in-flight upload/attach/detach OR a pending
+  // Storage cleanup (`cleanup_pending`) counts as unsafe: leaving would
+  // either abort a partial upload or leave an orphaned Storage object with
+  // no Retry cleanup surface. The checker reads a ref so its identity is
+  // stable and StrictMode double-invoke of the effect body doesn't leave
+  // duplicate registrations after unmount.
+  const unsafeRef = useRef(false);
+  unsafeRef.current = (() => {
+    switch (state.kind) {
+      case "validating":
+      case "uploading":
+      case "attaching":
+      case "replacing":
+      case "removing":
+      case "cleanup_pending":
+        return true;
+      default:
+        return false;
+    }
+  })();
+  useEffect(() => {
+    return guard.registerDirtyChecker(`studio-cover-${courseId}`, () => unsafeRef.current);
+  }, [guard, courseId]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const localPreviewRef = useRef<string | null>(null);

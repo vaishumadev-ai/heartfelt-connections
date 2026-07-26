@@ -254,7 +254,9 @@ export function NotesPanel({ courseId, lessonId }: { courseId: string; lessonId:
           {saveMutation.isPending ? "Saving…" : "Save note"}
         </button>
         <span className="text-xs text-muted-foreground hidden sm:inline">
-          Tip: {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to save
+          Tip:{" "}
+          {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}
+          +Enter to save
         </span>
       </div>
     </section>

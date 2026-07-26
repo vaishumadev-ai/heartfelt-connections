@@ -2,7 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, Check } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { listNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/notifications.functions";
+import {
+  listNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "@/lib/notifications.functions";
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -45,27 +49,40 @@ export function NotificationsBell() {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="font-semibold">Notifications</div>
           {unread > 0 && (
-            <button onClick={() => readAll.mutate()} className="text-xs text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => readAll.mutate()}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
               Mark all read
             </button>
           )}
         </div>
         <div className="max-h-96 overflow-y-auto">
           {data.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">You're all caught up.</div>
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              You're all caught up.
+            </div>
           )}
           {data.map((n) => {
             const content = (
               <div className="flex gap-3">
-                <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-black"}`} />
+                <div
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-black"}`}
+                />
                 <div className="flex-1">
                   <div className="text-sm font-medium">{n.title}</div>
                   {n.body && <div className="mt-0.5 text-xs text-muted-foreground">{n.body}</div>}
-                  <div className="mt-1 text-[11px] text-muted-foreground">{timeAgo(n.created_at)}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {timeAgo(n.created_at)}
+                  </div>
                 </div>
                 {!n.read && (
                   <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); readOne.mutate(n.id); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      readOne.mutate(n.id);
+                    }}
                     className="text-muted-foreground hover:text-foreground"
                     title="Mark read"
                   >
@@ -75,8 +92,17 @@ export function NotificationsBell() {
               </div>
             );
             return (
-              <div key={n.id} className="border-b border-border px-4 py-3 last:border-b-0 hover:bg-secondary/50">
-                {n.link ? <Link to={n.link} onClick={() => !n.read && readOne.mutate(n.id)}>{content}</Link> : content}
+              <div
+                key={n.id}
+                className="border-b border-border px-4 py-3 last:border-b-0 hover:bg-secondary/50"
+              >
+                {n.link ? (
+                  <Link to={n.link} onClick={() => !n.read && readOne.mutate(n.id)}>
+                    {content}
+                  </Link>
+                ) : (
+                  content
+                )}
               </div>
             );
           })}

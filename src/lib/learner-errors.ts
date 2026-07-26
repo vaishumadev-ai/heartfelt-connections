@@ -17,12 +17,7 @@ const MESSAGES: Record<LearnerErrorKind, string> = {
 };
 
 export function classifyLearnerError(err: unknown): LearnerErrorKind {
-  const msg =
-    err instanceof Error
-      ? err.message
-      : typeof err === "string"
-        ? err
-        : "";
+  const msg = err instanceof Error ? err.message : typeof err === "string" ? err : "";
   const code =
     (err as { code?: string } | null)?.code ??
     (err as { status?: number } | null)?.status?.toString?.() ??

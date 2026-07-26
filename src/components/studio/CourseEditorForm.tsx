@@ -826,6 +826,11 @@ function LessonRow({
   lesson,
   courseId,
   isEditable,
+  canMoveUp,
+  canMoveDown,
+  isReordering,
+  onMoveUp,
+  onMoveDown,
   onDelete,
 }: {
   lesson: {
@@ -840,6 +845,11 @@ function LessonRow({
   };
   courseId: string;
   isEditable: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  isReordering: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onDelete: () => void;
 }) {
   const qc = useQueryClient();

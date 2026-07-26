@@ -82,10 +82,10 @@ describe("migration contract — no current_user bypass in enforcement fns", () 
         for (const f of latest) {
           const body = fs.readFileSync(path.join(dir, f), "utf8");
           if (
-            body.includes("enforce_course_delete") &&
-            body.includes("enforce_lesson_delete") &&
-            body.includes("enforce_course_content_lock") &&
-            body.includes("enforce_lesson_content_lock")
+            body.includes("CREATE OR REPLACE FUNCTION public.enforce_course_delete") &&
+            body.includes("CREATE OR REPLACE FUNCTION public.enforce_lesson_delete") &&
+            body.includes("CREATE OR REPLACE FUNCTION public.enforce_course_content_lock") &&
+            body.includes("CREATE OR REPLACE FUNCTION public.enforce_lesson_content_lock")
           ) {
             return body;
           }

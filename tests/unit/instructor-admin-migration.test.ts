@@ -53,10 +53,13 @@ describe("list_instructor_applications_admin migration contract", () => {
   it("grants EXECUTE to authenticated only", () => {
     const grant = sql.match(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.list_instructor_applications_admin[\s\S]*?;/i);
     expect(grant).not.toBeNull();
-    expect(grant![0]).toMatch(/TO\s+authenticated/i);
-    // service_role bypasses privileges anyway; explicit grant to it is not required and not present.
-    expect(grant![0]).not.toMatch(/\banon\b/i);
-    expect(grant![0]).not.toMatch(/\bPUBLIC\b/i);
+    // Extract just the TO clause to avoid matching "public.list_..." in the function name.
+    const toClause = grant![0].match(/TO\s+([^;]+);/i);
+    expect(toClause).not.toBeNull();
+    const grantees = toClause![1];
+    expect(grantees).toMatch(/\bauthenticated\b/i);
+    expect(grantees).not.toMatch(/\banon\b/i);
+    expect(grantees).not.toMatch(/\bPUBLIC\b/i);
   });
 
   it("returns no email or auth credential columns", () => {

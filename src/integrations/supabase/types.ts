@@ -55,6 +55,7 @@ export type Database = {
           audience: string[]
           category: string
           certificate: boolean
+          cover_storage_path: string | null
           cover_url: string | null
           created_at: string
           description: string | null
@@ -90,6 +91,7 @@ export type Database = {
           audience?: string[]
           category: string
           certificate?: boolean
+          cover_storage_path?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -125,6 +127,7 @@ export type Database = {
           audience?: string[]
           category?: string
           certificate?: boolean
+          cover_storage_path?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -373,6 +376,7 @@ export type Database = {
           module_title: string | null
           position: number
           title: string
+          video_storage_path: string | null
           video_url: string | null
         }
         Insert: {
@@ -385,6 +389,7 @@ export type Database = {
           module_title?: string | null
           position: number
           title: string
+          video_storage_path?: string | null
           video_url?: string | null
         }
         Update: {
@@ -397,6 +402,7 @@ export type Database = {
           module_title?: string | null
           position?: number
           title?: string
+          video_storage_path?: string | null
           video_url?: string | null
         }
         Relationships: [
@@ -408,6 +414,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      media_config: {
+        Row: {
+          allowed_mime_types: string[]
+          bucket: string
+          file_size_limit: number
+          updated_at: string
+        }
+        Insert: {
+          allowed_mime_types: string[]
+          bucket: string
+          file_size_limit: number
+          updated_at?: string
+        }
+        Update: {
+          allowed_mime_types?: string[]
+          bucket?: string
+          file_size_limit?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -537,6 +564,7 @@ export type Database = {
         Args: { _course: string; _lesson: string; _user: string }
         Returns: boolean
       }
+      _object_course_id: { Args: { _name: string }; Returns: string }
       add_lesson_bookmark: {
         Args: { _course_id: string; _lesson_id: string }
         Returns: string
@@ -550,6 +578,14 @@ export type Database = {
         Args: { _application_id: string; _reason?: string }
         Returns: undefined
       }
+      attach_course_cover: {
+        Args: { _course_id: string; _path: string }
+        Returns: undefined
+      }
+      attach_lesson_video: {
+        Args: { _lesson_id: string; _path: string }
+        Returns: undefined
+      }
       complete_lesson: {
         Args: { _course_id: string; _lesson_id: string }
         Returns: number
@@ -560,7 +596,16 @@ export type Database = {
         Returns: boolean
       }
       delete_lesson_note: { Args: { _lesson_id: string }; Returns: undefined }
+      detach_course_cover: { Args: { _course_id: string }; Returns: undefined }
+      detach_lesson_video: { Args: { _lesson_id: string }; Returns: undefined }
       enroll_free_course: { Args: { _course_id: string }; Returns: string }
+      evaluate_course_readiness: {
+        Args: { _course_id: string }
+        Returns: {
+          blockers: string[]
+          is_ready: boolean
+        }[]
+      }
       get_admin_course: {
         Args: { _course_id: string }
         Returns: {
@@ -606,6 +651,14 @@ export type Database = {
         }[]
       }
       get_learner_dashboard: { Args: { _limit?: number }; Returns: Json }
+      get_media_limits: {
+        Args: never
+        Returns: {
+          allowed_mime_types: string[]
+          bucket: string
+          file_size_limit: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -662,6 +715,10 @@ export type Database = {
       }
       remove_lesson_bookmark: {
         Args: { _lesson_id: string }
+        Returns: undefined
+      }
+      reorder_lessons: {
+        Args: { _course_id: string; _lesson_ids: string[] }
         Returns: undefined
       }
       revoke_instructor_role: {

@@ -64,13 +64,12 @@ describe("auth.reset.tsx behavioral", () => {
   });
 
   it("recovery timeout with no session shows invalid state", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<ResetPage />);
     await act(async () => {
-      vi.advanceTimersByTime(3000);
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(3000);
     });
-    expect(await screen.findByRole("heading", { name: /invalid|expired/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /invalid|expired/i })).toBeInTheDocument();
   });
 
   it("existing session is treated as recovery (documented fallback)", async () => {
@@ -93,19 +92,23 @@ describe("auth.reset.tsx behavioral", () => {
   });
 
   it("successful updateUser signs out and returns to sign-in", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     updateUser.mockResolvedValue({ error: null });
     render(<ResetPage />);
     act(() => authListener?.("PASSWORD_RECOVERY"));
-    await screen.findByRole("heading", { name: /set a new password/i });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByRole("heading", { name: /set a new password/i })).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/^new password$/i), { target: { value: "password123" } });
     fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), { target: { value: "password123" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /update password/i }));
+      await vi.advanceTimersByTimeAsync(0);
     });
-    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(signOut).toHaveBeenCalledTimes(1);
     await act(async () => {
-      vi.advanceTimersByTime(1500);
+      await vi.advanceTimersByTimeAsync(1500);
     });
     expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ to: "/auth", search: { mode: "signin" }, replace: true }));
   });

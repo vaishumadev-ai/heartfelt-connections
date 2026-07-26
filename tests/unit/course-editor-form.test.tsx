@@ -272,3 +272,97 @@ describe("CourseEditorForm", () => {
     );
   });
 });
+
+function lesson(id: string, position: number, title = `L${id}`) {
+  return {
+    id,
+    title,
+    position,
+    duration_seconds: null,
+    content: null,
+    video_url: null,
+    is_preview: false,
+    module_title: null,
+  };
+}
+
+describe("CourseEditorForm — lesson reorder (P0C.2c-1)", () => {
+  it("renders lessons sorted by position and disables Move Up on the first, Move Down on the last", async () => {
+    mount({
+      lessons: [lesson("b", 2, "Second"), lesson("a", 1, "First"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    expect(screen.getByRole("button", { name: /Move First up/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move First down/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Third up/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Third down/i })).toBeDisabled();
+  });
+
+  it("sends the complete lesson ID set in the requested order on Move Down", async () => {
+    reorderLessons.mockResolvedValue({ ok: true });
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move First down/i }));
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+    const payload = reorderLessons.mock.calls[0][0].data;
+    expect(payload.courseId).toBe(COURSE_ID);
+    expect(payload.lessonIds).toEqual(["b", "a", "c"]);
+  });
+
+  it("swaps neighbors on Move Up", async () => {
+    reorderLessons.mockResolvedValue({ ok: true });
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move Third up/i }));
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+    expect(reorderLessons.mock.calls[0][0].data.lessonIds).toEqual(["a", "c", "b"]);
+  });
+
+  it("does not send a permanent optimistic order — a failed reorder shows a stable error and does not repeat the mutation", async () => {
+    reorderLessons.mockRejectedValue(new Error("network down"));
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move First down/i }));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/Something went wrong|please try/i).length,
+      ).toBeGreaterThan(0),
+    );
+    expect(reorderLessons).toHaveBeenCalledTimes(1);
+  });
+
+  it("collapses rapid Move clicks into a single in-flight reorder mutation", async () => {
+    let resolve: (() => void) | null = null;
+    reorderLessons.mockImplementation(
+      () => new Promise<{ ok: true }>((r) => (resolve = () => r({ ok: true }))),
+    );
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    const btn = screen.getByRole("button", { name: /Move First down/i });
+    await userEvent.click(btn);
+    // Additional clicks while the reorder is in-flight must not re-fire.
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(reorderLessons).toHaveBeenCalledTimes(1);
+    act(() => resolve!());
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+  });
+
+  it("disables both move buttons on every row while a course is not editable", async () => {
+    mount({
+      course: baseCourse({ review_status: "pending_review" }),
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second")],
+    });
+    await screen.findByLabelText("Title");
+    expect(screen.getByRole("button", { name: /Move First down/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Second up/i })).toBeDisabled();
+  });
+});

@@ -123,8 +123,7 @@ async function choose(file: File) {
 
 describe("VideoUploader — upload happy path", () => {
   it("validates, uploads via TUS, then attaches", async () => {
-    installFakeDriver({ autoSuccess: true });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: true }) });
     await choose(mp4());
     await waitFor(() => expect(attachFn).toHaveBeenCalled());
     const args = attachFn.mock.calls[0][0];
@@ -135,8 +134,7 @@ describe("VideoUploader — upload happy path", () => {
   });
 
   it("passes the caller's access token and correct bucket to TUS config", async () => {
-    installFakeDriver({ autoSuccess: false });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: false }) });
     await choose(mp4());
     await waitFor(() => expect(capture.opts).toBeTruthy());
     const cfg = capture.opts!.config as any;
@@ -149,8 +147,7 @@ describe("VideoUploader — upload happy path", () => {
   });
 
   it("Storage path never contains the original filename", async () => {
-    installFakeDriver({ autoSuccess: true });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: true }) });
     await choose(mp4(1024, "PRIVATE-secret-name.mp4"));
     await waitFor(() => expect(attachFn).toHaveBeenCalled());
     const path = attachFn.mock.calls[0][0].data.storagePath as string;
@@ -186,8 +183,7 @@ describe("VideoUploader — validation", () => {
 
 describe("VideoUploader — failure paths and cleanup", () => {
   it("shows a stable error when TUS reports failure and does NOT attach", async () => {
-    installFakeDriver({ error: new Error("network dropped") });
-    mount();
+    mount({ tusDriver: fakeDriver({ error: new Error("network dropped") }) });
     await choose(mp4());
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/network dropped/));
     expect(attachFn).not.toHaveBeenCalled();
@@ -195,8 +191,7 @@ describe("VideoUploader — failure paths and cleanup", () => {
 
   it("cancel aborts the TUS upload with termination", async () => {
     // Never-resolving upload — hold in "uploading".
-    installFakeDriver({ autoSuccess: false });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: false }) });
     await choose(mp4());
     // Wait for uploading state.
     await waitFor(() => expect(capture.opts).toBeTruthy());

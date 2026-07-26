@@ -136,7 +136,7 @@ describe("auth.tsx behavioral", () => {
     expect(resendBtn).toBeDisabled();
     // Advance past cooldown.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(46_000);
+      await vi.runAllTimersAsync();
     });
     const enabled = screen.getByRole("button", { name: /resend email/i });
     expect(enabled).not.toBeDisabled();

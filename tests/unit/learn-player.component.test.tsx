@@ -40,6 +40,22 @@ vi.mock("@/lib/courses.functions", () => ({
   setLastLesson: (...a: unknown[]) => setLastLessonMock(...a),
 }));
 
+const getLessonNoteMock = vi.fn();
+const saveLessonNoteMock = vi.fn();
+const deleteLessonNoteMock = vi.fn();
+const getLessonBookmarkMock = vi.fn();
+const addLessonBookmarkMock = vi.fn();
+const removeLessonBookmarkMock = vi.fn();
+
+vi.mock("@/lib/learner.functions", () => ({
+  getLessonNote: (...a: unknown[]) => getLessonNoteMock(...a),
+  saveLessonNote: (...a: unknown[]) => saveLessonNoteMock(...a),
+  deleteLessonNote: (...a: unknown[]) => deleteLessonNoteMock(...a),
+  getLessonBookmark: (...a: unknown[]) => getLessonBookmarkMock(...a),
+  addLessonBookmark: (...a: unknown[]) => addLessonBookmarkMock(...a),
+  removeLessonBookmark: (...a: unknown[]) => removeLessonBookmarkMock(...a),
+}));
+
 // ---------- Fixtures ----------
 
 const baseLesson = (id: string, position: number, is_preview = false, extras: any = {}) => ({
@@ -100,6 +116,18 @@ beforeEach(() => {
   setLastLessonMock.mockResolvedValue(undefined);
   navigateSpy.mockReset();
   routerInvalidateSpy.mockReset();
+  getLessonNoteMock.mockReset();
+  getLessonNoteMock.mockResolvedValue(null);
+  saveLessonNoteMock.mockReset();
+  saveLessonNoteMock.mockResolvedValue({ ok: true });
+  deleteLessonNoteMock.mockReset();
+  deleteLessonNoteMock.mockResolvedValue({ ok: true });
+  getLessonBookmarkMock.mockReset();
+  getLessonBookmarkMock.mockResolvedValue(null);
+  addLessonBookmarkMock.mockReset();
+  addLessonBookmarkMock.mockResolvedValue({ ok: true });
+  removeLessonBookmarkMock.mockReset();
+  removeLessonBookmarkMock.mockResolvedValue({ ok: true });
 });
 
 // ---------- Tests ----------

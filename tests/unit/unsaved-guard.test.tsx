@@ -40,6 +40,90 @@ function Trigger({ onAction }: { onAction: () => void }) {
 }
 
 describe("UnsavedGuard", () => {
+  it("multiple sources: any dirty source blocks; clearing one but not the other still blocks", async () => {
+    const action = vi.fn();
+    function TwoSources({ a, b }: { a: boolean; b: boolean }) {
+      return (
+        <UnsavedGuardProvider>
+          <DirtyRegistrarNamed id="a" dirty={a} />
+          <DirtyRegistrarNamed id="b" dirty={b} />
+          <Trigger onAction={action} />
+        </UnsavedGuardProvider>
+      );
+    }
+    function DirtyRegistrarNamed({ id, dirty }: { id: string; dirty: boolean }) {
+      const { registerDirtyChecker } = useUnsavedGuard();
+      const r = React.useRef(dirty);
+      r.current = dirty;
+      React.useEffect(
+        () => registerDirtyChecker(id, () => r.current),
+        [registerDirtyChecker, id],
+      );
+      return null;
+    }
+    const { rerender } = render(<TwoSources a={true} b={true} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "go" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /stay/i }));
+
+    // Clear only source A → still dirty via B → still prompts.
+    rerender(<TwoSources a={false} b={true} />);
+    await user.click(screen.getByRole("button", { name: "go" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /stay/i }));
+
+    // Clear both → runs immediately.
+    rerender(<TwoSources a={false} b={false} />);
+    await user.click(screen.getByRole("button", { name: "go" }));
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("StrictMode double-invoke leaves exactly one live registration per source", async () => {
+    // React StrictMode intentionally invokes effect setup/teardown twice in
+    // development. The registry must survive this without leaking a stale
+    // checker: after the unmount+remount cycle only one live entry exists,
+    // so clearing the sole visible source clears the guard.
+    const action = vi.fn();
+    function DirtyOnce({ dirty }: { dirty: boolean }) {
+      const { registerDirtyChecker } = useUnsavedGuard();
+      const r = React.useRef(dirty);
+      r.current = dirty;
+      React.useEffect(
+        () => registerDirtyChecker("once", () => r.current),
+        [registerDirtyChecker],
+      );
+      return null;
+    }
+    const { rerender } = render(
+      <React.StrictMode>
+        <UnsavedGuardProvider>
+          <DirtyOnce dirty={true} />
+          <Trigger onAction={action} />
+        </UnsavedGuardProvider>
+      </React.StrictMode>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "go" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /stay/i }));
+
+    // Flip to clean — if StrictMode's throw-away setup had left a duplicate
+    // registration behind, this would still prompt.
+    rerender(
+      <React.StrictMode>
+        <UnsavedGuardProvider>
+          <DirtyOnce dirty={false} />
+          <Trigger onAction={action} />
+        </UnsavedGuardProvider>
+      </React.StrictMode>,
+    );
+    await user.click(screen.getByRole("button", { name: "go" }));
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
   it("clean state: guard runs action immediately; no dialog", async () => {
     const action = vi.fn();
     render(<Harness dirty={false} onAction={action} />);

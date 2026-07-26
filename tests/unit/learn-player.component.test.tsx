@@ -15,8 +15,14 @@ vi.mock("@tanstack/react-router", () => ({
     useParams: () => ({ slug: "test-slug" }),
     useSearch: () => ({ lesson: undefined }),
   }),
-  Link: ({ children, to, params }: any) => (
-    <a href={typeof to === "string" ? to : "#"} data-to={to} data-slug={params?.slug ?? ""}>
+  Link: ({ children, to, params, onClick, ...rest }: any) => (
+    <a
+      href={typeof to === "string" ? to : "#"}
+      data-to={to}
+      data-slug={params?.slug ?? ""}
+      onClick={onClick}
+      {...rest}
+    >
       {children}
     </a>
   ),

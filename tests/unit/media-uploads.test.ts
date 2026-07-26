@@ -15,6 +15,12 @@ function fakeFile(size: number, type: string): File {
   return new File([new Uint8Array(size)], "x.bin", { type });
 }
 
+// Real UUID fixtures. Using literal `u1` / `c1` strings would (correctly)
+// throw from buildCoverObjectPath after the UUID guard was added.
+const U = "11111111-1111-4111-8111-111111111111";
+const C = "22222222-2222-4222-8222-222222222222";
+const OID = "33333333-3333-4333-8333-333333333333";
+
 describe("media-uploads path & validation", () => {
   it("rejects empty files", () => {
     expect(validateCoverFile(fakeFile(0, "image/png"))).toEqual({
@@ -30,21 +36,26 @@ describe("media-uploads path & validation", () => {
     });
   });
 
-  it("rejects oversize files", () => {
+  it("rejects the non-standard image/jpg string (not mapped to image/jpeg)", () => {
+    expect(validateCoverFile(fakeFile(2048, "image/jpg"))).toEqual({
+      ok: false,
+      code: "unsupported_type",
+    });
+    expect(normalizeMime("image/jpg")).toBeNull();
+  });
+
+  it("rejects oversize files (compiled default)", () => {
     expect(validateCoverFile(fakeFile(COVER_MAX_BYTES + 1, "image/png"))).toEqual({
       ok: false,
       code: "file_too_large",
     });
   });
 
-  it("accepts each allowed mime and normalizes image/jpg to image/jpeg", () => {
+  it("accepts each allowed IANA mime", () => {
     for (const mime of COVER_ALLOWED_MIMES) {
       const r = validateCoverFile(fakeFile(2048, mime));
       expect(r.ok).toBe(true);
     }
-    const j = validateCoverFile(fakeFile(2048, "image/jpg"));
-    expect(j.ok).toBe(true);
-    if (j.ok) expect(j.mime).toBe("image/jpeg");
   });
 
   it("normalizeMime is null for garbage", () => {
@@ -54,26 +65,80 @@ describe("media-uploads path & validation", () => {
 
   it("buildCoverObjectPath scopes to user, course, ext and uses a random uuid segment", () => {
     const p = buildCoverObjectPath({
-      userId: "u1",
-      courseId: "c1",
+      userId: U,
+      courseId: C,
       ext: "png",
-      id: "11111111-2222-4333-8444-555555555555",
+      id: OID,
     });
-    expect(p).toBe("u1/c1/11111111-2222-4333-8444-555555555555.png");
+    expect(p).toBe(`${U}/${C}/${OID}.png`);
   });
 
   it("buildCoverObjectPath produces distinct paths across attempts (uuid segment)", () => {
-    const a = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg" });
-    const b = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg" });
+    const a = buildCoverObjectPath({ userId: U, courseId: C, ext: "jpg" });
+    const b = buildCoverObjectPath({ userId: U, courseId: C, ext: "jpg" });
     expect(a).not.toBe(b);
-    // path must be exactly userId/courseId/<uuid>.<ext> — no filename leakage
-    expect(a).toMatch(/^u\/c\/[0-9a-f-]{8,}\.jpg$/i);
+    expect(a).toMatch(new RegExp(`^${U}/${C}/[0-9a-f-]{36}\\.jpg$`, "i"));
   });
 
   it("buildCoverObjectPath never embeds the original filename", () => {
-    const p = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "webp" });
+    const p = buildCoverObjectPath({ userId: U, courseId: C, ext: "webp" });
     expect(p).not.toMatch(/\.(png|jpg|jpeg)$/i);
     expect(p.split("/")).toHaveLength(3);
+  });
+
+  it("buildCoverObjectPath rejects malformed user/course IDs, traversal, and slashes", () => {
+    // Not a UUID
+    expect(() => buildCoverObjectPath({ userId: "user-1", courseId: C, ext: "png" })).toThrow(
+      /invalid_user_id/,
+    );
+    expect(() => buildCoverObjectPath({ userId: U, courseId: "course-abc", ext: "png" })).toThrow(
+      /invalid_course_id/,
+    );
+    // Path traversal / slash injection
+    expect(() => buildCoverObjectPath({ userId: "../../etc", courseId: C, ext: "png" })).toThrow();
+    expect(() => buildCoverObjectPath({ userId: `${U}/x`, courseId: C, ext: "png" })).toThrow();
+    expect(() => buildCoverObjectPath({ userId: U, courseId: `${C}%2Fx`, ext: "png" })).toThrow();
+    // Braces / encoded separators
+    expect(() => buildCoverObjectPath({ userId: `{${U}}`, courseId: C, ext: "png" })).toThrow();
+    // Empty IDs
+    expect(() => buildCoverObjectPath({ userId: "", courseId: C, ext: "png" })).toThrow();
+    expect(() => buildCoverObjectPath({ userId: U, courseId: "", ext: "png" })).toThrow();
+    // Extension not in allowlist
+    expect(() => buildCoverObjectPath({ userId: U, courseId: C, ext: "gif" })).toThrow(
+      /invalid_extension/,
+    );
+  });
+
+  it("validateCoverFile with DB-driven limits uses them (below/above), rejects MIME absent from allowlist, and fails closed on malformed limits", () => {
+    const limits = { fileSizeLimit: 1024, allowedMimeTypes: ["image/png"] };
+    // Below the mocked limit succeeds.
+    expect(validateCoverFile(fakeFile(512, "image/png"), limits).ok).toBe(true);
+    // Above the mocked limit fails.
+    expect(validateCoverFile(fakeFile(2048, "image/png"), limits)).toEqual({
+      ok: false,
+      code: "file_too_large",
+    });
+    // MIME not in the returned allowlist fails.
+    expect(validateCoverFile(fakeFile(512, "image/jpeg"), limits)).toEqual({
+      ok: false,
+      code: "unsupported_type",
+    });
+    // Malformed limits → fail closed with config_unavailable.
+    expect(
+      validateCoverFile(fakeFile(512, "image/png"), {
+        fileSizeLimit: 0,
+        allowedMimeTypes: [],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateCoverFile(
+        fakeFile(512, "image/png"),
+        null as unknown as {
+          fileSizeLimit: number;
+          allowedMimeTypes: string[];
+        },
+      ),
+    ).toEqual({ ok: false, code: "config_unavailable" });
   });
 });
 

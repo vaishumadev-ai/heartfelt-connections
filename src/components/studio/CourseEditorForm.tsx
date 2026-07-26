@@ -924,17 +924,17 @@ function LessonRow({
   return (
     <li className="rounded-2xl bg-background">
       <div
-        className="flex items-center justify-between p-4"
+        className="flex flex-wrap items-center justify-between gap-3 p-4"
         data-lesson-row-focus={lesson.id}
         tabIndex={-1}
       >
-        <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-xs font-bold">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-xs font-bold">
             {lesson.position}
           </span>
-          <span className="text-sm font-semibold">{lesson.title}</span>
+          <span className="min-w-0 flex-1 break-words text-sm font-semibold">{lesson.title}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onMoveUp}

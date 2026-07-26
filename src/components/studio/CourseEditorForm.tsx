@@ -109,7 +109,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
       })
     | null
     | undefined;
-  const lessons = data?.lessons ?? [];
+  const lessons = useMemo(() => data?.lessons ?? [], [data?.lessons]);
   const rs = (course?.review_status ?? "draft") as string;
   const isEditable = isCourseEditable({
     is_published: course?.is_published,

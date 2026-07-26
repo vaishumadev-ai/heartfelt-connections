@@ -221,7 +221,6 @@ function ApplicationRow({
             className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-foreground/10 text-sm font-semibold"
           >
             {row.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={row.avatar_url}
                 alt=""

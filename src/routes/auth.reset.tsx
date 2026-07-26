@@ -5,10 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/auth/reset")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Reset password — Mozok" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Reset password — Mozok" }, { name: "robots", content: "noindex" }],
   }),
   component: ResetPage,
 });
@@ -124,7 +121,9 @@ function ResetPage() {
         ) : state.kind === "expired" || state.kind === "invalid" ? (
           <>
             <h1 className="mt-6 text-2xl font-bold">
-              {state.kind === "expired" ? "This reset link has expired" : "This reset link is invalid"}
+              {state.kind === "expired"
+                ? "This reset link has expired"
+                : "This reset link is invalid"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Request a new reset email to continue.
@@ -170,7 +169,10 @@ function ResetPage() {
                 className="w-full rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-foreground"
               />
               {error ? (
-                <p role="alert" className="rounded-2xl bg-secondary px-4 py-3 text-sm text-foreground">
+                <p
+                  role="alert"
+                  className="rounded-2xl bg-secondary px-4 py-3 text-sm text-foreground"
+                >
                   {error}
                 </p>
               ) : null}

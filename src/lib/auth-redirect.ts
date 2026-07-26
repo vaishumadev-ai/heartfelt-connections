@@ -2,14 +2,7 @@
 // Rejects protocol-relative, absolute, encoded-external, and malformed values.
 // Only same-origin internal paths under a fixed allowlist are permitted.
 
-const ALLOWED_PREFIXES = [
-  "/dashboard",
-  "/browse",
-  "/courses",
-  "/learn",
-  "/studio",
-  "/admin",
-];
+const ALLOWED_PREFIXES = ["/dashboard", "/browse", "/courses", "/learn", "/studio", "/admin"];
 
 export const DEFAULT_NEXT = "/dashboard";
 
@@ -37,9 +30,7 @@ export function safeNextPath(
   const withoutHash = decoded.split("#", 1)[0];
   const pathOnly = withoutHash.split("?", 1)[0];
   if (pathOnly === "/") return fallback;
-  const allowed = ALLOWED_PREFIXES.some(
-    (p) => pathOnly === p || pathOnly.startsWith(p + "/"),
-  );
+  const allowed = ALLOWED_PREFIXES.some((p) => pathOnly === p || pathOnly.startsWith(p + "/"));
   return allowed ? withoutHash : fallback;
 }
 
@@ -48,6 +39,6 @@ export function maskEmail(email: string): string {
   if (at <= 0) return email;
   const local = email.slice(0, at);
   const domain = email.slice(at + 1);
-  const shown = local.length <= 2 ? local[0] ?? "" : local.slice(0, 2);
+  const shown = local.length <= 2 ? (local[0] ?? "") : local.slice(0, 2);
   return `${shown}${"•".repeat(Math.max(1, local.length - shown.length))}@${domain}`;
 }

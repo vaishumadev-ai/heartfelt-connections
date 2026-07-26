@@ -18,7 +18,10 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — Mozok" },
       { name: "description", content: "Sign in or create your Mozok account to start learning." },
       { property: "og:title", content: "Sign in — Mozok" },
-      { property: "og:description", content: "Sign in or create your Mozok account to start learning." },
+      {
+        property: "og:description",
+        content: "Sign in or create your Mozok account to start learning.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "robots", content: "noindex" },
@@ -42,7 +45,10 @@ function classifyAuthError(msg: string | undefined): string {
   const m = (msg ?? "").toLowerCase();
   if (!m) return GENERIC_ERROR;
   if (m.includes("rate") || m.includes("too many")) return RATE_LIMITED;
-  if (m.includes("invalid") && (m.includes("credential") || m.includes("login") || m.includes("password"))) {
+  if (
+    m.includes("invalid") &&
+    (m.includes("credential") || m.includes("login") || m.includes("password"))
+  ) {
     return INVALID_CREDS;
   }
   if (m.includes("password")) return WEAK_PASSWORD;
@@ -223,14 +229,15 @@ function AuthPage() {
           </Link>
           <h1 className="mt-6 text-2xl font-bold">Check your email</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isSignup
-              ? "We sent a confirmation link to"
-              : "If an account exists for"}{" "}
+            {isSignup ? "We sent a confirmation link to" : "If an account exists for"}{" "}
             <span className="font-medium text-foreground">{maskEmail(ui.email)}</span>
             {isSignup ? ". Click the link to activate your account." : ", we sent a reset link."}
           </p>
           {error ? (
-            <p role="alert" className="mt-4 rounded-2xl bg-secondary px-4 py-3 text-sm text-foreground">
+            <p
+              role="alert"
+              className="mt-4 rounded-2xl bg-secondary px-4 py-3 text-sm text-foreground"
+            >
               {error}
             </p>
           ) : null}
@@ -272,7 +279,11 @@ function AuthPage() {
   }
 
   const title =
-    mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password";
+    mode === "signin"
+      ? "Welcome back"
+      : mode === "signup"
+        ? "Create your account"
+        : "Reset your password";
   const subtitle =
     mode === "signin"
       ? "Sign in to continue learning."
@@ -307,10 +318,22 @@ function AuthPage() {
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-3 text-sm font-medium hover:bg-background disabled:opacity-50"
             >
               <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z" />
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.7 18.9 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 16.3 4.5 9.7 8.7 6.3 14.7z" />
-                <path fill="#4CAF50" d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.6 39.3 16.2 43.5 24 43.5z" />
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.5-2.5 4.5-4.7 5.9l6.2 5.2c-.4.4 6.7-4.9 6.7-15.1 0-1.2-.1-2.4-.4-3.5z" />
+                <path
+                  fill="#FFC107"
+                  d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z"
+                />
+                <path
+                  fill="#FF3D00"
+                  d="M6.3 14.7l6.6 4.8C14.6 15.7 18.9 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 16.3 4.5 9.7 8.7 6.3 14.7z"
+                />
+                <path
+                  fill="#4CAF50"
+                  d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.6 39.3 16.2 43.5 24 43.5z"
+                />
+                <path
+                  fill="#1976D2"
+                  d="M43.6 20.5H42V20H24v8h11.3c-.9 2.5-2.5 4.5-4.7 5.9l6.2 5.2c-.4.4 6.7-4.9 6.7-15.1 0-1.2-.1-2.4-.4-3.5z"
+                />
               </svg>
               Continue with Google
             </button>

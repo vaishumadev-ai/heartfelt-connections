@@ -16,10 +16,7 @@ export const Route = createFileRoute("/auth/callback")({
   ssr: false,
   validateSearch: searchSchema,
   head: () => ({
-    meta: [
-      { title: "Signing you in — Mozok" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Signing you in — Mozok" }, { name: "robots", content: "noindex" }],
   }),
   component: CallbackPage,
 });
@@ -49,7 +46,10 @@ function CallbackPage() {
     async function run() {
       // Provider-signaled error in query params.
       if (search.error || search.error_code) {
-        if (!cancelled) setState(classifyProviderError(search.error_code, search.error_description ?? search.error));
+        if (!cancelled)
+          setState(
+            classifyProviderError(search.error_code, search.error_description ?? search.error),
+          );
         cleanUrl();
         return;
       }

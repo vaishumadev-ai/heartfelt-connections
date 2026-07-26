@@ -1149,24 +1149,28 @@ export const deleteLesson = createServerFn({ method: "POST" })
  * ownership, editability, no duplicates, no nulls, and that the input set
  * exactly matches the persisted set — no partial reorders are permitted.
  */
+// Exported for unit tests: strict input schema for reorderLessons. Keeping
+// it named ensures tests exercise the exact validator the server function
+// runs before any RPC is issued.
+export const reorderLessonsInputSchema = z
+  .object({
+    courseId: z.string().uuid("invalid_course_id"),
+    lessonIds: z
+      .array(z.string().uuid("invalid_lesson_id"))
+      .min(1, "lesson_ids_required")
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "duplicate_lesson_ids",
+      }),
+  })
+  .strict();
+
 export const reorderLessons = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => {
     // Strict schema: rejects unknown fields, non-UUID ids, empty arrays,
     // duplicates, and anything not matching the exact shape — before any
     // RPC or database call is ever issued.
-    const schema = z
-      .object({
-        courseId: z.string().uuid("invalid_course_id"),
-        lessonIds: z
-          .array(z.string().uuid("invalid_lesson_id"))
-          .min(1, "lesson_ids_required")
-          .refine((ids) => new Set(ids).size === ids.length, {
-            message: "duplicate_lesson_ids",
-          }),
-      })
-      .strict();
-    const parsed = schema.safeParse(d);
+    const parsed = reorderLessonsInputSchema.safeParse(d);
     if (!parsed.success) {
       const first = parsed.error.issues[0];
       throw new Error(first?.message ?? "invalid_reorder_input");

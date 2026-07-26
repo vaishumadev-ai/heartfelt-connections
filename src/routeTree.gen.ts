@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CoursesIndexRouteImport } from './routes/courses.index'
 import { Route as CoursesSlugRouteImport } from './routes/courses.$slug'
+import { Route as AuthResetRouteImport } from './routes/auth.reset'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
@@ -52,6 +53,11 @@ const CoursesSlugRoute = CoursesSlugRouteImport.update({
   id: '/courses/$slug',
   path: '/courses/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetRoute = AuthResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/learn': typeof AuthenticatedLearnRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses/': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/learn': typeof AuthenticatedLearnRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_authenticated/learn': typeof AuthenticatedLearnRouteWithChildren
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
   '/courses/': typeof CoursesIndexRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/studio'
     | '/auth/callback'
+    | '/auth/reset'
     | '/courses/$slug'
     | '/courses/'
     | '/admin/courses'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/studio'
     | '/auth/callback'
+    | '/auth/reset'
     | '/courses/$slug'
     | '/courses'
     | '/admin/courses'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/_authenticated/learn'
     | '/_authenticated/studio'
     | '/auth/callback'
+    | '/auth/reset'
     | '/courses/$slug'
     | '/courses/'
     | '/_authenticated/admin/courses'
@@ -245,6 +257,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/courses/$slug'
       preLoaderRoute: typeof CoursesSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset': {
+      id: '/auth/reset'
+      path: '/reset'
+      fullPath: '/auth/reset'
+      preLoaderRoute: typeof AuthResetRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -361,10 +380,12 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AuthRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthResetRoute: typeof AuthResetRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthResetRoute: AuthResetRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

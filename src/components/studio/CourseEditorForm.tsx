@@ -94,6 +94,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
   const updateFn = useServerFn(updateCourse);
   const upsertLessonFn = useServerFn(upsertLesson);
   const deleteLessonFn = useServerFn(deleteLesson);
+  const reorderLessonsFn = useServerFn(reorderLessons);
   const submitFn = useServerFn(submitCourseForReview);
   const readinessFn = useServerFn(getCourseReadiness);
 

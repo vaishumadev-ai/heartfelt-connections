@@ -27,6 +27,9 @@ import {
 } from "@/lib/courses.functions";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { BookmarkButton } from "@/components/lesson-tools/BookmarkButton";
+import { NotesPanel } from "@/components/lesson-tools/NotesPanel";
+import { UnsavedGuardProvider, useUnsavedGuard } from "@/components/lesson-tools/UnsavedGuard";
 
 export const Route = createFileRoute("/_authenticated/learn/$slug")({
   head: () => ({
@@ -112,6 +115,14 @@ function Player() {
  * duplicating logic.
  */
 export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string }) {
+  return (
+    <UnsavedGuardProvider>
+      <PlayerBodyInner slug={slug} lessonId={lessonId} />
+    </UnsavedGuardProvider>
+  );
+}
+
+function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }) {
   const fetchPlayer = useServerFn(getLessonPlayer);
   const markDone = useServerFn(markLessonComplete);
   const persistLast = useServerFn(setLastLesson);
@@ -144,6 +155,7 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
       toast.success(`Lesson complete — ${res.progress}%`);
       qc.invalidateQueries({ queryKey: ["lesson-player", slug] });
       qc.invalidateQueries({ queryKey: ["my-enrollments"] });
+      qc.invalidateQueries({ queryKey: ["learner-dashboard"], refetchType: "none" });
     },
     onError: () => {
       // Stable learner copy — never surface raw server/database error text.
@@ -294,12 +306,19 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
     navigate({ to: "/learn/$slug", params: { slug }, search: { lesson: id } });
   };
 
+  const { guard } = useUnsavedGuard();
+  const guardedGoToLesson = (id: string) => guard(() => goToLesson(id));
+  const guardedGoMyLearning = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    guard(() => navigate({ to: "/learn" }));
+  };
+
   const curriculumList = (
     <CurriculumList
       lessons={lessons}
       currentId={current.id}
       completed={completed}
-      onSelect={goToLesson}
+      onSelect={guardedGoToLesson}
       showProgress={track}
       pct={pct}
     />
@@ -311,6 +330,7 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
         <div className="flex items-center justify-between">
           <Link
             to="/learn"
+            onClick={guardedGoMyLearning}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground rounded-full px-2 py-1"
           >
             <ArrowLeft className="h-4 w-4" /> My learning
@@ -422,7 +442,7 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => prevId && goToLesson(prevId)}
+                  onClick={() => prevId && guardedGoToLesson(prevId)}
                   disabled={!prevId}
                   className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-40 min-h-11"
                   aria-label="Previous lesson"
@@ -431,7 +451,7 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
                 </button>
                 <button
                   type="button"
-                  onClick={() => nextId && goToLesson(nextId)}
+                  onClick={() => nextId && guardedGoToLesson(nextId)}
                   disabled={!nextId}
                   className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-40 min-h-11"
                   aria-label="Next lesson"
@@ -467,6 +487,19 @@ export function PlayerBody({ slug, lessonId }: { slug: string; lessonId?: string
                 )
               )}
             </div>
+
+            {track && (
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-6">
+                <BookmarkButton courseId={course.id} lessonId={current.id} />
+              </div>
+            )}
+            {track && (
+              <NotesPanel
+                key={`${course.id}:${current.id}`}
+                courseId={course.id}
+                lessonId={current.id}
+              />
+            )}
           </main>
 
           <aside className="hidden lg:block rounded-3xl bg-card p-6">{curriculumList}</aside>

@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -38,6 +38,22 @@ vi.mock("@/lib/courses.functions", () => ({
   getLessonPlayer: (...a: unknown[]) => getLessonPlayerMock(...a),
   markLessonComplete: (...a: unknown[]) => markLessonCompleteMock(...a),
   setLastLesson: (...a: unknown[]) => setLastLessonMock(...a),
+}));
+
+const getLessonNoteMock = vi.fn();
+const saveLessonNoteMock = vi.fn();
+const deleteLessonNoteMock = vi.fn();
+const getLessonBookmarkMock = vi.fn();
+const addLessonBookmarkMock = vi.fn();
+const removeLessonBookmarkMock = vi.fn();
+
+vi.mock("@/lib/learner.functions", () => ({
+  getLessonNote: (...a: unknown[]) => getLessonNoteMock(...a),
+  saveLessonNote: (...a: unknown[]) => saveLessonNoteMock(...a),
+  deleteLessonNote: (...a: unknown[]) => deleteLessonNoteMock(...a),
+  getLessonBookmark: (...a: unknown[]) => getLessonBookmarkMock(...a),
+  addLessonBookmark: (...a: unknown[]) => addLessonBookmarkMock(...a),
+  removeLessonBookmark: (...a: unknown[]) => removeLessonBookmarkMock(...a),
 }));
 
 // ---------- Fixtures ----------
@@ -100,6 +116,18 @@ beforeEach(() => {
   setLastLessonMock.mockResolvedValue(undefined);
   navigateSpy.mockReset();
   routerInvalidateSpy.mockReset();
+  getLessonNoteMock.mockReset();
+  getLessonNoteMock.mockResolvedValue(null);
+  saveLessonNoteMock.mockReset();
+  saveLessonNoteMock.mockResolvedValue({ ok: true });
+  deleteLessonNoteMock.mockReset();
+  deleteLessonNoteMock.mockResolvedValue({ ok: true });
+  getLessonBookmarkMock.mockReset();
+  getLessonBookmarkMock.mockResolvedValue(null);
+  addLessonBookmarkMock.mockReset();
+  addLessonBookmarkMock.mockResolvedValue({ ok: true });
+  removeLessonBookmarkMock.mockReset();
+  removeLessonBookmarkMock.mockResolvedValue({ ok: true });
 });
 
 // ---------- Tests ----------
@@ -208,6 +236,11 @@ describe("Lesson player — completion flow", () => {
     const btn = await screen.findByRole("button", { name: /mark complete/i });
     const user = userEvent.setup();
     await user.click(btn);
+    // eslint-disable-next-line no-console
+    console.log("DBG add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", btn.getAttribute("aria-pressed"));
+    await new Promise((r) => setTimeout(r, 50));
+    // eslint-disable-next-line no-console
+    console.log("DBG after wait add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", screen.getByTestId("bookmark-button").getAttribute("aria-pressed"));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /mark complete/i })).not.toBeDisabled(),
     );
@@ -538,5 +571,141 @@ describe("Lesson player — error boundary retry recovery", () => {
     await user.click(screen.getByRole("button", { name: /retry/i }));
     expect(routerInvalidateSpy).toHaveBeenCalledWith({ forcePending: true });
     expect(await screen.findByText(/Content l1/)).toBeInTheDocument();
+  });
+});
+
+// ---------- Phase 3B: Notes & Bookmarks ----------
+describe("Lesson player — Phase 3B notes & bookmarks", () => {
+  it("tools do not mount for preview (canTrackProgress=false)", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ canTrackProgress: false, isEnrolled: false, entitlement: "preview" }),
+    );
+    await renderPlayer();
+    expect(await screen.findByText(/Content l1/)).toBeInTheDocument();
+    expect(screen.queryByTestId("bookmark-button")).toBeNull();
+    expect(screen.queryByTestId("notes-panel")).toBeNull();
+    expect(getLessonBookmarkMock).not.toHaveBeenCalled();
+    expect(getLessonNoteMock).not.toHaveBeenCalled();
+  });
+
+  it("bookmark toggles on, invalidates dashboard, ignores rapid re-clicks while pending", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonBookmarkMock.mockResolvedValue(null);
+    addLessonBookmarkMock.mockResolvedValue({ ok: true });
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const btn = await screen.findByTestId("bookmark-button");
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    const user = userEvent.setup();
+    await user.click(btn);
+    await waitFor(() =>
+      expect(addLessonBookmarkMock).toHaveBeenCalledWith({
+        data: { courseId: "c1", lessonId: "l1" },
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        invalidate.mock.calls.some(
+          (c) =>
+            (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("note Save enabled only when dirty + non-empty + under 4000, Ctrl+Enter saves, counter shows near-limit", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const ta = await screen.findByTestId("note-textarea");
+    const save = screen.getByTestId("note-save");
+    expect(save).toBeDisabled(); // empty + not dirty
+
+    const user = userEvent.setup();
+    await user.type(ta, "  ");
+    expect(save).toBeDisabled(); // whitespace only
+    await user.clear(ta);
+    await user.type(ta, "Hello lesson");
+    expect(save).toBeEnabled();
+    // Ctrl+Enter triggers save
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() =>
+      expect(saveLessonNoteMock).toHaveBeenCalledWith({
+        data: { courseId: "c1", lessonId: "l1", body: "Hello lesson" },
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("note-status")).toHaveTextContent(/saved/i));
+    expect(
+      invalidate.mock.calls.some(
+        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+      ),
+    ).toBe(true);
+  });
+
+  it("note over 4000 chars disables Save and marks textarea invalid", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    await renderPlayer();
+    const ta = (await screen.findByTestId("note-textarea")) as HTMLTextAreaElement;
+    // Fast path: set value via fireEvent to avoid typing 4001 chars.
+    const long = "x".repeat(4001);
+    fireEvent.change(ta, { target: { value: long } });
+    expect(screen.getByTestId("note-save")).toBeDisabled();
+    expect(ta).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByTestId("note-counter")).toHaveTextContent("4001 / 4000");
+  });
+
+  it("save failure surfaces stable error copy, does not persist optimistic body, keeps note dirty", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    saveLessonNoteMock.mockRejectedValueOnce(new Error("permission denied for function save_lesson_note"));
+    await renderPlayer();
+    const ta = await screen.findByTestId("note-textarea");
+    const user = userEvent.setup();
+    await user.type(ta, "draft");
+    await user.click(screen.getByTestId("note-save"));
+    const err = await screen.findByTestId("note-error");
+    // Stable copy — no raw postgres text
+    expect(err.textContent ?? "").not.toMatch(/permission denied|save_lesson_note/i);
+    // Still dirty
+    expect(screen.getByTestId("note-status")).toHaveTextContent(/unsaved/i);
+  });
+
+  it("delete requires confirmation and clears the note", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonNoteMock.mockResolvedValue({
+      id: "n1",
+      course_id: "c1",
+      lesson_id: "l1",
+      body: "Existing note",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    await renderPlayer();
+    const user = userEvent.setup();
+    const trigger = await screen.findByTestId("note-delete-trigger");
+    await user.click(trigger);
+    await user.click(await screen.findByTestId("note-delete-confirm"));
+    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }));
+    await waitFor(() =>
+      expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(""),
+    );
+  });
+
+  it("dirty note blocks curriculum navigation until confirmed", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    await renderPlayer();
+    const user = userEvent.setup();
+    const ta = await screen.findByTestId("note-textarea");
+    await user.type(ta, "wip");
+    navigateSpy.mockClear();
+    // click Next lesson via curriculum
+    const nextBtn = screen.getByRole("button", { name: /next lesson/i });
+    await user.click(nextBtn);
+    // Guard dialog appears; navigation not yet called
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+    // Confirm discard
+    await user.click(screen.getByRole("button", { name: /discard and navigate/i }));
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
   });
 });

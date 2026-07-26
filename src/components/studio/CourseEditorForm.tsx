@@ -694,7 +694,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
         </div>
 
         <Section id="section-curriculum" title="Curriculum">
-          <div className="sr-only" role="status" aria-live="polite">
+          <div className="sr-only" aria-live="polite">
             {reorderAnnounce}
           </div>
           {reorderError && (

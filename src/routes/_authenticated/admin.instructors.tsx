@@ -473,14 +473,17 @@ function RejectDialog({
   });
   const remaining = 1000 - reason.length;
   return (
-    <ActionShell title={`Reject ${row.display_name ?? "applicant"}?`} onClose={onClose}>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The applicant will see your reason. They may apply again.
-      </p>
-      <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+    <ActionShell
+      title={`Reject ${row.display_name ?? "applicant"}?`}
+      description="The applicant will see your reason. They may apply again."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
+      <label htmlFor="reject-reason" className="mt-4 block text-xs font-semibold text-muted-foreground">
         Reason (required)
       </label>
       <textarea
+        id="reject-reason"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
@@ -498,9 +501,12 @@ function RejectDialog({
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -517,7 +523,7 @@ function RejectDialog({
         >
           {mutation.isPending ? "Rejecting…" : "Reject"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }

@@ -86,8 +86,7 @@ export function validateCoverFile(
 // Standard UUID v1–v5 shape. We validate BOTH the caller-supplied user and
 // course IDs so a malformed value can never be smuggled into the object key
 // (e.g. `..`, slashes, encoded separators, `user-1` style test fixtures).
-export const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(v: unknown): v is string {
   return typeof v === "string" && UUID_RE.test(v);
@@ -136,8 +135,7 @@ export const COVER_VALIDATION_MESSAGE: Record<CoverValidationError, string> = {
   invalid_input: "We couldn't read that file. Please try selecting it again.",
   invalid_dimensions: "That image doesn't have valid dimensions. Try a different file.",
   undecodable_image: "We couldn't decode that image. Please export it again and retry.",
-  config_unavailable:
-    "We couldn't load the cover configuration. Please refresh and try again.",
+  config_unavailable: "We couldn't load the cover configuration. Please refresh and try again.",
 };
 
 /**

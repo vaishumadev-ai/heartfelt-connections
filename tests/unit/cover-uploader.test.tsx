@@ -509,12 +509,22 @@ describe("signed cover preview", () => {
     const B_PATH = `${USER_ID}/${COURSE_ID}/dddddddd-dddd-4ddd-8ddd-dddddddddddd.png`;
     const { rerender } = render(
       <QueryClientProvider client={qc}>
-        <CoverUploader courseId={COURSE_ID} isEditable coverStoragePath={A_PATH} legacyCoverUrl={null} />
+        <CoverUploader
+          courseId={COURSE_ID}
+          isEditable
+          coverStoragePath={A_PATH}
+          legacyCoverUrl={null}
+        />
       </QueryClientProvider>,
     );
     rerender(
       <QueryClientProvider client={qc}>
-        <CoverUploader courseId={COURSE_ID} isEditable coverStoragePath={B_PATH} legacyCoverUrl={null} />
+        <CoverUploader
+          courseId={COURSE_ID}
+          isEditable
+          coverStoragePath={B_PATH}
+          legacyCoverUrl={null}
+        />
       </QueryClientProvider>,
     );
 

@@ -220,7 +220,8 @@ export function CoverUploader({
         try {
           const res = await attachFn({ data: { courseId, storagePath: path } });
           previousStoragePath =
-            (res && typeof (res as { previousStoragePath?: unknown }).previousStoragePath === "string"
+            (res &&
+            typeof (res as { previousStoragePath?: unknown }).previousStoragePath === "string"
               ? (res as { previousStoragePath: string }).previousStoragePath
               : null) ?? null;
         } catch (err) {
@@ -260,7 +261,15 @@ export function CoverUploader({
         if (inputRef.current) inputRef.current.value = "";
       }
     },
-    [attachFn, courseId, coverStoragePath, invalidateAll, limitsQ.data, limitsQ.isError, setBlobPreview],
+    [
+      attachFn,
+      courseId,
+      coverStoragePath,
+      invalidateAll,
+      limitsQ.data,
+      limitsQ.isError,
+      setBlobPreview,
+    ],
   );
 
   // Once the signed URL for the newly-attached cover has arrived, drop the
@@ -282,8 +291,7 @@ export function CoverUploader({
         // detached and the UI enters cleanup_pending for retry.
         const res = await detachFn({ data: { courseId } });
         const previousStoragePath =
-          (res && typeof (res as { previousStoragePath?: unknown }).previousStoragePath ===
-          "string"
+          (res && typeof (res as { previousStoragePath?: unknown }).previousStoragePath === "string"
             ? (res as { previousStoragePath: string }).previousStoragePath
             : null) ?? null;
         return { previousStoragePath };

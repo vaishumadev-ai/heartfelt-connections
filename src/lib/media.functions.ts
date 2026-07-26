@@ -70,8 +70,7 @@ export const attachCourseCover = createServerFn({ method: "POST" })
       _path: data.storagePath,
     });
     if (error) throw new Error(error.message);
-    const previousStoragePath =
-      typeof prev === "string" && prev.length > 0 ? prev : null;
+    const previousStoragePath = typeof prev === "string" && prev.length > 0 ? prev : null;
     return { ok: true as const, previousStoragePath };
   });
 
@@ -89,8 +88,7 @@ export const detachCourseCover = createServerFn({ method: "POST" })
       _course_id: data.courseId,
     });
     if (error) throw new Error(error.message);
-    const previousStoragePath =
-      typeof prev === "string" && prev.length > 0 ? prev : null;
+    const previousStoragePath = typeof prev === "string" && prev.length > 0 ? prev : null;
     return { ok: true as const, previousStoragePath };
   });
 

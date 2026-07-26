@@ -97,13 +97,9 @@ describe("media-uploads path & validation", () => {
     // Path traversal / slash injection
     expect(() => buildCoverObjectPath({ userId: "../../etc", courseId: C, ext: "png" })).toThrow();
     expect(() => buildCoverObjectPath({ userId: `${U}/x`, courseId: C, ext: "png" })).toThrow();
-    expect(() =>
-      buildCoverObjectPath({ userId: U, courseId: `${C}%2Fx`, ext: "png" }),
-    ).toThrow();
+    expect(() => buildCoverObjectPath({ userId: U, courseId: `${C}%2Fx`, ext: "png" })).toThrow();
     // Braces / encoded separators
-    expect(() =>
-      buildCoverObjectPath({ userId: `{${U}}`, courseId: C, ext: "png" }),
-    ).toThrow();
+    expect(() => buildCoverObjectPath({ userId: `{${U}}`, courseId: C, ext: "png" })).toThrow();
     // Empty IDs
     expect(() => buildCoverObjectPath({ userId: "", courseId: C, ext: "png" })).toThrow();
     expect(() => buildCoverObjectPath({ userId: U, courseId: "", ext: "png" })).toThrow();
@@ -135,10 +131,13 @@ describe("media-uploads path & validation", () => {
       }).ok,
     ).toBe(false);
     expect(
-      validateCoverFile(fakeFile(512, "image/png"), null as unknown as {
-        fileSizeLimit: number;
-        allowedMimeTypes: string[];
-      }),
+      validateCoverFile(
+        fakeFile(512, "image/png"),
+        null as unknown as {
+          fileSizeLimit: number;
+          allowedMimeTypes: string[];
+        },
+      ),
     ).toEqual({ ok: false, code: "config_unavailable" });
   });
 });

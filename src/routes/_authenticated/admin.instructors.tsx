@@ -221,11 +221,7 @@ function ApplicationRow({
             className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-foreground/10 text-sm font-semibold"
           >
             {row.avatar_url ? (
-              <img
-                src={row.avatar_url}
-                alt=""
-                className="h-10 w-10 rounded-full object-cover"
-              />
+              <img src={row.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
             ) : (
               initials
             )}
@@ -292,11 +288,12 @@ function ApplicationRow({
               <Ban className="h-3.5 w-3.5" /> Revoke instructor
             </button>
           )}
-          {row.status !== "pending" && !(row.status === "approved" && row.is_current_instructor) && (
-            <span className="rounded-full bg-card px-3 py-1 text-[10px] font-semibold uppercase text-muted-foreground ring-1 ring-border">
-              {row.status}
-            </span>
-          )}
+          {row.status !== "pending" &&
+            !(row.status === "approved" && row.is_current_instructor) && (
+              <span className="rounded-full bg-card px-3 py-1 text-[10px] font-semibold uppercase text-muted-foreground ring-1 ring-border">
+                {row.status}
+              </span>
+            )}
         </div>
       </div>
 
@@ -435,8 +432,7 @@ function RejectDialog({
   const trimmed = reason.trim();
   const disabled = trimmed.length === 0;
   const mutation = useMutation({
-    mutationFn: (r: string) =>
-      rejectFn({ data: { applicationId: row.application_id, reason: r } }),
+    mutationFn: (r: string) => rejectFn({ data: { applicationId: row.application_id, reason: r } }),
     onSuccess: () => {
       inFlight.current = false;
       invalidate();
@@ -527,13 +523,10 @@ function RevokeDialog({
     },
   });
   return (
-    <ActionShell
-      title={`Revoke instructor from ${row.display_name ?? "user"}?`}
-      onClose={onClose}
-    >
+    <ActionShell title={`Revoke instructor from ${row.display_name ?? "user"}?`} onClose={onClose}>
       <div className="mt-2 rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">
-        This is a destructive action. Existing courses and audit history are preserved, but the
-        user will immediately lose Studio authoring access. Any courses they own remain in place —
+        This is a destructive action. Existing courses and audit history are preserved, but the user
+        will immediately lose Studio authoring access. Any courses they own remain in place —
         transfer them separately if needed.
       </div>
       <label className="mt-4 block text-xs font-semibold text-muted-foreground">

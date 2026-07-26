@@ -52,7 +52,9 @@ describe("mapInstructorGovernanceError", () => {
   }
 
   it("never returns raw SQLSTATE, function, or policy names", () => {
-    const raw = new Error("42501: permission denied for function public.approve_instructor_application; policy 'Admins only'");
+    const raw = new Error(
+      "42501: permission denied for function public.approve_instructor_application; policy 'Admins only'",
+    );
     const out = mapInstructorGovernanceError(raw);
     expect(out).not.toMatch(/42501/);
     expect(out).not.toMatch(/public\./);

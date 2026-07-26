@@ -657,10 +657,11 @@ export type AdminApplicationStatus = (typeof ADMIN_APP_STATUSES)[number];
 export const listInstructorApplicationsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { status?: AdminApplicationStatus | null; limit?: number; offset?: number } | undefined) => {
+    (
+      d: { status?: AdminApplicationStatus | null; limit?: number; offset?: number } | undefined,
+    ) => {
       const raw = d ?? {};
-      const status =
-        raw.status && ADMIN_APP_STATUSES.includes(raw.status) ? raw.status : null;
+      const status = raw.status && ADMIN_APP_STATUSES.includes(raw.status) ? raw.status : null;
       const rawLimit = Number.isFinite(raw.limit as number) ? Number(raw.limit) : 25;
       const rawOffset = Number.isFinite(raw.offset as number) ? Number(raw.offset) : 0;
       const limit = Math.min(Math.max(Math.trunc(rawLimit), 1), 100);
@@ -669,14 +670,11 @@ export const listInstructorApplicationsAdmin = createServerFn({ method: "GET" })
     },
   )
   .handler(async ({ data, context }): Promise<AdminInstructorApplicationsPage> => {
-    const { error, data: rows } = await context.supabase.rpc(
-      "list_instructor_applications_admin",
-      {
-        _status: data.status ?? undefined,
-        _limit: data.limit,
-        _offset: data.offset,
-      },
-    );
+    const { error, data: rows } = await context.supabase.rpc("list_instructor_applications_admin", {
+      _status: data.status ?? undefined,
+      _limit: data.limit,
+      _offset: data.offset,
+    });
     if (error) throw new Error(error.message);
     const list = (rows ?? []) as Array<{
       application_id: string;
@@ -723,11 +721,7 @@ export function mapInstructorGovernanceError(err: unknown): string {
   if (s.includes("reason required")) {
     return "A reason is required.";
   }
-  if (
-    s.includes("not authenticated") ||
-    s.includes("unauthorized") ||
-    s.includes("28000")
-  ) {
+  if (s.includes("not authenticated") || s.includes("unauthorized") || s.includes("28000")) {
     return "Please sign in and try again.";
   }
   if (s.includes("admin only") || s.includes("forbidden") || s.includes("42501")) {

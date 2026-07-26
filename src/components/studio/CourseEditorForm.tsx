@@ -891,7 +891,11 @@ function LessonRow({
 
   return (
     <li className="rounded-2xl bg-background">
-      <div className="flex items-center justify-between p-4">
+      <div
+        className="flex items-center justify-between p-4"
+        data-lesson-row-focus={lesson.id}
+        tabIndex={-1}
+      >
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-xs font-bold">
             {lesson.position}

@@ -284,6 +284,7 @@ function ContinueCard({
     <Link
       to="/learn/$slug"
       params={{ slug: enrollment.course.slug }}
+      search={{ lesson: enrollment.last_lesson_id ?? undefined }}
       className="mt-4 grid grid-cols-1 gap-6 rounded-3xl bg-card p-6 ring-1 ring-border transition hover:-translate-y-0.5 md:grid-cols-[1fr_auto] md:items-center"
     >
       <div>
@@ -341,6 +342,7 @@ function LibraryCard({ enrollment }: { enrollment: LearnerEnrollmentDTO }) {
     <Link
       to="/learn/$slug"
       params={{ slug: enrollment.course.slug }}
+      search={{ lesson: enrollment.last_lesson_id ?? undefined }}
       className="block rounded-3xl bg-card p-5 ring-1 ring-border transition hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-3">

@@ -163,6 +163,7 @@ export type Database = {
           course_id: string
           enrolled_at: string
           id: string
+          last_activity_at: string
           last_lesson_id: string | null
           progress: number
           user_id: string
@@ -171,6 +172,7 @@ export type Database = {
           course_id: string
           enrolled_at?: string
           id?: string
+          last_activity_at?: string
           last_lesson_id?: string | null
           progress?: number
           user_id: string
@@ -179,6 +181,7 @@ export type Database = {
           course_id?: string
           enrolled_at?: string
           id?: string
+          last_activity_at?: string
           last_lesson_id?: string | null
           progress?: number
           user_id?: string
@@ -236,6 +239,45 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_bookmarks: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          lesson_id: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_bookmarks_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_bookmarks_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_completions: {
         Row: {
           completed_at: string
@@ -272,6 +314,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lessons"
             referencedColumns: ["id", "course_id"]
+          },
+        ]
+      }
+      lesson_notes: {
+        Row: {
+          body: string
+          course_id: string
+          created_at: string
+          id: string
+          lesson_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          course_id: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          course_id?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_notes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_notes_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -446,6 +533,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _learner_entitled: {
+        Args: { _course: string; _lesson: string; _user: string }
+        Returns: boolean
+      }
+      add_lesson_bookmark: {
+        Args: { _course_id: string; _lesson_id: string }
+        Returns: string
+      }
       apply_for_instructor: { Args: { _reason?: string }; Returns: string }
       approve_course: {
         Args: { _course_id: string; _reason?: string }
@@ -464,6 +559,7 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      delete_lesson_note: { Args: { _lesson_id: string }; Returns: undefined }
       enroll_free_course: { Args: { _course_id: string }; Returns: string }
       get_admin_course: {
         Args: { _course_id: string }
@@ -509,6 +605,7 @@ export type Database = {
           module_title: string
         }[]
       }
+      get_learner_dashboard: { Args: { _limit?: number }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -541,9 +638,17 @@ export type Database = {
         Args: { _application_id: string; _reason: string }
         Returns: undefined
       }
+      remove_lesson_bookmark: {
+        Args: { _lesson_id: string }
+        Returns: undefined
+      }
       revoke_instructor_role: {
         Args: { _reason: string; _user_id: string }
         Returns: undefined
+      }
+      save_lesson_note: {
+        Args: { _body: string; _course_id: string; _lesson_id: string }
+        Returns: string
       }
       set_last_lesson: {
         Args: { _course_id: string; _lesson_id: string }

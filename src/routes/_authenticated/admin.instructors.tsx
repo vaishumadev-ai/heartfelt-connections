@@ -397,25 +397,31 @@ function ApproveDialog({
     },
   });
   return (
-    <ActionShell title={`Approve ${row.display_name ?? "applicant"}?`} onClose={onClose}>
-      <p className="mt-2 text-sm text-muted-foreground">
-        This grants the instructor role and lets them create courses.
-      </p>
+    <ActionShell
+      title={`Approve ${row.display_name ?? "applicant"}?`}
+      description="This grants the instructor role and lets them create courses."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
       <textarea
         rows={3}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
         placeholder="Optional internal note"
         className="mt-4 w-full resize-none rounded-2xl bg-background p-3 text-sm outline-none ring-1 ring-border focus:ring-foreground"
+        aria-label="Optional internal approval note"
       />
       {errorMsg && (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -432,7 +438,7 @@ function ApproveDialog({
         >
           {mutation.isPending ? "Approving…" : "Approve"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }

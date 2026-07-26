@@ -134,6 +134,11 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
   const [completionStatus, setCompletionStatus] = useState<"idle" | "saving" | "saved" | "failed">(
     "idle",
   );
+  // Call useUnsavedGuard unconditionally at the top level so hook order
+  // stays stable across non-ready ↔ ready transitions. The guard is a
+  // no-op until a child component registers a dirty checker (NotesPanel),
+  // which itself is only mounted in the trackable ready state.
+  const { guard } = useUnsavedGuard();
 
   const q = queryOptions({
     queryKey: ["lesson-player", slug, lessonId ?? "resume"] as const,
@@ -311,8 +316,6 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
     setMobileOpen(false);
     navigate({ to: "/learn/$slug", params: { slug }, search: { lesson: id } });
   };
-
-  const { guard } = useUnsavedGuard();
   const guardedGoToLesson = (id: string) => guard(() => goToLesson(id));
   const guardedGoMyLearning = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();

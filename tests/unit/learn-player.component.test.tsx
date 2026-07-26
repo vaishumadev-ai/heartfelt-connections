@@ -951,3 +951,86 @@ describe("Phase 3 closure — stale lesson-A response cannot populate lesson B",
     expect(screen.queryByDisplayValue("A-body")).toBeNull();
   });
 });
+
+describe("Lesson player — hook safety across state transitions", () => {
+  it("non-ready → ready transition keeps hook order stable (no React errors)", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Start non-ready.
+    getLessonPlayerMock.mockResolvedValueOnce({
+      state: "empty_curriculum",
+      course: { id: "c1", slug: "test-slug", title: "T", category: "Design" },
+      entitlement: "preview",
+      isEnrolled: false,
+      canTrackProgress: false,
+      progress: null,
+      courseComplete: false,
+      canSelfEnroll: false,
+      completedLessonIds: [],
+    });
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/no lessons yet/i);
+    // Transition to ready by invalidating with a new response.
+    getLessonPlayerMock.mockResolvedValue(readyDTO({ progress: 10 }));
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ["lesson-player"] });
+    });
+    rerender(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Content l1/);
+    const hookOrderErrors = errorSpy.mock.calls
+      .flat()
+      .filter((m) => typeof m === "string" && /hook|order|Rendered more hooks/i.test(m));
+    expect(hookOrderErrors).toHaveLength(0);
+    errorSpy.mockRestore();
+  });
+
+  it("ready → non-ready transition cleans up the dirty guard (no beforeunload leak)", async () => {
+    getLessonPlayerMock.mockResolvedValueOnce(readyDTO({ progress: 0 }));
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    const { unmount } = render(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Content l1/);
+    // Unmount to simulate leaving the trackable ready state entirely.
+    unmount();
+    // A synthesized beforeunload should not be intercepted after unmount.
+    const evt = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
+    window.dispatchEvent(evt);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it("non-trackable state performs no personal-state fetches", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({
+        entitlement: "preview",
+        isEnrolled: false,
+        canTrackProgress: false,
+        progress: null,
+        canSelfEnroll: true,
+        current: baseLesson("l1", 1, true),
+        lessons: [baseLesson("l1", 1, true)],
+        nextId: null,
+      }),
+    );
+    await renderPlayer();
+    await screen.findByText(/Content l1/);
+    expect(getLessonNoteMock).not.toHaveBeenCalled();
+    expect(getLessonBookmarkMock).not.toHaveBeenCalled();
+  });
+});

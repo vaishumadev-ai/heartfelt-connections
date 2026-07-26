@@ -761,3 +761,177 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     );
   });
 });
+
+// ---------- Phase 3 — Type & Coverage Closure ----------
+
+const hasDashboardInvalidation = (invalidate: ReturnType<typeof vi.spyOn>) =>
+  invalidate.mock.calls.some(
+    (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+  );
+
+describe("Phase 3 closure — dashboard cache invalidation on success", () => {
+  it("successful note deletion invalidates learner-dashboard", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonNoteMock.mockResolvedValue({
+      id: "n1",
+      course_id: "c1",
+      lesson_id: "l1",
+      body: "keep",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("note-delete-trigger"));
+    await user.click(await screen.findByTestId("note-delete-confirm"));
+    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(hasDashboardInvalidation(invalidate)).toBe(true));
+  });
+
+  it("successful bookmark removal invalidates learner-dashboard", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonBookmarkMock.mockResolvedValue({
+      id: "b1",
+      course_id: "c1",
+      lesson_id: "l1",
+      created_at: new Date().toISOString(),
+    });
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const btn = await screen.findByTestId("bookmark-button");
+    await waitFor(() => expect(btn).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    await userEvent.setup().click(btn);
+    await waitFor(() =>
+      expect(removeLessonBookmarkMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }),
+    );
+    await waitFor(() => expect(hasDashboardInvalidation(invalidate)).toBe(true));
+  });
+
+  it("successful setLastLesson persistence marks learner-dashboard stale", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    let resolveLast!: () => void;
+    setLastLessonMock.mockImplementation(
+      () => new Promise<void>((r) => (resolveLast = r)),
+    );
+    const { qc } = await renderPlayer({ lessonId: "l1" });
+    await screen.findByText(/Content l1/);
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    await waitFor(() => expect(setLastLessonMock).toHaveBeenCalledTimes(1));
+    // Not stale until the RPC resolves.
+    expect(hasDashboardInvalidation(invalidate)).toBe(false);
+    await act(async () => {
+      resolveLast();
+    });
+    await waitFor(() => expect(hasDashboardInvalidation(invalidate)).toBe(true));
+  });
+});
+
+describe("Phase 3 closure — UnsavedGuard invocation matrix", () => {
+  it.each([
+    ["curriculum", async (user: ReturnType<typeof userEvent.setup>) => {
+      const btns = await screen.findAllByRole("button", { name: /lesson l2/i });
+      await user.click(btns[0]);
+    }],
+    ["Previous", async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("button", { name: /previous lesson/i }));
+    }],
+    ["Next", async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("button", { name: /next lesson/i }));
+    }],
+    ["My learning", async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("link", { name: /my learning/i }));
+    }],
+  ])("dirty note prompts UnsavedGuard from %s", async (_label, act) => {
+    const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ lessons, current: lessons[1], prevId: "l1", nextId: "l3" }),
+    );
+    await renderPlayer({ lessonId: "l2" });
+    const user = userEvent.setup();
+    const ta = await screen.findByTestId("note-textarea");
+    await user.type(ta, "wip");
+    navigateSpy.mockClear();
+    await act(user);
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("Phase 3 closure — stale lesson-A response cannot populate lesson B", () => {
+  it("a slow lesson-A note fetch resolving after lesson B swap does not overwrite B's note", async () => {
+    // Player renders lesson l1 first, then a rerender switches to l2.
+    const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
+    getLessonPlayerMock.mockImplementation((args: unknown) => {
+      const wanted = (args as { data?: { lessonId?: string } } | undefined)?.data?.lessonId;
+      const current = lessons.find((l) => l.id === wanted) ?? lessons[0];
+      return Promise.resolve(
+        readyDTO({
+          lessons,
+          current,
+          prevId: current.id === "l1" ? null : lessons[lessons.indexOf(current) - 1].id,
+          nextId: current.id === "l3" ? null : lessons[lessons.indexOf(current) + 1].id,
+        }),
+      );
+    });
+
+    // Deferred lesson-A note; lesson-B resolves immediately with a distinct body.
+    let resolveA!: (v: unknown) => void;
+    const deferredA = new Promise((r) => (resolveA = r));
+    getLessonNoteMock.mockImplementation((args: unknown) => {
+      const wanted = (args as { data?: { lessonId?: string } } | undefined)?.data?.lessonId;
+      if (wanted === "l1") return deferredA;
+      return Promise.resolve({
+        id: "n2",
+        course_id: "c1",
+        lesson_id: "l2",
+        body: "B-body",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    });
+
+    const mod = await import("@/routes/_authenticated/learn.$slug");
+    const qc = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: 0, staleTime: Infinity },
+        mutations: { retry: false },
+      },
+    });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" lessonId="l1" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Content l1/);
+
+    // Swap to lesson B before lesson-A's note resolves.
+    rerender(
+      <QueryClientProvider client={qc}>
+        <mod.PlayerBody slug="test-slug" lessonId="l2" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Content l2/);
+    await waitFor(() =>
+      expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe("B-body"),
+    );
+
+    // Now let the stale A-response arrive.
+    await act(async () => {
+      resolveA({
+        id: "n1",
+        course_id: "c1",
+        lesson_id: "l1",
+        body: "A-body",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    });
+
+    // NotesPanel is keyed per lesson, so lesson-B textarea keeps B-body and
+    // never adopts A-body from the stale promise.
+    expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe("B-body");
+    expect(screen.queryByDisplayValue("A-body")).toBeNull();
+  });
+});

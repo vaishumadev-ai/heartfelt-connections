@@ -303,9 +303,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
       const next = ordered.slice();
       [next[idx], next[target]] = [next[target], next[idx]];
       pendingFocusLessonId.current = lessonId;
-      setReorderAnnounce(
-        `Lesson moved to position ${target + 1} of ${ordered.length}.`,
-      );
+      setReorderAnnounce(`Lesson moved to position ${target + 1} of ${ordered.length}.`);
       // No permanent optimistic reorder — the query cache is the source of
       // truth. On success we invalidate; on error we surface a stable message.
       reorder.mutate({ lessonIds: next });
@@ -318,9 +316,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
     if (!id) return;
     if (reorder.isPending) return;
     const btn =
-      document.querySelector<HTMLButtonElement>(
-        `[data-lesson-move-focus="${id}"]`,
-      ) ?? null;
+      document.querySelector<HTMLButtonElement>(`[data-lesson-move-focus="${id}"]`) ?? null;
     if (btn) btn.focus();
     pendingFocusLessonId.current = null;
   }, [lessons, reorder.isPending]);
@@ -709,22 +705,22 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
             {[...lessons]
               .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
               .map((l, idx, arr) => (
-              <LessonRow
-                key={l.id}
-                lesson={l}
-                courseId={courseId}
-                isEditable={isEditable}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < arr.length - 1}
-                isReordering={reorder.isPending}
-                onMoveUp={() => moveLesson(l.id, -1)}
-                onMoveDown={() => moveLesson(l.id, 1)}
-                onDelete={() => {
-                  if (!isEditable) return;
-                  if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);
-                }}
-              />
-            ))}
+                <LessonRow
+                  key={l.id}
+                  lesson={l}
+                  courseId={courseId}
+                  isEditable={isEditable}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < arr.length - 1}
+                  isReordering={reorder.isPending}
+                  onMoveUp={() => moveLesson(l.id, -1)}
+                  onMoveDown={() => moveLesson(l.id, 1)}
+                  onDelete={() => {
+                    if (!isEditable) return;
+                    if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);
+                  }}
+                />
+              ))}
             {lessons.length === 0 && (
               <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
                 No lessons yet.

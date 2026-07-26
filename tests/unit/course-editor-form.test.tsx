@@ -17,7 +17,9 @@ vi.mock("@tanstack/react-start", async (importOriginal) => {
 
 // Cover section is exercised in its own suite; here it's a marker.
 vi.mock("@/components/studio/CoverUploader", () => ({
-  CoverUploader: (props: any) => <div data-testid="cover-uploader">cover:{String(props.isEditable)}</div>,
+  CoverUploader: (props: any) => (
+    <div data-testid="cover-uploader">cover:{String(props.isEditable)}</div>
+  ),
 }));
 
 const getMyCourse = vi.fn();
@@ -82,9 +84,7 @@ function mount(initial: {
   const course = initial.course ?? baseCourse();
   const lessons = initial.lessons ?? [];
   getMyCourse.mockResolvedValue({ course, lessons });
-  getCourseReadiness.mockResolvedValue(
-    initial.readiness ?? { is_ready: true, blockers: [] },
-  );
+  getCourseReadiness.mockResolvedValue(initial.readiness ?? { is_ready: true, blockers: [] });
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -122,13 +122,9 @@ describe("CourseEditorForm", () => {
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Existing title!" } });
-    await waitFor(() =>
-      expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0));
     fireEvent.change(title, { target: { value: "Existing title" } });
-    await waitFor(() =>
-      expect(screen.queryAllByText("Unsaved changes")).toHaveLength(0),
-    );
+    await waitFor(() => expect(screen.queryAllByText("Unsaved changes")).toHaveLength(0));
   });
 
   it("saves via the strict update whitelist and returns to saved state", async () => {
@@ -143,16 +139,12 @@ describe("CourseEditorForm", () => {
     expect(payload.title).toBe("Renamed");
     expect(payload).not.toHaveProperty("slug");
     expect(payload).not.toHaveProperty("id");
-    await waitFor(() =>
-      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Saved").length).toBeGreaterThan(0));
   });
 
   it("collapses rapid Save clicks into a single in-flight request", async () => {
     let resolveUpdate: (() => void) | null = null;
-    updateCourse.mockImplementation(
-      () => new Promise<void>((r) => (resolveUpdate = () => r())),
-    );
+    updateCourse.mockImplementation(() => new Promise<void>((r) => (resolveUpdate = () => r())));
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Existing title!" } });
@@ -163,9 +155,7 @@ describe("CourseEditorForm", () => {
     fireEvent.click(btn);
     expect(updateCourse).toHaveBeenCalledTimes(1);
     act(() => resolveUpdate!());
-    await waitFor(() =>
-      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Saved").length).toBeGreaterThan(0));
   });
 
   it("shows a failure banner and preserves the user's edits when save fails", async () => {
@@ -174,7 +164,11 @@ describe("CourseEditorForm", () => {
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Dirty value" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
-    await waitFor(() => expect(screen.getAllByText(/Something went wrong|network|please try/i).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/Something went wrong|network|please try/i).length,
+      ).toBeGreaterThan(0),
+    );
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Dirty value");
     expect(screen.getByRole("button", { name: /Save changes/i })).not.toBeDisabled();
   });
@@ -330,9 +324,7 @@ describe("CourseEditorForm — lesson reorder (P0C.2c-1)", () => {
     await screen.findByLabelText("Title");
     await userEvent.click(screen.getByRole("button", { name: /Move First down/i }));
     await waitFor(() =>
-      expect(
-        screen.getAllByText(/Something went wrong|please try/i).length,
-      ).toBeGreaterThan(0),
+      expect(screen.getAllByText(/Something went wrong|please try/i).length).toBeGreaterThan(0),
     );
     expect(reorderLessons).toHaveBeenCalledTimes(1);
   });

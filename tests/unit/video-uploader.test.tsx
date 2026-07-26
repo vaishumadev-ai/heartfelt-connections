@@ -38,7 +38,11 @@ vi.mock("@/lib/media.functions", () => ({
   signLessonVideoUrl: (...a: any[]) => signFn(...a),
 }));
 
-import { VideoUploader, type TusDriver, type TusDriverOptions } from "@/components/studio/VideoUploader";
+import {
+  VideoUploader,
+  type TusDriver,
+  type TusDriverOptions,
+} from "@/components/studio/VideoUploader";
 import { UnsavedGuardProvider } from "@/components/lesson-tools/UnsavedGuard";
 
 // Configurable fake driver — captures options, exposes hooks so tests can
@@ -213,7 +217,9 @@ describe("VideoUploader — remove", () => {
 describe("VideoUploader — locked state", () => {
   it("disables all controls when not editable", () => {
     mount({ isEditable: false, videoStoragePath: `${USER_ID}/${COURSE_ID}/${LESSON_ID}/x.mp4` });
-    expect((screen.getByLabelText("Choose a lesson video") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Choose a lesson video") as HTMLInputElement).disabled).toBe(
+      true,
+    );
     expect(
       (screen.getByRole("button", { name: /replace video/i }) as HTMLButtonElement).disabled,
     ).toBe(true);

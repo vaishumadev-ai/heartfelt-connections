@@ -230,7 +230,10 @@ export function VideoUploader({
       const v = validateVideoFile(file, limitsQ.data?.video ?? undefined);
       if (!v.ok) {
         inFlightRef.current = false;
-        safeSet({ kind: "failed", message: VIDEO_VALIDATION_MESSAGE[v.code as VideoValidationError] });
+        safeSet({
+          kind: "failed",
+          message: VIDEO_VALIDATION_MESSAGE[v.code as VideoValidationError],
+        });
         return;
       }
       const {
@@ -449,8 +452,7 @@ export function VideoUploader({
     return `MP4 or WebM. Up to ${mb} MB. Resumable — reconnect and continue if your network drops.`;
   }, [limitsQ.data]);
 
-  const progress =
-    state.kind === "uploading" || state.kind === "replacing" ? state.progress : null;
+  const progress = state.kind === "uploading" || state.kind === "replacing" ? state.progress : null;
 
   return (
     <div data-testid={`video-uploader-${lessonId}`} data-state={state.kind}>

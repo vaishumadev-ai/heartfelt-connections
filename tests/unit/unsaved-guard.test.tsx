@@ -55,10 +55,7 @@ describe("UnsavedGuard", () => {
       const { registerDirtyChecker } = useUnsavedGuard();
       const r = React.useRef(dirty);
       r.current = dirty;
-      React.useEffect(
-        () => registerDirtyChecker(id, () => r.current),
-        [registerDirtyChecker, id],
-      );
+      React.useEffect(() => registerDirtyChecker(id, () => r.current), [registerDirtyChecker, id]);
       return null;
     }
     const { rerender } = render(<TwoSources a={true} b={true} />);
@@ -90,10 +87,7 @@ describe("UnsavedGuard", () => {
       const { registerDirtyChecker } = useUnsavedGuard();
       const r = React.useRef(dirty);
       r.current = dirty;
-      React.useEffect(
-        () => registerDirtyChecker("once", () => r.current),
-        [registerDirtyChecker],
-      );
+      React.useEffect(() => registerDirtyChecker("once", () => r.current), [registerDirtyChecker]);
       return null;
     }
     const { rerender } = render(

@@ -367,6 +367,38 @@ export function CoverUploader({
     },
   });
 
+  const retryCleanupMutateAsyncRef = useRef(retryCleanup.mutateAsync);
+  retryCleanupMutateAsyncRef.current = retryCleanup.mutateAsync;
+  useEffect(() => {
+    return guard.registerNavController(`studio-cover-${courseId}`, {
+      kind: "cover",
+      status: () => {
+        const k = stateRef.current.kind;
+        if (k === "cleanup_pending") return "cleanup_pending";
+        if (
+          k === "validating" ||
+          k === "uploading" ||
+          k === "attaching" ||
+          k === "replacing" ||
+          k === "removing"
+        ) {
+          return "busy";
+        }
+        return "safe";
+      },
+      retryCleanup: async () => {
+        const s = stateRef.current;
+        if (s.kind !== "cleanup_pending") return true;
+        try {
+          await retryCleanupMutateAsyncRef.current(s.path);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    });
+  }, [guard, courseId]);
+
   useEffect(() => {
     return () => {
       inFlight.current = false;

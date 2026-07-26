@@ -633,7 +633,8 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     await waitFor(() => expect(screen.getByTestId("note-status")).toHaveTextContent(/saved/i));
     expect(
       invalidate.mock.calls.some(
-        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        (c) =>
+          (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
       ),
     ).toBe(true);
   });
@@ -652,7 +653,9 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
 
   it("save failure surfaces stable error copy, does not persist optimistic body, keeps note dirty", async () => {
     getLessonPlayerMock.mockResolvedValue(readyDTO());
-    saveLessonNoteMock.mockRejectedValueOnce(new Error("permission denied for function save_lesson_note"));
+    saveLessonNoteMock.mockRejectedValueOnce(
+      new Error("permission denied for function save_lesson_note"),
+    );
     await renderPlayer();
     const ta = await screen.findByTestId("note-textarea");
     const user = userEvent.setup();
@@ -680,7 +683,9 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     const trigger = await screen.findByTestId("note-delete-trigger");
     await user.click(trigger);
     await user.click(await screen.findByTestId("note-delete-confirm"));
-    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }));
+    await waitFor(() =>
+      expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }),
+    );
     await waitFor(() =>
       expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(""),
     );
@@ -755,5 +760,4 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
       ).toBe(true),
     );
   });
-
 });

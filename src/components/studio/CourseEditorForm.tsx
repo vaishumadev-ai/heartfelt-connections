@@ -694,13 +694,31 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
         </div>
 
         <Section id="section-curriculum" title="Curriculum">
+          <div className="sr-only" role="status" aria-live="polite">
+            {reorderAnnounce}
+          </div>
+          {reorderError && (
+            <div
+              role="alert"
+              className="mb-3 rounded-2xl bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 ring-1 ring-red-200"
+            >
+              {reorderError}
+            </div>
+          )}
           <ul className="mt-2 space-y-2">
-            {lessons.map((l) => (
+            {[...lessons]
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((l, idx, arr) => (
               <LessonRow
                 key={l.id}
                 lesson={l}
                 courseId={courseId}
                 isEditable={isEditable}
+                canMoveUp={idx > 0}
+                canMoveDown={idx < arr.length - 1}
+                isReordering={reorder.isPending}
+                onMoveUp={() => moveLesson(l.id, -1)}
+                onMoveDown={() => moveLesson(l.id, 1)}
                 onDelete={() => {
                   if (!isEditable) return;
                   if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);

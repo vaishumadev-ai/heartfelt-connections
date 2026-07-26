@@ -877,7 +877,6 @@ function LessonRow({
     position: number;
     duration_seconds: number | null;
     content: string | null;
-    video_url: string | null;
     video_storage_path?: string | null;
     is_preview?: boolean;
     module_title?: string | null;
@@ -896,7 +895,6 @@ function LessonRow({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
-  const [videoUrl, setVideoUrl] = useState(lesson.video_url ?? "");
   const [dur, setDur] = useState(lesson.duration_seconds?.toString() ?? "");
   const [isPreview, setIsPreview] = useState<boolean>(lesson.is_preview ?? false);
   const [moduleTitle, setModuleTitle] = useState<string>(lesson.module_title ?? "");
@@ -910,7 +908,6 @@ function LessonRow({
           title,
           position: lesson.position,
           content: content || null,
-          video_url: videoUrl || null,
           duration_seconds: dur ? parseInt(dur, 10) : null,
           is_preview: isPreview,
           module_title: moduleTitle.trim() || null,
@@ -1026,17 +1023,6 @@ function LessonRow({
               videoStoragePath={lesson.video_storage_path ?? null}
             />
           </div>
-          <label className="md:col-span-2">
-            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
-              External video URL (optional fallback)
-            </span>
-            <input
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              disabled={!isEditable}
-              className={inputCls}
-            />
-          </label>
           <label>
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">
               Duration (seconds)

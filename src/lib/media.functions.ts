@@ -119,12 +119,13 @@ export const attachLessonVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { lessonId: string; storagePath: string }) => d)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("attach_lesson_video", {
+    const { data: prev, error } = await context.supabase.rpc("attach_lesson_video", {
       _lesson_id: data.lessonId,
       _path: data.storagePath,
     });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const previousStoragePath = typeof prev === "string" && prev.length > 0 ? prev : null;
+    return { ok: true as const, previousStoragePath };
   });
 
 /**
@@ -135,11 +136,12 @@ export const detachLessonVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { lessonId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("detach_lesson_video", {
+    const { data: prev, error } = await context.supabase.rpc("detach_lesson_video", {
       _lesson_id: data.lessonId,
     });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const previousStoragePath = typeof prev === "string" && prev.length > 0 ? prev : null;
+    return { ok: true as const, previousStoragePath };
   });
 
 /**

@@ -584,7 +584,7 @@ export type Database = {
       }
       attach_lesson_video: {
         Args: { _lesson_id: string; _path: string }
-        Returns: undefined
+        Returns: string
       }
       complete_lesson: {
         Args: { _course_id: string; _lesson_id: string }
@@ -597,7 +597,7 @@ export type Database = {
       }
       delete_lesson_note: { Args: { _lesson_id: string }; Returns: undefined }
       detach_course_cover: { Args: { _course_id: string }; Returns: string }
-      detach_lesson_video: { Args: { _lesson_id: string }; Returns: undefined }
+      detach_lesson_video: { Args: { _lesson_id: string }; Returns: string }
       enroll_free_course: { Args: { _course_id: string }; Returns: string }
       evaluate_course_readiness: {
         Args: { _course_id: string }

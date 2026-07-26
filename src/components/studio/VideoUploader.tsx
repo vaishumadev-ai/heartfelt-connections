@@ -50,13 +50,6 @@ export type TusDriverOptions = {
 
 export type TusDriver = (opts: TusDriverOptions) => TusDriverHandle;
 
-let injectedDriver: TusDriver | null = null;
-
-/** Test-only: swap in a synchronous driver for behavioral tests. */
-export function __setTusDriver(d: TusDriver | null): void {
-  injectedDriver = d;
-}
-
 async function realTusDriver(opts: TusDriverOptions): Promise<TusDriverHandle> {
   const mod = await import("tus-js-client");
   const upload = new mod.Upload(opts.file, {
@@ -74,6 +67,20 @@ async function realTusDriver(opts: TusDriverOptions): Promise<TusDriverHandle> {
   };
 }
 
+function defaultTusDriver(opts: TusDriverOptions): TusDriverHandle {
+  // Real production driver — kicks off the async import synchronously and
+  // forwards start/abort to the eventual handle. There is deliberately no
+  // mutable module-level driver; each component gets its own instance.
+  let started: TusDriverHandle | null = null;
+  void realTusDriver(opts).then((h) => {
+    started = h;
+  });
+  return {
+    start: () => started?.start(),
+    abort: (t) => started?.abort(t) ?? undefined,
+  };
+}
+
 type UploadState =
   | { kind: "idle" }
   | { kind: "validating" }
@@ -81,6 +88,7 @@ type UploadState =
   | { kind: "attaching"; path: string }
   | { kind: "replacing"; path: string; progress: number }
   | { kind: "removing" }
+  | { kind: "cleanup_pending"; orphanPath: string; message: string }
   | { kind: "failed"; message: string };
 
 export type VideoUploaderProps = {
@@ -88,6 +96,12 @@ export type VideoUploaderProps = {
   courseId: string;
   isEditable: boolean;
   videoStoragePath: string | null;
+  /**
+   * Optional injection seam. Production always uses the real TUS driver;
+   * only behavioral tests pass a fake. There is no mutable module-level
+   * driver — one instance can never influence another.
+   */
+  tusDriver?: TusDriver;
   onSaved?: () => void;
 };
 
@@ -117,6 +131,7 @@ export function VideoUploader({
   courseId,
   isEditable,
   videoStoragePath,
+  tusDriver,
   onSaved,
 }: VideoUploaderProps) {
   const qc = useQueryClient();
@@ -126,6 +141,19 @@ export function VideoUploader({
   const uploadRef = useRef<TusDriverHandle | null>(null);
   const guard = useUnsavedGuard();
   const signReqSeq = useRef(0);
+  // Synchronous single-flight guard covering upload/replace/remove/retry.
+  // Prevents rapid double-clicks from launching two operations in parallel.
+  const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const safeSet = useCallback((s: UploadState) => {
+    if (mountedRef.current) setState(s);
+  }, []);
 
   const limitsFn = useServerFn(getMediaLimits);
   const attachFn = useServerFn(attachLessonVideo);
@@ -140,10 +168,9 @@ export function VideoUploader({
 
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!videoStoragePath) {
-      setSignedUrl(null);
-      return;
-    }
+    // Clear immediately on any path change so a stale URL cannot linger.
+    setSignedUrl(null);
+    if (!videoStoragePath) return;
     const my = ++signReqSeq.current;
     signFn({ data: { storagePath: videoStoragePath, expiresIn: 3600 } })
       .then((r) => {
@@ -165,41 +192,53 @@ export function VideoUploader({
     state.kind === "uploading" ||
     state.kind === "replacing" ||
     state.kind === "attaching" ||
-    state.kind === "removing";
+    state.kind === "removing" ||
+    state.kind === "cleanup_pending";
   useEffect(() => {
     return guard.registerDirtyChecker(`studio-video-${lessonId}`, () => unsafeRef.current);
   }, [guard, lessonId]);
 
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+    qc.invalidateQueries({ queryKey: ["my-courses"] });
     qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
     onSaved?.();
   }, [qc, courseId, onSaved]);
 
+  // Compensating storage deletion. Runs as the same caller-scoped Supabase
+  // client (Storage RLS enforces owner==uid); no service-role path.
+  const tryDeleteStorageObject = useCallback(async (path: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.storage.from("course-videos").remove([path]);
+      return !error;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const runUpload = useCallback(
     async (file: File) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       const replacing = !!videoStoragePath;
-      setState({ kind: "validating" });
+      safeSet({ kind: "validating" });
       if (limitsQ.isError) {
-        setState({
-          kind: "failed",
-          message: VIDEO_VALIDATION_MESSAGE.config_unavailable,
-        });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: VIDEO_VALIDATION_MESSAGE.config_unavailable });
         return;
       }
       const v = validateVideoFile(file, limitsQ.data?.video ?? undefined);
       if (!v.ok) {
-        setState({
-          kind: "failed",
-          message: VIDEO_VALIDATION_MESSAGE[v.code as VideoValidationError],
-        });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: VIDEO_VALIDATION_MESSAGE[v.code as VideoValidationError] });
         return;
       }
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        setState({ kind: "failed", message: "Please sign in again to upload." });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: "Please sign in again to upload." });
         return;
       }
       const {
@@ -207,26 +246,23 @@ export function VideoUploader({
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token ?? "";
       if (!accessToken) {
-        setState({ kind: "failed", message: "Session expired. Please sign in again." });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: "Session expired. Please sign in again." });
         return;
       }
       let path: string;
       try {
         path = buildVideoObjectPath({ userId: user.id, courseId, ext: v.ext });
       } catch {
-        setState({
-          kind: "failed",
-          message: VIDEO_VALIDATION_MESSAGE.config_unavailable,
-        });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: VIDEO_VALIDATION_MESSAGE.config_unavailable });
         return;
       }
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
       if (!supabaseUrl || !apiKey) {
-        setState({
-          kind: "failed",
-          message: VIDEO_VALIDATION_MESSAGE.config_unavailable,
-        });
+        inFlightRef.current = false;
+        safeSet({ kind: "failed", message: VIDEO_VALIDATION_MESSAGE.config_unavailable });
         return;
       }
       const config = buildTusUploadConfig({
@@ -236,21 +272,8 @@ export function VideoUploader({
         objectPath: path,
         mime: v.mime as VideoMime,
       });
-      setState({ kind: replacing ? "replacing" : "uploading", path, progress: 0 });
-
-      const driver: TusDriver =
-        injectedDriver ??
-        (((opts) => {
-          // Kick off the async import synchronously; return a shim.
-          let started: TusDriverHandle | null = null;
-          void realTusDriver(opts).then((h) => {
-            started = h;
-          });
-          return {
-            start: () => started?.start(),
-            abort: (t) => started?.abort(t) ?? undefined,
-          };
-        }) satisfies TusDriver);
+      safeSet({ kind: replacing ? "replacing" : "uploading", path, progress: 0 });
+      const driver: TusDriver = tusDriver ?? defaultTusDriver;
 
       await new Promise<void>((resolve) => {
         const handle = driver({
@@ -258,6 +281,7 @@ export function VideoUploader({
           config,
           onProgress: (uploaded, total) => {
             const pct = total > 0 ? Math.round((uploaded / total) * 100) : 0;
+            if (!mountedRef.current) return;
             setState((prev) => {
               if (prev.kind === "uploading" || prev.kind === "replacing") {
                 return { ...prev, progress: pct };
@@ -266,23 +290,55 @@ export function VideoUploader({
             });
           },
           onError: (err) => {
-            setState({
+            safeSet({
               kind: "failed",
               message: err instanceof Error ? err.message : "Upload failed.",
             });
             resolve();
           },
           onSuccess: async () => {
-            setState({ kind: "attaching", path });
+            safeSet({ kind: "attaching", path });
             try {
-              await attachFn({ data: { lessonId, storagePath: path } });
-              setState({ kind: "idle" });
+              const res = (await attachFn({
+                data: { lessonId, storagePath: path },
+              })) as { previousStoragePath?: string | null } | undefined;
+              const prev = res?.previousStoragePath ?? null;
               invalidateAll();
+              // Attach committed. If a previous object existed, delete it
+              // now. If that delete fails we hold cleanup_pending so the
+              // instructor can retry — never roll back working media.
+              if (prev) {
+                const ok = await tryDeleteStorageObject(prev);
+                if (!ok) {
+                  safeSet({
+                    kind: "cleanup_pending",
+                    orphanPath: prev,
+                    message:
+                      "Your new video is live, but we couldn't remove the previous file. Retry cleanup below.",
+                  });
+                } else {
+                  safeSet({ kind: "idle" });
+                }
+              } else {
+                safeSet({ kind: "idle" });
+              }
             } catch (err) {
-              setState({
-                kind: "failed",
-                message: err instanceof Error ? err.message : "Couldn't attach the video.",
-              });
+              // Attach failed. Existing attached video (if any) is
+              // untouched. Delete only the freshly uploaded object.
+              const ok = await tryDeleteStorageObject(path);
+              if (ok) {
+                safeSet({
+                  kind: "failed",
+                  message: err instanceof Error ? err.message : "Couldn't attach the video.",
+                });
+              } else {
+                safeSet({
+                  kind: "cleanup_pending",
+                  orphanPath: path,
+                  message:
+                    "We couldn't finish attaching the video and couldn't clean up the leftover file. Retry cleanup below.",
+                });
+              }
             } finally {
               resolve();
             }
@@ -291,27 +347,67 @@ export function VideoUploader({
         uploadRef.current = handle;
       });
       uploadRef.current = null;
+      inFlightRef.current = false;
       if (inputRef.current) inputRef.current.value = "";
     },
-    [attachFn, courseId, invalidateAll, lessonId, limitsQ.data, limitsQ.isError, videoStoragePath],
+    [
+      attachFn,
+      courseId,
+      invalidateAll,
+      lessonId,
+      limitsQ.data,
+      limitsQ.isError,
+      safeSet,
+      tryDeleteStorageObject,
+      tusDriver,
+      videoStoragePath,
+    ],
   );
 
   const removeMut = useMutation({
     mutationFn: async () => {
-      setState({ kind: "removing" });
-      await detachFn({ data: { lessonId } });
+      if (inFlightRef.current) return { previousStoragePath: null as string | null };
+      inFlightRef.current = true;
+      safeSet({ kind: "removing" });
+      const res = (await detachFn({ data: { lessonId } })) as
+        | { previousStoragePath?: string | null }
+        | undefined;
+      return { previousStoragePath: res?.previousStoragePath ?? null };
     },
-    onSuccess: () => {
+    onSuccess: async ({ previousStoragePath }) => {
       invalidateAll();
-      setState({ kind: "idle" });
+      if (previousStoragePath) {
+        const ok = await tryDeleteStorageObject(previousStoragePath);
+        if (!ok) {
+          safeSet({
+            kind: "cleanup_pending",
+            orphanPath: previousStoragePath,
+            message:
+              "The video was detached, but we couldn't delete the file. Retry cleanup below.",
+          });
+          inFlightRef.current = false;
+          return;
+        }
+      }
+      safeSet({ kind: "idle" });
+      inFlightRef.current = false;
     },
     onError: (err) => {
-      setState({
+      inFlightRef.current = false;
+      safeSet({
         kind: "failed",
         message: err instanceof Error ? err.message : "Couldn't remove the video.",
       });
     },
   });
+
+  const retryCleanup = useCallback(async () => {
+    if (state.kind !== "cleanup_pending" || inFlightRef.current) return;
+    inFlightRef.current = true;
+    const ok = await tryDeleteStorageObject(state.orphanPath);
+    inFlightRef.current = false;
+    if (ok) safeSet({ kind: "idle" });
+  }, [state, safeSet, tryDeleteStorageObject]);
 
   const cancelUpload = useCallback(() => {
     if (uploadRef.current) {
@@ -322,8 +418,9 @@ export function VideoUploader({
       }
       uploadRef.current = null;
     }
-    setState({ kind: "idle" });
-  }, []);
+    inFlightRef.current = false;
+    safeSet({ kind: "idle" });
+  }, [safeSet]);
 
   useEffect(() => {
     return () => {
@@ -343,7 +440,8 @@ export function VideoUploader({
     state.kind === "uploading" ||
     state.kind === "replacing" ||
     state.kind === "attaching" ||
-    state.kind === "removing";
+    state.kind === "removing" ||
+    state.kind === "cleanup_pending";
 
   const helpText = useMemo(() => {
     const cap = limitsQ.data?.video.fileSizeLimit ?? VIDEO_MAX_BYTES;
@@ -447,6 +545,18 @@ export function VideoUploader({
           <p role="alert" className="mt-3 rounded-2xl bg-red-50 p-3 text-xs text-red-700">
             {state.message}
           </p>
+        )}
+        {state.kind === "cleanup_pending" && (
+          <div role="alert" className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs text-amber-900">
+            <p>{state.message}</p>
+            <button
+              type="button"
+              onClick={() => void retryCleanup()}
+              className="mt-2 rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-primary-foreground"
+            >
+              Retry cleanup
+            </button>
+          </div>
         )}
         {!isEditable && (
           <p className="mt-3 text-[11px] text-muted-foreground">

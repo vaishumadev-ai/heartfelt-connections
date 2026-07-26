@@ -1061,17 +1061,23 @@ export const deleteCourse = createServerFn({ method: "POST" })
 export const upsertLesson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: {
+    (raw: {
       lessonId?: string;
       courseId: string;
       title: string;
       position: number;
       duration_seconds?: number | null;
       content?: string | null;
-      video_url?: string | null;
       is_preview?: boolean;
       module_title?: string | null;
-    }) => d,
+    }) => {
+      // Legacy external video URL is closed off. Reject it explicitly so a
+      // stale client can never smuggle it in.
+      if (raw && typeof raw === "object" && "video_url" in (raw as Record<string, unknown>)) {
+        throw new Error("video_url is no longer accepted; use the video uploader.");
+      }
+      return raw;
+    },
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -1093,7 +1099,6 @@ export const upsertLesson = createServerFn({ method: "POST" })
           position: data.position,
           duration_seconds: data.duration_seconds ?? null,
           content: data.content ?? null,
-          video_url: data.video_url ?? null,
           is_preview: data.is_preview ?? false,
           module_title: data.module_title ?? null,
         })
@@ -1110,7 +1115,6 @@ export const upsertLesson = createServerFn({ method: "POST" })
         position: data.position,
         duration_seconds: data.duration_seconds ?? null,
         content: data.content ?? null,
-        video_url: data.video_url ?? null,
         is_preview: data.is_preview ?? false,
         module_title: data.module_title ?? null,
       })

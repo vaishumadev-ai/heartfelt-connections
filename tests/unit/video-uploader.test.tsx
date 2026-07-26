@@ -38,7 +38,7 @@ vi.mock("@/lib/media.functions", () => ({
   signLessonVideoUrl: (...a: any[]) => signFn(...a),
 }));
 
-import { VideoUploader, __setTusDriver, type TusDriverOptions } from "@/components/studio/VideoUploader";
+import { VideoUploader, type TusDriver, type TusDriverOptions } from "@/components/studio/VideoUploader";
 import { UnsavedGuardProvider } from "@/components/lesson-tools/UnsavedGuard";
 
 // Configurable fake driver — captures options, exposes hooks so tests can
@@ -49,8 +49,8 @@ type DriverCapture = {
 };
 let capture: DriverCapture;
 
-function installFakeDriver(opts?: { autoSuccess?: boolean; error?: Error }) {
-  __setTusDriver((o) => {
+function fakeDriver(opts?: { autoSuccess?: boolean; error?: Error }): TusDriver {
+  return (o) => {
     capture.opts = o;
     if (opts?.error) {
       queueMicrotask(() => o.onError(opts.error!));
@@ -67,12 +67,11 @@ function installFakeDriver(opts?: { autoSuccess?: boolean; error?: Error }) {
         capture.aborted++;
       },
     };
-  });
+  };
 }
 
 beforeEach(() => {
   capture = { opts: null, aborted: 0 };
-  __setTusDriver(null);
   getUserImpl.mockResolvedValue({ data: { user: { id: USER_ID } } });
   getSessionImpl.mockResolvedValue({ data: { session: { access_token: "tok-abc" } } });
   limitsFn.mockResolvedValue({
@@ -124,8 +123,7 @@ async function choose(file: File) {
 
 describe("VideoUploader — upload happy path", () => {
   it("validates, uploads via TUS, then attaches", async () => {
-    installFakeDriver({ autoSuccess: true });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: true }) });
     await choose(mp4());
     await waitFor(() => expect(attachFn).toHaveBeenCalled());
     const args = attachFn.mock.calls[0][0];
@@ -136,8 +134,7 @@ describe("VideoUploader — upload happy path", () => {
   });
 
   it("passes the caller's access token and correct bucket to TUS config", async () => {
-    installFakeDriver({ autoSuccess: false });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: false }) });
     await choose(mp4());
     await waitFor(() => expect(capture.opts).toBeTruthy());
     const cfg = capture.opts!.config as any;
@@ -150,8 +147,7 @@ describe("VideoUploader — upload happy path", () => {
   });
 
   it("Storage path never contains the original filename", async () => {
-    installFakeDriver({ autoSuccess: true });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: true }) });
     await choose(mp4(1024, "PRIVATE-secret-name.mp4"));
     await waitFor(() => expect(attachFn).toHaveBeenCalled());
     const path = attachFn.mock.calls[0][0].data.storagePath as string;
@@ -187,8 +183,7 @@ describe("VideoUploader — validation", () => {
 
 describe("VideoUploader — failure paths and cleanup", () => {
   it("shows a stable error when TUS reports failure and does NOT attach", async () => {
-    installFakeDriver({ error: new Error("network dropped") });
-    mount();
+    mount({ tusDriver: fakeDriver({ error: new Error("network dropped") }) });
     await choose(mp4());
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/network dropped/));
     expect(attachFn).not.toHaveBeenCalled();
@@ -196,8 +191,7 @@ describe("VideoUploader — failure paths and cleanup", () => {
 
   it("cancel aborts the TUS upload with termination", async () => {
     // Never-resolving upload — hold in "uploading".
-    installFakeDriver({ autoSuccess: false });
-    mount();
+    mount({ tusDriver: fakeDriver({ autoSuccess: false }) });
     await choose(mp4());
     // Wait for uploading state.
     await waitFor(() => expect(capture.opts).toBeTruthy());

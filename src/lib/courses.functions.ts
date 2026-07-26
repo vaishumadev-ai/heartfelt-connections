@@ -1030,7 +1030,9 @@ export const updateCourse = createServerFn({ method: "POST" })
     // here. Instructors publish only via submit_course_for_review → admin.
     const { error } = await supabase
       .from("courses")
-      .update(data.patch)
+      // Typed columns are enforced by normalizeUpdateCoursePayload; supabase's
+      // deep union rejects Record<string, unknown> at compile time.
+      .update(data.patch as never)
       .eq("id", data.courseId)
       .eq("instructor_id", userId);
     if (error) throw new Error(error.message);

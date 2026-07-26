@@ -73,9 +73,10 @@ afterEach(() => {
 });
 
 async function fillAndSubmit(mode: "signup" | "signin" | "reset", opts: { email: string; password?: string }) {
-  if (mode === "signup") {
+  // Only toggle when the form isn't already in the desired mode.
+  if (mode === "signup" && !screen.queryByRole("button", { name: /create account/i })) {
     fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
-  } else if (mode === "reset") {
+  } else if (mode === "reset" && !screen.queryByRole("button", { name: /send reset link/i })) {
     fireEvent.click(screen.getByRole("button", { name: /forgot password/i }));
   }
   const email = screen.getByPlaceholderText(/email/i) as HTMLInputElement;

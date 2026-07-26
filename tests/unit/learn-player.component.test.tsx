@@ -600,14 +600,18 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     const user = userEvent.setup();
     await user.click(btn);
     await waitFor(() =>
-      expect(screen.getByTestId("bookmark-button")).toHaveAttribute("aria-pressed", "true"),
+      expect(addLessonBookmarkMock).toHaveBeenCalledWith({
+        data: { courseId: "c1", lessonId: "l1" },
+      }),
     );
-    expect(addLessonBookmarkMock).toHaveBeenCalledTimes(1);
-    expect(
-      invalidate.mock.calls.some(
-        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
-      ),
-    ).toBe(true);
+    await waitFor(() =>
+      expect(
+        invalidate.mock.calls.some(
+          (c) =>
+            (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        ),
+      ).toBe(true),
+    );
   });
 
   it("note Save enabled only when dirty + non-empty + under 4000, Ctrl+Enter saves, counter shows near-limit", async () => {

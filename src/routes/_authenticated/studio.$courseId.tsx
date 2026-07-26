@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
 import {
   getMyCourse,
@@ -9,9 +9,17 @@ import {
   upsertLesson,
   deleteLesson,
   submitCourseForReview,
+  getCourseReadiness,
   isCourseEditable,
   mapCourseGovernanceError,
+  COURSE_UPDATE_LIMITS,
+  type SubmitCourseResult,
 } from "@/lib/courses.functions";
+import { StructuredListEditor } from "@/components/studio/StructuredListEditor";
+import { FaqEditor, type FaqPair } from "@/components/studio/FaqEditor";
+import { ReadinessPanel } from "@/components/studio/ReadinessPanel";
+import { useUnsavedGuard } from "@/components/lesson-tools/UnsavedGuard";
+import type { CourseReadinessBlocker } from "@/lib/course-readiness";
 
 export const Route = createFileRoute("/_authenticated/studio/$courseId")({
   head: () => ({
@@ -31,10 +39,63 @@ export const Route = createFileRoute("/_authenticated/studio/$courseId")({
   notFoundComponent: () => <div className="p-8">Course not found.</div>,
 });
 
+const CATEGORIES = ["Development", "Design", "Marketing", "Language", "Security", "Business"];
+const LEVELS = ["Beginner", "Intermediate", "Advanced"];
+const LANGUAGES = ["English", "Spanish", "French", "German", "Portuguese"];
+
+type SaveStatus = "clean" | "unsaved" | "saving" | "saved" | "failed";
+
+type FormState = {
+  title: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  level: string;
+  language: string;
+  duration_label: string;
+  priceDollars: string;
+  instructor_name: string;
+  instructor_title: string;
+  instructor_bio: string;
+  learn_outcomes: string[];
+  skills: string[];
+  requirements: string[];
+  audience: string[];
+  faq: FaqPair[];
+};
+
+function hydrate(course: Record<string, unknown> | null | undefined): FormState {
+  const c = course ?? {};
+  return {
+    title: (c.title as string) ?? "",
+    subtitle: (c.subtitle as string) ?? "",
+    description: (c.description as string) ?? "",
+    category: (c.category as string) ?? "",
+    level: (c.level as string) ?? "Beginner",
+    language: (c.language as string) ?? "English",
+    duration_label: (c.duration_label as string) ?? "",
+    priceDollars: (((c.price_cents as number) ?? 0) / 100).toFixed(2),
+    instructor_name: (c.instructor_name as string) ?? "",
+    instructor_title: (c.instructor_title as string) ?? "",
+    instructor_bio: (c.instructor_bio as string) ?? "",
+    learn_outcomes: Array.isArray(c.learn_outcomes) ? (c.learn_outcomes as string[]) : [],
+    skills: Array.isArray(c.skills) ? (c.skills as string[]) : [],
+    requirements: Array.isArray(c.requirements) ? (c.requirements as string[]) : [],
+    audience: Array.isArray(c.audience) ? (c.audience as string[]) : [],
+    faq: Array.isArray(c.faq) ? (c.faq as FaqPair[]) : [],
+  };
+}
+
+function equalState(a: FormState, b: FormState): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function EditCourse() {
   const { courseId } = Route.useParams();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const guard = useUnsavedGuard();
+
   const { data } = useSuspenseQuery({
     queryKey: ["my-course", courseId],
     queryFn: () => getMyCourse({ data: { courseId } }),
@@ -44,55 +105,12 @@ function EditCourse() {
   const upsertLessonFn = useServerFn(upsertLesson);
   const deleteLessonFn = useServerFn(deleteLesson);
   const submitFn = useServerFn(submitCourseForReview);
+  const readinessFn = useServerFn(getCourseReadiness);
 
   const course = data?.course;
   const lessons = data?.lessons ?? [];
-
-  const [title, setTitle] = useState(course?.title ?? "");
-  const [subtitle, setSubtitle] = useState(course?.subtitle ?? "");
-  const [description, setDescription] = useState(course?.description ?? "");
-  const [category, setCategory] = useState(course?.category ?? "");
-  const [priceDollars, setPriceDollars] = useState(((course?.price_cents ?? 0) / 100).toFixed(2));
-  const [duration, setDuration] = useState(course?.duration_label ?? "");
-  const [iconKind, setIconKind] = useState(course?.icon_kind ?? "");
-
-  const save = useMutation({
-    mutationFn: () =>
-      updateFn({
-        data: {
-          courseId,
-          title,
-          subtitle: subtitle || null,
-          description: description || null,
-          category,
-          price_cents: Math.round(parseFloat(priceDollars || "0") * 100),
-          duration_label: duration || null,
-          icon_kind: iconKind || null,
-        },
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
-      qc.invalidateQueries({ queryKey: ["my-courses"] });
-      qc.invalidateQueries({ queryKey: ["courses"] });
-    },
-  });
-
-  const submit = useMutation({
-    mutationFn: () => submitFn({ data: { courseId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
-      qc.invalidateQueries({ queryKey: ["my-courses"] });
-    },
-  });
-
-  const rs = (course as { review_status?: string }).review_status ?? "draft";
-  const statusLabel: Record<string, string> = {
-    draft: "Draft",
-    pending_review: "Pending review",
-    approved: "Approved",
-    rejected: "Rejected",
-  };
-  const canSubmit = rs === "draft" || rs === "rejected";
+  const rs = ((course as { review_status?: string } | undefined)?.review_status ??
+    "draft") as string;
   const isEditable = isCourseEditable({
     is_published: course?.is_published,
     review_status: rs,
@@ -104,15 +122,163 @@ function EditCourse() {
         ? "This course is approved and live. An admin must unpublish it for edit before changes can be made."
         : "";
 
+  // ------- Form state (with stale-response protection) -------
+  const baseline = useMemo(() => hydrate(course as Record<string, unknown>), [course]);
+  const [form, setForm] = useState<FormState>(baseline);
+  const [savedBaseline, setSavedBaseline] = useState<FormState>(baseline);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("clean");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const courseIdRef = useRef(courseId);
+
+  // Reset when courseId changes (route param transition) or when the server
+  // baseline changes while the form is not dirty. A dirty form is preserved.
+  useEffect(() => {
+    courseIdRef.current = courseId;
+    setForm(baseline);
+    setSavedBaseline(baseline);
+    setSaveStatus("clean");
+    setSaveError(null);
+  }, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // Background baseline refresh: only overwrite if form is clean vs previous
+    // saved baseline. Never overwrite dirty local values.
+    if (equalState(form, savedBaseline)) {
+      setForm(baseline);
+      setSavedBaseline(baseline);
+      setSaveStatus((s) => (s === "saved" || s === "clean" ? "clean" : s));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseline]);
+
+  const dirty = !equalState(form, savedBaseline);
+  useEffect(() => {
+    if (dirty && saveStatus === "clean") setSaveStatus("unsaved");
+    if (!dirty && saveStatus === "unsaved") setSaveStatus("clean");
+  }, [dirty, saveStatus]);
+
+  // Dirty registration API so P0C.2c can wire full leave-page interception
+  // without touching form internals.
+  useEffect(() => {
+    return guard.registerDirtyChecker(`studio-course-${courseId}`, () => dirty);
+  }, [guard, courseId, dirty]);
+
+  const patch = useCallback(<K extends keyof FormState>(k: K, v: FormState[K]) => {
+    setForm((f) => ({ ...f, [k]: v }));
+  }, []);
+
+  // ------- Readiness -------
+  const readinessQ = useQuery({
+    queryKey: ["course-readiness", courseId],
+    queryFn: () => readinessFn({ data: { courseId } }),
+    enabled: !!course,
+  });
+  const [submissionBlockers, setSubmissionBlockers] = useState<CourseReadinessBlocker[] | null>(
+    null,
+  );
+  const displayBlockers = submissionBlockers ?? readinessQ.data?.blockers ?? [];
+  const isReady = submissionBlockers ? false : !!readinessQ.data?.is_ready;
+
+  // ------- Save mutation (single-flight) -------
+  const save = useMutation({
+    mutationFn: async () => {
+      const capturedId = courseIdRef.current;
+      if (capturedId !== courseId) throw new Error("stale_course");
+      setSaveStatus("saving");
+      setSaveError(null);
+      await updateFn({
+        data: {
+          courseId,
+          title: form.title,
+          subtitle: form.subtitle || null,
+          description: form.description || null,
+          category: form.category,
+          level: form.level,
+          language: form.language,
+          duration_label: form.duration_label || null,
+          price_cents: Math.round(parseFloat(form.priceDollars || "0") * 100),
+          instructor_name: form.instructor_name || null,
+          instructor_title: form.instructor_title || null,
+          instructor_bio: form.instructor_bio || null,
+          learn_outcomes: form.learn_outcomes,
+          skills: form.skills,
+          requirements: form.requirements,
+          audience: form.audience,
+          faq: form.faq,
+        },
+      });
+      if (courseIdRef.current !== capturedId) {
+        // Course id changed while save was in flight; discard.
+        throw new Error("stale_course");
+      }
+      return capturedId;
+    },
+    onSuccess: (capturedId) => {
+      if (capturedId !== courseIdRef.current) return; // stale
+      setSavedBaseline(form);
+      setSaveStatus("saved");
+      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["my-courses"] });
+      qc.invalidateQueries({ queryKey: ["courses"] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "stale_course") return; // discarded silently
+      setSaveStatus("failed");
+      setSaveError(mapCourseGovernanceError(err));
+    },
+  });
+
+  // ------- Submit mutation -------
+  const submit = useMutation({
+    mutationFn: () => submitFn({ data: { courseId } }) as Promise<SubmitCourseResult>,
+    onSuccess: (res) => {
+      if (res.ok) {
+        setSubmissionBlockers(null);
+        qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+        qc.invalidateQueries({ queryKey: ["my-courses"] });
+        qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+        return;
+      }
+      if (res.code === "course_not_ready") {
+        setSubmissionBlockers(res.blockers);
+        qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+      } else {
+        setSubmissionBlockers([]);
+      }
+    },
+  });
+
+  // Focus/scroll to a section or field target.
+  const focusTarget = useCallback((target: string) => {
+    const el = document.getElementById(target);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLSelectElement
+    ) {
+      el.focus();
+    }
+  }, []);
+
+  // ------- Curriculum mutations -------
   const addLesson = useMutation({
     mutationFn: (v: { title: string; position: number }) =>
       upsertLessonFn({ data: { courseId, title: v.title, position: v.position } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-course", courseId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+    },
   });
-
   const removeLesson = useMutation({
     mutationFn: (lessonId: string) => deleteLessonFn({ data: { lessonId, courseId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-course", courseId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+    },
   });
 
   const [newLessonTitle, setNewLessonTitle] = useState("");
@@ -128,29 +294,61 @@ function EditCourse() {
     );
   }
 
+  const disabled = !isEditable;
+  const canSaveNow = isEditable && dirty && saveStatus !== "saving";
+  const canSubmitNow =
+    isEditable && !dirty && saveStatus !== "saving" && !submit.isPending && isReady;
+
+  const saveStatusLabel: Record<SaveStatus, string> = {
+    clean: "All changes saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving…",
+    saved: "Saved",
+    failed: saveError ?? "Save failed",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "Draft",
+    pending_review: "Pending review",
+    approved: "Approved",
+    rejected: "Rejected",
+  };
+
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-4xl p-4 md:p-8">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             to="/studio"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-black"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Studio
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              aria-live="polite"
+              className="rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border"
+            >
               {statusLabel[rs] ?? rs}
+            </span>
+            <span
+              aria-live="polite"
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold ring-1 ${saveStatus === "failed" ? "bg-red-50 text-red-700 ring-red-200" : "bg-card ring-border"}`}
+            >
+              {saveStatusLabel[saveStatus]}
             </span>
             <button
               onClick={() => submit.mutate()}
-              disabled={submit.isPending || !canSubmit}
+              disabled={!canSubmitNow}
               title={
-                canSubmit
+                canSubmitNow
                   ? "Send this course to admins for review"
-                  : rs === "pending_review"
-                    ? "Already pending review"
-                    : "Already approved — publish state is admin-controlled"
+                  : !isEditable
+                    ? "Course is locked"
+                    : dirty
+                      ? "Save your changes first"
+                      : !isReady
+                        ? "Resolve readiness items first"
+                        : "Please wait…"
               }
               className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-semibold text-background disabled:opacity-50"
             >
@@ -167,6 +365,7 @@ function EditCourse() {
             )}
           </div>
         </div>
+
         {rs === "rejected" &&
           (course as { review_decision_reason?: string | null }).review_decision_reason && (
             <div className="mb-6 rounded-2xl bg-card p-4 text-sm ring-1 ring-border">
@@ -187,93 +386,273 @@ function EditCourse() {
             <p className="mt-1">{lockedMessage}</p>
           </div>
         )}
+        {submit.isError && (
+          <div role="alert" className="mb-6 rounded-2xl bg-red-50 p-4 text-sm ring-1 ring-red-200">
+            {mapCourseGovernanceError(submit.error)}
+          </div>
+        )}
+        {submissionBlockers !== null && submissionBlockers.length === 0 && !submit.isError && (
+          <div role="alert" className="mb-6 rounded-2xl bg-red-50 p-4 text-sm ring-1 ring-red-200">
+            We couldn't confirm readiness. Try again in a moment.
+          </div>
+        )}
 
-        <div className="rounded-3xl bg-card p-6 md:p-8">
-          <h1 className="text-2xl font-bold">Course details</h1>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <Field label="Title">
+        {/* -------- BASICS -------- */}
+        <Section id="section-basics" title="Course basics">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Title" htmlFor="field-title" full>
               <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                id="field-title"
+                value={form.title}
+                onChange={(e) => patch("title", e.target.value)}
+                maxLength={COURSE_UPDATE_LIMITS.title.max}
+                disabled={disabled}
                 className={inputCls}
               />
             </Field>
-            <Field label="Category">
+            <Field label="Subtitle" htmlFor="field-subtitle" full>
+              <input
+                id="field-subtitle"
+                value={form.subtitle}
+                onChange={(e) => patch("subtitle", e.target.value)}
+                maxLength={COURSE_UPDATE_LIMITS.subtitle.max}
+                disabled={disabled}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Category" htmlFor="field-category">
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                id="field-category"
+                value={form.category}
+                onChange={(e) => patch("category", e.target.value)}
+                disabled={disabled}
                 className={inputCls}
               >
-                {["Development", "Design", "Marketing", "Language", "Security", "Business"].map(
-                  (c) => (
-                    <option key={c}>{c}</option>
-                  ),
-                )}
-              </select>
-            </Field>
-            <Field label="Subtitle" full>
-              <input
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Description" full>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className={`${inputCls} resize-none`}
-              />
-            </Field>
-            <Field label="Price (USD)">
-              <input
-                type="number"
-                step="0.01"
-                value={priceDollars}
-                onChange={(e) => setPriceDollars(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Duration label">
-              <input
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g. 6h 30m"
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Icon kind">
-              <select
-                value={iconKind}
-                onChange={(e) => setIconKind(e.target.value)}
-                className={inputCls}
-              >
-                <option value="">None</option>
-                {["megaphone", "pencil", "cyber", "js", "html"].map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
+                <option value="">Select…</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
                 ))}
               </select>
             </Field>
+            <Field label="Level" htmlFor="field-level">
+              <select
+                id="field-level"
+                value={form.level}
+                onChange={(e) => patch("level", e.target.value)}
+                disabled={disabled}
+                className={inputCls}
+              >
+                {LEVELS.map((l) => (
+                  <option key={l}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Language" htmlFor="field-language">
+              <select
+                id="field-language"
+                value={form.language}
+                onChange={(e) => patch("language", e.target.value)}
+                disabled={disabled}
+                className={inputCls}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Duration" htmlFor="field-duration">
+              <input
+                id="field-duration"
+                value={form.duration_label}
+                onChange={(e) => patch("duration_label", e.target.value)}
+                placeholder="e.g. 6h 30m"
+                disabled={disabled}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Course URL identifier (slug)" htmlFor="field-slug" full>
+              <input
+                id="field-slug"
+                value={course.slug}
+                readOnly
+                aria-readonly="true"
+                className={`${inputCls} bg-foreground/5 text-muted-foreground`}
+                title="The URL identifier for this course. Not editable."
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                This is your course URL identifier. It can't be changed after creation.
+              </p>
+            </Field>
           </div>
+        </Section>
 
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={() => save.mutate()}
-              disabled={save.isPending || !isEditable}
-              title={isEditable ? undefined : "Course is locked while under review or approved"}
-              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              <Save className="h-4 w-4" /> {save.isPending ? "Saving…" : "Save changes"}
-            </button>
+        {/* -------- DESCRIPTION -------- */}
+        <Section id="section-description" title="Description">
+          <Field label="Course description" htmlFor="field-description" full>
+            <textarea
+              id="field-description"
+              value={form.description}
+              onChange={(e) => patch("description", e.target.value)}
+              rows={5}
+              maxLength={COURSE_UPDATE_LIMITS.description.max}
+              disabled={disabled}
+              className={`${inputCls} resize-none`}
+            />
+          </Field>
+        </Section>
+
+        {/* -------- INSTRUCTOR -------- */}
+        <Section id="section-instructor" title="Instructor presentation">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Instructor name" htmlFor="field-instructor-name">
+              <input
+                id="field-instructor-name"
+                value={form.instructor_name}
+                onChange={(e) => patch("instructor_name", e.target.value)}
+                maxLength={COURSE_UPDATE_LIMITS.instructor_name.max}
+                disabled={disabled}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Instructor title" htmlFor="field-instructor-title">
+              <input
+                id="field-instructor-title"
+                value={form.instructor_title}
+                onChange={(e) => patch("instructor_title", e.target.value)}
+                maxLength={COURSE_UPDATE_LIMITS.instructor_title.max}
+                disabled={disabled}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Short bio" htmlFor="field-instructor-bio" full>
+              <textarea
+                id="field-instructor-bio"
+                value={form.instructor_bio}
+                onChange={(e) => patch("instructor_bio", e.target.value)}
+                rows={4}
+                maxLength={COURSE_UPDATE_LIMITS.instructor_bio.max}
+                disabled={disabled}
+                className={`${inputCls} resize-none`}
+              />
+            </Field>
           </div>
+        </Section>
+
+        {/* -------- OUTCOMES / SKILLS / REQS / AUDIENCE -------- */}
+        <Section id="section-outcomes" title="Learning outcomes">
+          <StructuredListEditor
+            label="What learners will achieve"
+            helper="At least three concrete outcomes."
+            fieldId="field-learn-outcomes"
+            values={form.learn_outcomes}
+            onChange={(v) => patch("learn_outcomes", v)}
+            placeholder="e.g. Build a responsive layout with CSS grid"
+            disabled={disabled}
+            addLabel="Add outcome"
+          />
+        </Section>
+        <Section id="section-skills" title="Skills">
+          <StructuredListEditor
+            label="Skills practiced"
+            fieldId="field-skills"
+            values={form.skills}
+            onChange={(v) => patch("skills", v)}
+            placeholder="e.g. TypeScript"
+            disabled={disabled}
+            addLabel="Add skill"
+          />
+        </Section>
+        <Section id="section-requirements" title="Requirements">
+          <StructuredListEditor
+            label="Prerequisites"
+            fieldId="field-requirements"
+            values={form.requirements}
+            onChange={(v) => patch("requirements", v)}
+            placeholder="e.g. Basic HTML knowledge"
+            disabled={disabled}
+            addLabel="Add requirement"
+          />
+        </Section>
+        <Section id="section-audience" title="Intended audience">
+          <StructuredListEditor
+            label="Who this course is for"
+            fieldId="field-audience"
+            values={form.audience}
+            onChange={(v) => patch("audience", v)}
+            placeholder="e.g. Junior frontend developers"
+            disabled={disabled}
+            addLabel="Add audience"
+          />
+        </Section>
+
+        {/* -------- FAQ -------- */}
+        <Section id="section-faq" title="Frequently asked questions">
+          <FaqEditor
+            values={form.faq}
+            onChange={(v) => patch("faq", v)}
+            disabled={disabled}
+            fieldId="field-faq"
+          />
+        </Section>
+
+        {/* -------- PRICING -------- */}
+        <Section id="section-pricing" title="Pricing & delivery">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Price (USD)" htmlFor="field-price">
+              <input
+                id="field-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.priceDollars}
+                onChange={(e) => patch("priceDollars", e.target.value)}
+                disabled={disabled}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+          <p className="mt-3 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+            Course submission currently requires the price to be <strong>Free ($0.00)</strong>. Paid
+            checkout is not enabled in this release; keeping a price now preserves it for future
+            compatibility.
+          </p>
+        </Section>
+
+        {/* -------- COVER placeholder -------- */}
+        <Section id="section-cover" title="Cover artwork">
+          <p className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+            Private cover upload arrives in the next Studio release. The readiness check currently
+            requires a cover, so submission will remain blocked until it ships.
+          </p>
+        </Section>
+
+        {/* -------- SAVE BAR -------- */}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <span
+            className={`text-xs font-semibold ${saveStatus === "failed" ? "text-red-700" : "text-muted-foreground"}`}
+            aria-live="polite"
+          >
+            {saveStatusLabel[saveStatus]}
+          </span>
+          <button
+            onClick={() => save.mutate()}
+            disabled={!canSaveNow}
+            title={
+              !isEditable
+                ? "Course is locked while under review or approved"
+                : !dirty
+                  ? "No changes to save"
+                  : "Save course changes"
+            }
+            className="flex min-h-11 items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" /> {saveStatus === "saving" ? "Saving…" : "Save changes"}
+          </button>
         </div>
 
-        <div className="mt-6 rounded-3xl bg-card p-6 md:p-8">
-          <h2 className="text-xl font-bold">Lessons</h2>
-          <ul className="mt-4 space-y-2">
+        {/* -------- CURRICULUM -------- */}
+        <Section id="section-curriculum" title="Curriculum">
+          <ul className="mt-2 space-y-2">
             {lessons.map((l) => (
               <LessonRow
                 key={l.id}
@@ -317,11 +696,22 @@ function EditCourse() {
               type="submit"
               disabled={!isEditable}
               title={isEditable ? undefined : "Course is locked while under review or approved"}
-              className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background"
+              className="flex min-h-11 items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background disabled:opacity-50"
             >
               <Plus className="h-4 w-4" /> Add
             </button>
           </form>
+        </Section>
+
+        {/* -------- READINESS -------- */}
+        <div className="mt-6">
+          <ReadinessPanel
+            isReady={isReady}
+            blockers={displayBlockers}
+            lessons={lessons.map((l) => ({ id: l.id, title: l.title }))}
+            loading={readinessQ.isLoading}
+            onFocus={(target) => focusTarget(target)}
+          />
         </div>
       </div>
     </div>
@@ -329,19 +719,44 @@ function EditCourse() {
 }
 
 const inputCls =
-  "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground";
+  "min-h-11 w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground disabled:opacity-70 disabled:cursor-not-allowed";
+
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className="mt-6 rounded-3xl bg-card p-6 md:p-8"
+    >
+      <h2 id={`${id}-title`} className="text-xl font-bold">
+        {title}
+      </h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
 
 function Field({
   label,
+  htmlFor,
   children,
   full,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
   full?: boolean;
 }) {
   return (
-    <label className={`block ${full ? "md:col-span-2" : ""}`}>
+    <label htmlFor={htmlFor} className={`block ${full ? "md:col-span-2" : ""}`}>
       <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
       {children}
     </label>
@@ -395,6 +810,7 @@ function LessonRow({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
       setOpen(false);
     },
   });
@@ -411,7 +827,7 @@ function LessonRow({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="rounded-full bg-card px-3 py-1.5 text-xs font-semibold"
+            className="min-h-11 rounded-full bg-card px-3 py-1.5 text-xs font-semibold"
           >
             {open ? "Close" : "Edit"}
           </button>
@@ -419,7 +835,8 @@ function LessonRow({
             onClick={onDelete}
             disabled={!isEditable}
             title={isEditable ? "Delete lesson" : "Locked while under review or approved"}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
+            aria-label={`Delete ${lesson.title}`}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -494,7 +911,7 @@ function LessonRow({
               onClick={() => save.mutate()}
               disabled={save.isPending || !isEditable}
               title={isEditable ? undefined : "Locked while under review or approved"}
-              className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex min-h-11 items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               <Save className="h-4 w-4" /> Save lesson
             </button>

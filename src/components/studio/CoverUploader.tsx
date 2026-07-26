@@ -151,18 +151,19 @@ export function CoverUploader({
       const replacing = !!coverStoragePath;
       setState({ kind: "validating" });
       try {
-        // Fail-closed: without DB-driven limits we cannot make a safe upload
-        // decision. `getMediaLimits` returns a compiled fallback on RPC
-        // error, but the query itself may still be pending or errored.
-        const dbLimits = limitsQ.data?.cover ?? null;
-        if (limitsQ.isError || !dbLimits) {
+        // Fail closed when the media-limits query has errored (we don't know
+        // the authoritative allowlist/size cap). If the query is still
+        // pending, `limitsQ.data` is undefined — pass undefined so the
+        // helper uses its compiled default (the same values enforced at
+        // Storage by RLS) rather than blocking on a transient race.
+        if (limitsQ.isError) {
           setState({
             kind: "failed",
             message: COVER_VALIDATION_MESSAGE.config_unavailable,
           });
           return;
         }
-        const v = validateCoverFile(file, dbLimits);
+        const v = validateCoverFile(file, limitsQ.data?.cover ?? undefined);
         if (!v.ok) {
           setState({
             kind: "failed",

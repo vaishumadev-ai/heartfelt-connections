@@ -1142,6 +1142,40 @@ export const deleteLesson = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Reorder the full lesson set of a course. The client must send EVERY lesson
+ * id belonging to the course, in the desired order. The server RPC enforces
+ * ownership, editability, no duplicates, no nulls, and that the input set
+ * exactly matches the persisted set — no partial reorders are permitted.
+ */
+export const reorderLessons = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string; lessonIds: string[] }) => {
+    if (!d || typeof d.courseId !== "string" || !d.courseId) {
+      throw new Error("Missing courseId");
+    }
+    if (!Array.isArray(d.lessonIds)) throw new Error("Lesson ids required");
+    if (d.lessonIds.length === 0) throw new Error("Lesson ids required");
+    if (d.lessonIds.some((x) => typeof x !== "string" || !x)) {
+      throw new Error("Null lesson id");
+    }
+    const seen = new Set<string>();
+    for (const id of d.lessonIds) {
+      if (seen.has(id)) throw new Error("Duplicate lesson ids");
+      seen.add(id);
+    }
+    return { courseId: d.courseId, lessonIds: d.lessonIds };
+  })
+  .handler(async ({ data, context }) => {
+    await assertActiveInstructor(context.supabase);
+    const { error } = await context.supabase.rpc("reorder_lessons", {
+      _course_id: data.courseId,
+      _lesson_ids: data.lessonIds,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export type SubmitCourseResult =
   | { ok: true }
   | { ok: false; code: "course_not_ready"; blockers: CourseReadinessBlocker[] }

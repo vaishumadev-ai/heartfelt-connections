@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 import {
   orderLessons,
   selectCurrentLesson,
@@ -1150,21 +1151,27 @@ export const deleteLesson = createServerFn({ method: "POST" })
  */
 export const reorderLessons = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { courseId: string; lessonIds: string[] }) => {
-    if (!d || typeof d.courseId !== "string" || !d.courseId) {
-      throw new Error("Missing courseId");
+  .inputValidator((d: unknown) => {
+    // Strict schema: rejects unknown fields, non-UUID ids, empty arrays,
+    // duplicates, and anything not matching the exact shape — before any
+    // RPC or database call is ever issued.
+    const schema = z
+      .object({
+        courseId: z.string().uuid("invalid_course_id"),
+        lessonIds: z
+          .array(z.string().uuid("invalid_lesson_id"))
+          .min(1, "lesson_ids_required")
+          .refine((ids) => new Set(ids).size === ids.length, {
+            message: "duplicate_lesson_ids",
+          }),
+      })
+      .strict();
+    const parsed = schema.safeParse(d);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      throw new Error(first?.message ?? "invalid_reorder_input");
     }
-    if (!Array.isArray(d.lessonIds)) throw new Error("Lesson ids required");
-    if (d.lessonIds.length === 0) throw new Error("Lesson ids required");
-    if (d.lessonIds.some((x) => typeof x !== "string" || !x)) {
-      throw new Error("Null lesson id");
-    }
-    const seen = new Set<string>();
-    for (const id of d.lessonIds) {
-      if (seen.has(id)) throw new Error("Duplicate lesson ids");
-      seen.add(id);
-    }
-    return { courseId: d.courseId, lessonIds: d.lessonIds };
+    return parsed.data;
   })
   .handler(async ({ data, context }) => {
     await assertActiveInstructor(context.supabase);

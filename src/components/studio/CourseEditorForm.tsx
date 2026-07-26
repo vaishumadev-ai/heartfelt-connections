@@ -233,6 +233,31 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
     },
   });
 
+  // Register a cooperative nav controller so the route-level StudioNavGuard
+  // can drive Save-and-continue / Discard-and-continue from a single dialog.
+  const saveMutateAsyncRef = useRef(save.mutateAsync);
+  saveMutateAsyncRef.current = save.mutateAsync;
+  useEffect(() => {
+    return guard.registerNavController(`studio-course-${courseId}`, {
+      kind: "course-form",
+      isDirty: () => dirtyRef.current,
+      save: async () => {
+        if (!dirtyRef.current) return true;
+        try {
+          await saveMutateAsyncRef.current();
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      discard: () => {
+        setForm(savedBaselineRef.current);
+        setSaveError(null);
+        setSaveStatus("clean");
+      },
+    });
+  }, [guard, courseId]);
+
   const submit = useMutation({
     mutationFn: () => submitFn({ data: { courseId } }) as Promise<SubmitCourseResult>,
     onSuccess: (res) => {

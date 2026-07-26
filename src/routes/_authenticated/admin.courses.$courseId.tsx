@@ -75,10 +75,18 @@ function AdminCourseDetail() {
           >
             <ArrowLeft className="h-4 w-4" /> All courses
           </Link>
-          <span className="rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border">
-            {data.is_published ? "Published · " : ""}
-            {data.review_status.replace("_", " ")}
-          </span>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/admin/instructors"
+              className="rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border hover:bg-foreground/5"
+            >
+              Instructor applications
+            </Link>
+            <span className="rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border">
+              {data.is_published ? "Published · " : ""}
+              {data.review_status.replace("_", " ")}
+            </span>
+          </div>
         </div>
         <div className="rounded-3xl bg-card p-6 md:p-8 ring-1 ring-border">
           <h1 className="text-2xl font-bold">{data.title}</h1>

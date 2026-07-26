@@ -52,6 +52,20 @@ function AdminCourses() {
             <ShieldCheck className="h-4 w-4" /> Admin console
           </div>
         </div>
+        <nav
+          aria-label="Admin sections"
+          className="mb-6 flex flex-wrap gap-2 text-xs font-semibold"
+        >
+          <span className="rounded-full bg-foreground px-4 py-1.5 text-primary-foreground">
+            Courses
+          </span>
+          <Link
+            to="/admin/instructors"
+            className="rounded-full bg-card px-4 py-1.5 ring-1 ring-border hover:bg-foreground/5"
+          >
+            Instructor applications
+          </Link>
+        </nav>
         <div className="rounded-3xl bg-card p-6 md:p-8 ring-1 ring-border">
           <h1 className="text-2xl font-bold">Course governance</h1>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -10,7 +10,10 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...rest }: any) => <a {...rest}>{children}</a>,
   useNavigate: () => vi.fn(),
 }));
-vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: any) => fn }));
+vi.mock("@tanstack/react-start", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return { ...actual, useServerFn: (fn: any) => fn };
+});
 
 // Cover section is exercised in its own suite; here it's a marker.
 vi.mock("@/components/studio/CoverUploader", () => ({

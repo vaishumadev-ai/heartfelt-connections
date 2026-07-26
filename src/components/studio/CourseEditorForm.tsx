@@ -157,6 +157,13 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
     return guard.registerDirtyChecker(`studio-course-${courseId}`, () => dirty);
   }, [guard, courseId, dirty]);
 
+  // Refs the nav controller reads. Effect identity stays stable so React
+  // StrictMode's double-invoke doesn't leave a stale controller behind.
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  const savedBaselineRef = useRef(savedBaseline);
+  savedBaselineRef.current = savedBaseline;
+
   const patch = useCallback(<K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
   }, []);

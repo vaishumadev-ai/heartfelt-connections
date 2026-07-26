@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getMyCourse, mapCourseGovernanceError } from "@/lib/courses.functions";
 import { CourseEditorForm } from "@/components/studio/CourseEditorForm";
 import { UnsavedGuardProvider } from "@/components/lesson-tools/UnsavedGuard";
+import { StudioNavGuard } from "@/components/studio/StudioNavGuard";
 
 export const Route = createFileRoute("/_authenticated/studio/$courseId")({
   head: () => ({
@@ -25,6 +26,7 @@ function EditCourseRoute() {
   const { courseId } = Route.useParams();
   return (
     <UnsavedGuardProvider>
+      <StudioNavGuard />
       <CourseEditorForm courseId={courseId} />
     </UnsavedGuardProvider>
   );

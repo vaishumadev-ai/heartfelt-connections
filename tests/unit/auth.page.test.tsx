@@ -72,7 +72,10 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function fillAndSubmit(mode: "signup" | "signin" | "reset", opts: { email: string; password?: string }) {
+async function fillAndSubmit(
+  mode: "signup" | "signin" | "reset",
+  opts: { email: string; password?: string },
+) {
   // Only toggle when the form isn't already in the desired mode.
   if (mode === "signup" && !screen.queryByRole("button", { name: /create account/i })) {
     fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
@@ -85,23 +88,32 @@ async function fillAndSubmit(mode: "signup" | "signin" | "reset", opts: { email:
     const pw = screen.getByPlaceholderText(/^password$/i) as HTMLInputElement;
     fireEvent.change(pw, { target: { value: opts.password ?? "" } });
   }
-  const label = mode === "signup" ? /create account/i : mode === "signin" ? /^sign in$/i : /send reset link/i;
+  const label =
+    mode === "signup" ? /create account/i : mode === "signin" ? /^sign in$/i : /send reset link/i;
   fireEvent.click(screen.getByRole("button", { name: label }));
 }
 
 describe("auth.tsx behavioral", () => {
   it("signup returning session navigates once to validated next", async () => {
     searchState = { next: "/learn/foo", mode: "signup" };
-    signUp.mockResolvedValue({ data: { session: { access_token: "t" }, user: { id: "u" } }, error: null });
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "t" }, user: { id: "u" } },
+      error: null,
+    });
     renderPage();
     await fillAndSubmit("signup", { email: "a@b.co", password: "password123" });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1));
-    expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ to: "/learn/foo", replace: true }));
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/learn/foo", replace: true }),
+    );
   });
 
   it("signup returning user + null session does not navigate, renders Check Your Email masked", async () => {
     searchState = { mode: "signup" };
-    signUp.mockResolvedValue({ data: { session: null, user: { id: "u", identities: [{ id: "i" }] } }, error: null });
+    signUp.mockResolvedValue({
+      data: { session: null, user: { id: "u", identities: [{ id: "i" }] } },
+      error: null,
+    });
     renderPage();
     await fillAndSubmit("signup", { email: "georgestone@example.com", password: "password123" });
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
@@ -114,7 +126,10 @@ describe("auth.tsx behavioral", () => {
   it("identity-less duplicate-email response shows the same safe confirmation state", async () => {
     searchState = { mode: "signup" };
     // Duplicate email path: Supabase returns user with empty identities.
-    signUp.mockResolvedValue({ data: { session: null, user: { id: "u", identities: [] } }, error: null });
+    signUp.mockResolvedValue({
+      data: { session: null, user: { id: "u", identities: [] } },
+      error: null,
+    });
     renderPage();
     await fillAndSubmit("signup", { email: "dup@example.com", password: "password123" });
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
@@ -147,7 +162,9 @@ describe("auth.tsx behavioral", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(resend).toHaveBeenCalledTimes(1);
-    expect(resend).toHaveBeenCalledWith(expect.objectContaining({ type: "signup", email: "a@b.co" }));
+    expect(resend).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "signup", email: "a@b.co" }),
+    );
   });
 
   it("Use a different email returns to the editable signup form", async () => {
@@ -178,7 +195,9 @@ describe("auth.tsx behavioral", () => {
     searchState = { next: "/dashboard" };
     renderPage();
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1));
-    expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ to: "/dashboard", replace: true }));
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/dashboard", replace: true }),
+    );
   });
 
   it("reset request shows a non-enumerating sent state (no error even on unknown email)", async () => {

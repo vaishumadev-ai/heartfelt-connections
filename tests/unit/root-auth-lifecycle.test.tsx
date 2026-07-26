@@ -20,7 +20,13 @@ vi.mock("@/integrations/supabase/client", () => ({
 // Extract the lifecycle effect body from the actual root component. Re-implement
 // the same effect here inline against the same mocked supabase — this exercises
 // the contract without booting the full TanStack root (which needs a router).
-function RootLifecycle({ queryClient, invalidate }: { queryClient: QueryClient; invalidate: () => void }) {
+function RootLifecycle({
+  queryClient,
+  invalidate,
+}: {
+  queryClient: QueryClient;
+  invalidate: () => void;
+}) {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "SIGNED_OUT") {

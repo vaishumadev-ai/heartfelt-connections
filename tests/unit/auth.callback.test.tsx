@@ -66,7 +66,9 @@ describe("auth.callback.tsx behavioral", () => {
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1));
     expect(exchangeCodeForSession).toHaveBeenCalledTimes(1);
     expect(exchangeCodeForSession).toHaveBeenCalledWith("abc123");
-    expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ to: "/learn/foo", replace: true }));
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/learn/foo", replace: true }),
+    );
   });
 
   it("defaults to /dashboard when next is missing", async () => {
@@ -94,7 +96,11 @@ describe("auth.callback.tsx behavioral", () => {
     searchState = { error: "server_error", error_description: "boom" };
     window.history.replaceState({}, "", "/auth/callback?error=server_error&error_description=boom");
     render(<CallbackPage />);
-    expect(await screen.findByRole("heading", { name: /couldn.t complete sign-in|no longer valid|expired/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", {
+        name: /couldn.t complete sign-in|no longer valid|expired/i,
+      }),
+    ).toBeInTheDocument();
     // sensitive params removed
     await waitFor(() => {
       expect(window.location.search).not.toContain("error");
@@ -104,16 +110,24 @@ describe("auth.callback.tsx behavioral", () => {
   });
 
   it("expired link renders expired recovery state", async () => {
-    searchState = { error: "otp_expired", error_code: "otp_expired", error_description: "OTP expired" };
+    searchState = {
+      error: "otp_expired",
+      error_code: "otp_expired",
+      error_description: "OTP expired",
+    };
     render(<CallbackPage />);
     expect(await screen.findByRole("heading", { name: /expired/i })).toBeInTheDocument();
   });
 
   it("invalid PKCE exchange renders stable recovery action (no raw provider text)", async () => {
     searchState = { code: "bad" };
-    exchangeCodeForSession.mockResolvedValue({ error: { message: "invalid grant: internal token blurb" } });
+    exchangeCodeForSession.mockResolvedValue({
+      error: { message: "invalid grant: internal token blurb" },
+    });
     render(<CallbackPage />);
-    const heading = await screen.findByRole("heading", { name: /no longer valid|couldn.t complete|expired/i });
+    const heading = await screen.findByRole("heading", {
+      name: /no longer valid|couldn.t complete|expired/i,
+    });
     expect(heading.textContent ?? "").not.toMatch(/invalid grant|token blurb/i);
     expect(screen.getByRole("link", { name: /return to sign in/i })).toBeInTheDocument();
   });

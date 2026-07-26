@@ -84,8 +84,12 @@ describe("auth.reset.tsx behavioral", () => {
     render(<ResetPage />);
     act(() => authListener?.("PASSWORD_RECOVERY"));
     await screen.findByRole("heading", { name: /set a new password/i });
-    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), { target: { value: "password123" } });
-    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), { target: { value: "different1" } });
+    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), {
+      target: { value: "different1" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /update password/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/don.t match/i);
     expect(updateUser).not.toHaveBeenCalled();
@@ -100,8 +104,12 @@ describe("auth.reset.tsx behavioral", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(screen.getByRole("heading", { name: /set a new password/i })).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), { target: { value: "password123" } });
-    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), {
+      target: { value: "password123" },
+    });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /update password/i }));
       await vi.advanceTimersByTimeAsync(0);
@@ -110,7 +118,9 @@ describe("auth.reset.tsx behavioral", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
-    expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ to: "/auth", search: { mode: "signin" }, replace: true }));
+    expect(navigateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/auth", search: { mode: "signin" }, replace: true }),
+    );
   });
 
   it("update failure renders stable copy and remains retryable", async () => {
@@ -118,8 +128,12 @@ describe("auth.reset.tsx behavioral", () => {
     render(<ResetPage />);
     act(() => authListener?.("PASSWORD_RECOVERY"));
     await screen.findByRole("heading", { name: /set a new password/i });
-    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), { target: { value: "password123" } });
-    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), {
+      target: { value: "password123" },
+    });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /update password/i }));
     });

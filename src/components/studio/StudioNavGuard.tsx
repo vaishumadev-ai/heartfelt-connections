@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useBlocker } from "@tanstack/react-router";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -108,6 +107,8 @@ export function StudioNavGuard() {
     <AlertDialog
       open
       onOpenChange={(o) => {
+        // Radix routes ESC / AlertDialogCancel through this callback.
+        // Route it through stay() so we call blocker.reset() exactly once.
         if (!o) stay();
       }}
     >
@@ -127,21 +128,26 @@ export function StudioNavGuard() {
         )}
         <AlertDialogFooter>
           {mode === "wait" && (
-            <AlertDialogCancel onClick={stay}>Stay here</AlertDialogCancel>
+            <AlertDialogCancel>Stay here</AlertDialogCancel>
           )}
           {mode === "cleanup" && (
             <>
-              <AlertDialogCancel onClick={stay} disabled={busy !== null}>
+              <AlertDialogCancel disabled={busy !== null}>
                 Stay here
               </AlertDialogCancel>
-              <AlertDialogAction onClick={retryCleanup} disabled={busy !== null}>
+              <button
+                type="button"
+                onClick={retryCleanup}
+                disabled={busy !== null}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
                 {busy === "cleaning" ? "Retrying…" : "Retry cleanup"}
-              </AlertDialogAction>
+              </button>
             </>
           )}
           {mode === "unsaved" && (
             <>
-              <AlertDialogCancel onClick={stay} disabled={busy !== null}>
+              <AlertDialogCancel disabled={busy !== null}>
                 Stay here
               </AlertDialogCancel>
               <button
@@ -152,12 +158,14 @@ export function StudioNavGuard() {
               >
                 Discard and continue
               </button>
-              <AlertDialogAction
+              <button
+                type="button"
                 onClick={saveAndContinue}
                 disabled={busy !== null || !courseDirty}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy === "saving" ? "Saving…" : "Save and continue"}
-              </AlertDialogAction>
+              </button>
             </>
           )}
         </AlertDialogFooter>

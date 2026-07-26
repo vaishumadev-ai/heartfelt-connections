@@ -10,6 +10,185 @@ import {
   clampProgress,
   type Entitlement,
 } from "@/lib/lesson-player-state";
+import { normalizeReadinessBlockers, type CourseReadinessBlocker } from "@/lib/course-readiness";
+
+// ============ Course update whitelist (P0C.2a) ============
+//
+// These constants are the authoritative commercial limits for the
+// instructor-controlled fields on the `courses` table. Keep them exported
+// so the UI can enforce identical bounds without drifting from the server.
+export const COURSE_UPDATE_LIMITS = {
+  title: { max: 120 },
+  subtitle: { max: 200 },
+  description: { max: 4000 },
+  category: { max: 60 },
+  duration_label: { max: 40 },
+  level: { max: 40 },
+  language: { max: 40 },
+  instructor_name: { max: 120 },
+  instructor_title: { max: 160 },
+  instructor_bio: { max: 2000 },
+  price_cents: { max: 100_000_00 },
+  arrayItem: { max: 200 },
+  arrayCount: { max: 25 },
+  faq: {
+    count: 25,
+    question: 240,
+    answer: 1200,
+  },
+} as const;
+
+/**
+ * The exact set of columns instructors may mutate via updateCourse.
+ * Any key outside this list is silently dropped (or rejected below).
+ */
+export const COURSE_UPDATE_ALLOWED_FIELDS = [
+  "title",
+  "subtitle",
+  "description",
+  "category",
+  "price_cents",
+  "duration_label",
+  "level",
+  "language",
+  "learn_outcomes",
+  "skills",
+  "requirements",
+  "audience",
+  "faq",
+  "instructor_name",
+  "instructor_title",
+  "instructor_bio",
+] as const;
+export type CourseUpdateField = (typeof COURSE_UPDATE_ALLOWED_FIELDS)[number];
+
+export const COURSE_UPDATE_FORBIDDEN_FIELDS = [
+  "id",
+  "slug",
+  "instructor_id",
+  "cover_url",
+  "cover_storage_path",
+  "icon_kind",
+  "certificate",
+  "is_published",
+  "review_status",
+  "review_decision_reason",
+  "review_decided_by",
+  "review_decided_at",
+  "submitted_at",
+  "rating",
+  "likes",
+  "students_count",
+  "created_at",
+  "updated_at",
+] as const;
+
+function trimStr(v: unknown, max: number, field: string): string {
+  if (typeof v !== "string") throw new Error(`invalid_${field}`);
+  const s = v.trim();
+  if (s.length > max) throw new Error(`too_long_${field}`);
+  return s;
+}
+
+function trimStrOrNull(v: unknown, max: number, field: string): string | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== "string") throw new Error(`invalid_${field}`);
+  const s = v.trim();
+  if (s === "") return null;
+  if (s.length > max) throw new Error(`too_long_${field}`);
+  return s;
+}
+
+function normalizeStringArray(v: unknown, field: string): string[] {
+  if (!Array.isArray(v)) throw new Error(`invalid_${field}`);
+  if (v.length > COURSE_UPDATE_LIMITS.arrayCount.max) throw new Error(`too_many_${field}`);
+  const out: string[] = [];
+  for (const raw of v) {
+    if (typeof raw !== "string") throw new Error(`invalid_${field}_item`);
+    const s = raw.trim();
+    if (s === "") continue;
+    if (s.length > COURSE_UPDATE_LIMITS.arrayItem.max) throw new Error(`too_long_${field}_item`);
+    out.push(s);
+  }
+  return out;
+}
+
+function normalizeFaq(v: unknown): { q: string; a: string }[] {
+  if (v === null || v === undefined) return [];
+  if (!Array.isArray(v)) throw new Error("invalid_faq");
+  if (v.length > COURSE_UPDATE_LIMITS.faq.count) throw new Error("too_many_faq");
+  const out: { q: string; a: string }[] = [];
+  for (const raw of v) {
+    if (!raw || typeof raw !== "object") throw new Error("invalid_faq_item");
+    const r = raw as { q?: unknown; a?: unknown };
+    if (typeof r.q !== "string" || typeof r.a !== "string") throw new Error("invalid_faq_item");
+    const q = r.q.trim();
+    const a = r.a.trim();
+    if (q === "" && a === "") continue;
+    if (q === "" || a === "") throw new Error("invalid_faq_item");
+    if (q.length > COURSE_UPDATE_LIMITS.faq.question) throw new Error("too_long_faq_q");
+    if (a.length > COURSE_UPDATE_LIMITS.faq.answer) throw new Error("too_long_faq_a");
+    out.push({ q, a });
+  }
+  return out;
+}
+
+/**
+ * Pure input normaliser for updateCourse. Exported for unit tests. Rejects
+ * unknown keys, malformed types, and out-of-bounds values. Returns the
+ * exact `Partial<CourseRow>` that will be sent to the database.
+ */
+export function normalizeUpdateCoursePayload(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== "object") throw new Error("invalid_payload");
+  const src = input as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  const L = COURSE_UPDATE_LIMITS;
+  for (const key of Object.keys(src)) {
+    if (key === "courseId") continue;
+    if ((COURSE_UPDATE_FORBIDDEN_FIELDS as readonly string[]).includes(key)) {
+      throw new Error(`forbidden_field_${key}`);
+    }
+    if (!(COURSE_UPDATE_ALLOWED_FIELDS as readonly string[]).includes(key)) {
+      throw new Error(`unknown_field_${key}`);
+    }
+  }
+  if ("title" in src) out.title = trimStr(src.title, L.title.max, "title");
+  if ("subtitle" in src) out.subtitle = trimStrOrNull(src.subtitle, L.subtitle.max, "subtitle");
+  if ("description" in src)
+    out.description = trimStrOrNull(src.description, L.description.max, "description");
+  if ("category" in src) out.category = trimStr(src.category, L.category.max, "category");
+  if ("duration_label" in src)
+    out.duration_label = trimStrOrNull(src.duration_label, L.duration_label.max, "duration_label");
+  if ("level" in src) out.level = trimStr(src.level, L.level.max, "level");
+  if ("language" in src) out.language = trimStr(src.language, L.language.max, "language");
+  if ("instructor_name" in src)
+    out.instructor_name = trimStrOrNull(
+      src.instructor_name,
+      L.instructor_name.max,
+      "instructor_name",
+    );
+  if ("instructor_title" in src)
+    out.instructor_title = trimStrOrNull(
+      src.instructor_title,
+      L.instructor_title.max,
+      "instructor_title",
+    );
+  if ("instructor_bio" in src)
+    out.instructor_bio = trimStrOrNull(src.instructor_bio, L.instructor_bio.max, "instructor_bio");
+  if ("price_cents" in src) {
+    const raw = src.price_cents;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > L.price_cents.max) {
+      throw new Error("invalid_price_cents");
+    }
+    out.price_cents = n;
+  }
+  for (const k of ["learn_outcomes", "skills", "requirements", "audience"] as const) {
+    if (k in src) out[k] = normalizeStringArray(src[k], k);
+  }
+  if ("faq" in src) out.faq = normalizeFaq(src.faq);
+  return out;
+}
 
 function isNewKey(v: string) {
   return v.startsWith("sb_publishable_") || v.startsWith("sb_secret_");
@@ -812,32 +991,47 @@ export const getMyCourse = createServerFn({ method: "GET" })
     return { course, lessons: lessons ?? [] };
   });
 
+export type UpdateCourseInput = {
+  courseId: string;
+  title?: string;
+  subtitle?: string | null;
+  description?: string | null;
+  category?: string;
+  price_cents?: number;
+  duration_label?: string | null;
+  level?: string;
+  language?: string;
+  learn_outcomes?: string[];
+  skills?: string[];
+  requirements?: string[];
+  audience?: string[];
+  faq?: { q: string; a: string }[];
+  instructor_name?: string | null;
+  instructor_title?: string | null;
+  instructor_bio?: string | null;
+};
+
 export const updateCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (d: {
-      courseId: string;
-      title?: string;
-      subtitle?: string | null;
-      description?: string | null;
-      category?: string;
-      price_cents?: number;
-      duration_label?: string | null;
-      icon_kind?: string | null;
-    }) => d,
-  )
+  .inputValidator((d: UpdateCourseInput) => {
+    if (!d || typeof d !== "object" || typeof d.courseId !== "string" || d.courseId === "") {
+      throw new Error("invalid_payload");
+    }
+    const patch = normalizeUpdateCoursePayload(d);
+    return { courseId: d.courseId, patch };
+  })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertActiveInstructor(supabase);
     await assertCourseEditable(supabase, data.courseId);
-    const { courseId, ...rest } = data;
-    // is_published is column-level revoked; never accept it here even if a
-    // caller supplies it. Instructors publish only via submit_course_for_review
-    // → admin approve_course.
+    if (Object.keys(data.patch).length === 0) return { ok: true };
+    // is_published, review_*, cover_*, slug, instructor_id, certificate,
+    // rating, likes, students_count are column-level revoked or excluded
+    // here. Instructors publish only via submit_course_for_review → admin.
     const { error } = await supabase
       .from("courses")
-      .update(rest)
-      .eq("id", courseId)
+      .update(data.patch)
+      .eq("id", data.courseId)
       .eq("instructor_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -946,31 +1140,54 @@ export const deleteLesson = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type SubmitCourseResult =
+  | { ok: true }
+  | { ok: false; code: "course_not_ready"; blockers: CourseReadinessBlocker[] }
+  | { ok: false; code: "readiness_refetch_failed"; blockers: [] };
+
 export const submitCourseForReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string }) => d)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<SubmitCourseResult> => {
     await assertActiveInstructor(context.supabase);
     const { error } = await context.supabase.rpc("submit_course_for_review", {
       _course_id: data.courseId,
     });
-    if (error) {
-      // Stable readiness failure: refetch structured blockers so the UI
-      // never has to parse comma-joined messages.
-      if (error.message === "course_not_ready") {
-        const { data: readiness } = await context.supabase.rpc("evaluate_course_readiness", {
-          _course_id: data.courseId,
-        });
-        const first = Array.isArray(readiness) ? readiness[0] : readiness;
-        const blockers = (first?.blockers ?? []) as Array<{
-          code: string;
-          lesson_id?: string;
-        }>;
-        return { ok: false as const, code: "course_not_ready" as const, blockers };
+    if (!error) return { ok: true };
+    if (error.message === "course_not_ready") {
+      // Refetch authoritative readiness exactly once. If that fails, return
+      // a stable typed result so the UI never leaks raw messages.
+      const { data: readiness, error: readErr } = await context.supabase.rpc(
+        "evaluate_course_readiness",
+        { _course_id: data.courseId },
+      );
+      if (readErr) {
+        return { ok: false, code: "readiness_refetch_failed", blockers: [] };
       }
-      throw new Error(error.message);
+      const first = Array.isArray(readiness) ? readiness[0] : readiness;
+      const blockers = normalizeReadinessBlockers(
+        (first as { blockers?: unknown } | null)?.blockers,
+      );
+      return { ok: false, code: "course_not_ready", blockers };
     }
-    return { ok: true as const };
+    // Any other DB failure surfaces as stable governance copy at call sites.
+    throw new Error(error.message);
+  });
+
+export const getCourseReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { courseId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertActiveInstructor(context.supabase);
+    const { data: rows, error } = await context.supabase.rpc("evaluate_course_readiness", {
+      _course_id: data.courseId,
+    });
+    if (error) throw new Error(error.message);
+    const first = Array.isArray(rows) ? rows[0] : rows;
+    const raw = (first as { is_ready?: unknown; blockers?: unknown } | null) ?? {};
+    const blockers = normalizeReadinessBlockers(raw.blockers);
+    const isReady = raw.is_ready === true && blockers.length === 0;
+    return { is_ready: isReady, blockers };
   });
 
 export const approveCourse = createServerFn({ method: "POST" })

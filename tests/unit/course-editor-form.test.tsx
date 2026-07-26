@@ -17,7 +17,9 @@ vi.mock("@tanstack/react-start", async (importOriginal) => {
 
 // Cover section is exercised in its own suite; here it's a marker.
 vi.mock("@/components/studio/CoverUploader", () => ({
-  CoverUploader: (props: any) => <div data-testid="cover-uploader">cover:{String(props.isEditable)}</div>,
+  CoverUploader: (props: any) => (
+    <div data-testid="cover-uploader">cover:{String(props.isEditable)}</div>
+  ),
 }));
 
 const getMyCourse = vi.fn();
@@ -26,6 +28,7 @@ const submitCourseForReview = vi.fn();
 const getCourseReadiness = vi.fn();
 const upsertLesson = vi.fn();
 const deleteLesson = vi.fn();
+const reorderLessons = vi.fn();
 
 vi.mock("@/lib/courses.functions", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("@/lib/courses.functions");
@@ -37,6 +40,7 @@ vi.mock("@/lib/courses.functions", async () => {
     getCourseReadiness: (...a: any[]) => getCourseReadiness(...a),
     upsertLesson: (...a: any[]) => upsertLesson(...a),
     deleteLesson: (...a: any[]) => deleteLesson(...a),
+    reorderLessons: (...a: any[]) => reorderLessons(...a),
   };
 });
 
@@ -80,9 +84,7 @@ function mount(initial: {
   const course = initial.course ?? baseCourse();
   const lessons = initial.lessons ?? [];
   getMyCourse.mockResolvedValue({ course, lessons });
-  getCourseReadiness.mockResolvedValue(
-    initial.readiness ?? { is_ready: true, blockers: [] },
-  );
+  getCourseReadiness.mockResolvedValue(initial.readiness ?? { is_ready: true, blockers: [] });
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -103,6 +105,7 @@ beforeEach(() => {
   getCourseReadiness.mockReset();
   upsertLesson.mockReset();
   deleteLesson.mockReset();
+  reorderLessons.mockReset();
 });
 
 describe("CourseEditorForm", () => {
@@ -119,13 +122,9 @@ describe("CourseEditorForm", () => {
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Existing title!" } });
-    await waitFor(() =>
-      expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0));
     fireEvent.change(title, { target: { value: "Existing title" } });
-    await waitFor(() =>
-      expect(screen.queryAllByText("Unsaved changes")).toHaveLength(0),
-    );
+    await waitFor(() => expect(screen.queryAllByText("Unsaved changes")).toHaveLength(0));
   });
 
   it("saves via the strict update whitelist and returns to saved state", async () => {
@@ -140,16 +139,12 @@ describe("CourseEditorForm", () => {
     expect(payload.title).toBe("Renamed");
     expect(payload).not.toHaveProperty("slug");
     expect(payload).not.toHaveProperty("id");
-    await waitFor(() =>
-      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Saved").length).toBeGreaterThan(0));
   });
 
   it("collapses rapid Save clicks into a single in-flight request", async () => {
     let resolveUpdate: (() => void) | null = null;
-    updateCourse.mockImplementation(
-      () => new Promise<void>((r) => (resolveUpdate = () => r())),
-    );
+    updateCourse.mockImplementation(() => new Promise<void>((r) => (resolveUpdate = () => r())));
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Existing title!" } });
@@ -160,9 +155,7 @@ describe("CourseEditorForm", () => {
     fireEvent.click(btn);
     expect(updateCourse).toHaveBeenCalledTimes(1);
     act(() => resolveUpdate!());
-    await waitFor(() =>
-      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText("Saved").length).toBeGreaterThan(0));
   });
 
   it("shows a failure banner and preserves the user's edits when save fails", async () => {
@@ -171,7 +164,11 @@ describe("CourseEditorForm", () => {
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Dirty value" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
-    await waitFor(() => expect(screen.getAllByText(/Something went wrong|network|please try/i).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/Something went wrong|network|please try/i).length,
+      ).toBeGreaterThan(0),
+    );
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Dirty value");
     expect(screen.getByRole("button", { name: /Save changes/i })).not.toBeDisabled();
   });
@@ -267,5 +264,97 @@ describe("CourseEditorForm", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Submit for review/i })).toBeDisabled(),
     );
+  });
+});
+
+function lesson(id: string, position: number, title = `L${id}`) {
+  return {
+    id,
+    title,
+    position,
+    duration_seconds: null,
+    content: null,
+    video_url: null,
+    is_preview: false,
+    module_title: null,
+  };
+}
+
+describe("CourseEditorForm — lesson reorder (P0C.2c-1)", () => {
+  it("renders lessons sorted by position and disables Move Up on the first, Move Down on the last", async () => {
+    mount({
+      lessons: [lesson("b", 2, "Second"), lesson("a", 1, "First"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    expect(screen.getByRole("button", { name: /Move First up/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move First down/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Third up/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Third down/i })).toBeDisabled();
+  });
+
+  it("sends the complete lesson ID set in the requested order on Move Down", async () => {
+    reorderLessons.mockResolvedValue({ ok: true });
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move First down/i }));
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+    const payload = reorderLessons.mock.calls[0][0].data;
+    expect(payload.courseId).toBe(COURSE_ID);
+    expect(payload.lessonIds).toEqual(["b", "a", "c"]);
+  });
+
+  it("swaps neighbors on Move Up", async () => {
+    reorderLessons.mockResolvedValue({ ok: true });
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move Third up/i }));
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+    expect(reorderLessons.mock.calls[0][0].data.lessonIds).toEqual(["a", "c", "b"]);
+  });
+
+  it("does not send a permanent optimistic order — a failed reorder shows a stable error and does not repeat the mutation", async () => {
+    reorderLessons.mockRejectedValue(new Error("network down"));
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second")],
+    });
+    await screen.findByLabelText("Title");
+    await userEvent.click(screen.getByRole("button", { name: /Move First down/i }));
+    await waitFor(() =>
+      expect(screen.getAllByText(/Something went wrong|please try/i).length).toBeGreaterThan(0),
+    );
+    expect(reorderLessons).toHaveBeenCalledTimes(1);
+  });
+
+  it("collapses rapid Move clicks into a single in-flight reorder mutation", async () => {
+    let resolve: (() => void) | null = null;
+    reorderLessons.mockImplementation(
+      () => new Promise<{ ok: true }>((r) => (resolve = () => r({ ok: true }))),
+    );
+    mount({
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second"), lesson("c", 3, "Third")],
+    });
+    await screen.findByLabelText("Title");
+    const btn = screen.getByRole("button", { name: /Move First down/i });
+    await userEvent.click(btn);
+    // Additional clicks while the reorder is in-flight must not re-fire.
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(reorderLessons).toHaveBeenCalledTimes(1);
+    act(() => resolve!());
+    await waitFor(() => expect(reorderLessons).toHaveBeenCalledTimes(1));
+  });
+
+  it("disables both move buttons on every row while a course is not editable", async () => {
+    mount({
+      course: baseCourse({ review_status: "pending_review" }),
+      lessons: [lesson("a", 1, "First"), lesson("b", 2, "Second")],
+    });
+    await screen.findByLabelText("Title");
+    expect(screen.getByRole("button", { name: /Move First down/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Move Second up/i })).toBeDisabled();
   });
 });

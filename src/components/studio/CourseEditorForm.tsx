@@ -2,12 +2,13 @@ import { useSuspenseQuery, useMutation, useQueryClient, useQuery } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Send, ArrowUp, ArrowDown } from "lucide-react";
 import {
   getMyCourse,
   updateCourse,
   upsertLesson,
   deleteLesson,
+  reorderLessons,
   submitCourseForReview,
   getCourseReadiness,
   isCourseEditable,
@@ -93,6 +94,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
   const updateFn = useServerFn(updateCourse);
   const upsertLessonFn = useServerFn(upsertLesson);
   const deleteLessonFn = useServerFn(deleteLesson);
+  const reorderLessonsFn = useServerFn(reorderLessons);
   const submitFn = useServerFn(submitCourseForReview);
   const readinessFn = useServerFn(getCourseReadiness);
 
@@ -107,7 +109,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
       })
     | null
     | undefined;
-  const lessons = data?.lessons ?? [];
+  const lessons = useMemo(() => data?.lessons ?? [], [data?.lessons]);
   const rs = (course?.review_status ?? "draft") as string;
   const isEditable = isCourseEditable({
     is_published: course?.is_published,
@@ -271,6 +273,53 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
       qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
     },
   });
+
+  const [reorderAnnounce, setReorderAnnounce] = useState<string>("");
+  const [reorderError, setReorderError] = useState<string | null>(null);
+  const pendingFocusLessonId = useRef<string | null>(null);
+  const reorder = useMutation({
+    mutationFn: (v: { lessonIds: string[] }) =>
+      reorderLessonsFn({ data: { courseId, lessonIds: v.lessonIds } }),
+    onSuccess: () => {
+      setReorderError(null);
+      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+    },
+    onError: (err) => {
+      setReorderError(mapCourseGovernanceError(err));
+      pendingFocusLessonId.current = null;
+    },
+  });
+
+  const moveLesson = useCallback(
+    (lessonId: string, direction: -1 | 1) => {
+      if (!isEditable || reorder.isPending) return;
+      const ordered = [...lessons]
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((l) => l.id);
+      const idx = ordered.indexOf(lessonId);
+      const target = idx + direction;
+      if (idx < 0 || target < 0 || target >= ordered.length) return;
+      const next = ordered.slice();
+      [next[idx], next[target]] = [next[target], next[idx]];
+      pendingFocusLessonId.current = lessonId;
+      setReorderAnnounce(`Lesson moved to position ${target + 1} of ${ordered.length}.`);
+      // No permanent optimistic reorder — the query cache is the source of
+      // truth. On success we invalidate; on error we surface a stable message.
+      reorder.mutate({ lessonIds: next });
+    },
+    [isEditable, lessons, reorder],
+  );
+
+  useEffect(() => {
+    const id = pendingFocusLessonId.current;
+    if (!id) return;
+    if (reorder.isPending) return;
+    const btn =
+      document.querySelector<HTMLButtonElement>(`[data-lesson-move-focus="${id}"]`) ?? null;
+    if (btn) btn.focus();
+    pendingFocusLessonId.current = null;
+  }, [lessons, reorder.isPending]);
 
   const [newLessonTitle, setNewLessonTitle] = useState("");
 
@@ -641,19 +690,37 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
         </div>
 
         <Section id="section-curriculum" title="Curriculum">
+          <div className="sr-only" aria-live="polite">
+            {reorderAnnounce}
+          </div>
+          {reorderError && (
+            <div
+              role="alert"
+              className="mb-3 rounded-2xl bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 ring-1 ring-red-200"
+            >
+              {reorderError}
+            </div>
+          )}
           <ul className="mt-2 space-y-2">
-            {lessons.map((l) => (
-              <LessonRow
-                key={l.id}
-                lesson={l}
-                courseId={courseId}
-                isEditable={isEditable}
-                onDelete={() => {
-                  if (!isEditable) return;
-                  if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);
-                }}
-              />
-            ))}
+            {[...lessons]
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((l, idx, arr) => (
+                <LessonRow
+                  key={l.id}
+                  lesson={l}
+                  courseId={courseId}
+                  isEditable={isEditable}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < arr.length - 1}
+                  isReordering={reorder.isPending}
+                  onMoveUp={() => moveLesson(l.id, -1)}
+                  onMoveDown={() => moveLesson(l.id, 1)}
+                  onDelete={() => {
+                    if (!isEditable) return;
+                    if (confirm(`Delete "${l.title}"?`)) removeLesson.mutate(l.id);
+                  }}
+                />
+              ))}
             {lessons.length === 0 && (
               <li className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
                 No lessons yet.
@@ -755,6 +822,11 @@ function LessonRow({
   lesson,
   courseId,
   isEditable,
+  canMoveUp,
+  canMoveDown,
+  isReordering,
+  onMoveUp,
+  onMoveDown,
   onDelete,
 }: {
   lesson: {
@@ -769,6 +841,11 @@ function LessonRow({
   };
   courseId: string;
   isEditable: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  isReordering: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onDelete: () => void;
 }) {
   const qc = useQueryClient();
@@ -813,6 +890,39 @@ function LessonRow({
           <span className="text-sm font-semibold">{lesson.title}</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!isEditable || !canMoveUp || isReordering}
+            data-lesson-move-focus={lesson.id}
+            aria-label={`Move ${lesson.title} up`}
+            title={
+              !isEditable
+                ? "Locked while under review or approved"
+                : !canMoveUp
+                  ? "Already at the top"
+                  : "Move lesson up"
+            }
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!isEditable || !canMoveDown || isReordering}
+            aria-label={`Move ${lesson.title} down`}
+            title={
+              !isEditable
+                ? "Locked while under review or approved"
+                : !canMoveDown
+                  ? "Already at the bottom"
+                  : "Move lesson down"
+            }
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setOpen((v) => !v)}
             className="min-h-11 rounded-full bg-card px-3 py-1.5 text-xs font-semibold"

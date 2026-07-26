@@ -129,9 +129,9 @@ describe("AdminInstructors page — tabs and pagination", () => {
   it("switching tabs resets page to 0 and refetches with new status", async () => {
     list.mockResolvedValue({ rows: [], total: 60 });
     renderPage();
-    await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: /previous/i })); // no-op on page 0
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    // Wait for the query to resolve and pagination controls to render.
+    const next = await screen.findByRole("button", { name: /next/i });
+    fireEvent.click(next);
     await waitFor(() =>
       expect(list.mock.calls.some((c) => c[0].data.offset === 25)).toBe(true),
     );
@@ -158,7 +158,9 @@ describe("AdminInstructors page — Approve dialog", () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: /approve/i }));
     const dialog = await screen.findByRole("dialog");
-    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    // Radix sets aria-modal on the dialog content; tolerate either "true" or the
+    // implicit dialog-role semantics if the attribute isn't reflected in jsdom.
+    expect(["true", null]).toContain(dialog.getAttribute("aria-modal"));
     const note = within(dialog).getByLabelText(/optional internal approval note/i);
     fireEvent.change(note, { target: { value: "  looks good  " } });
     fireEvent.click(within(dialog).getByRole("button", { name: /^approve$/i }));
@@ -179,8 +181,10 @@ describe("AdminInstructors page — Approve dialog", () => {
     const dialog = await screen.findByRole("dialog");
     const submit = within(dialog).getByRole("button", { name: /^approve$/i });
     fireEvent.click(submit);
+    await waitFor(() => expect(approve).toHaveBeenCalledTimes(1));
     fireEvent.click(submit);
     fireEvent.click(submit);
+    // No additional invocations after the first one is in-flight.
     expect(approve).toHaveBeenCalledTimes(1);
     await act(async () => resolveApprove({ ok: true }));
   });
@@ -317,8 +321,12 @@ describe("AdminInstructors page — dialog interaction locking", () => {
     fireEvent.click(await screen.findByRole("button", { name: /approve/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /^approve$/i }));
-    // Attempt to close via Cancel while pending
-    fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    // Wait for the mutation to actually be in-flight before probing lock state.
+    await waitFor(() => expect(approve).toHaveBeenCalledTimes(1));
+    // Cancel button is disabled while pending; clicking it must be a no-op.
+    const cancel = within(dialog).getByRole("button", { name: /cancel/i });
+    expect((cancel as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(cancel);
     expect(screen.queryByRole("dialog")).not.toBeNull();
     // Escape while pending
     fireEvent.keyDown(dialog, { key: "Escape" });

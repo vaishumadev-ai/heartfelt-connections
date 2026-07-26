@@ -107,3 +107,54 @@ export const signCoverPreview = createServerFn({ method: "POST" })
     if (error || !signed?.signedUrl) return { url: null as string | null, expiresIn: ttl };
     return { url: signed.signedUrl, expiresIn: ttl };
   });
+
+/**
+ * Attach a freshly-uploaded lesson video object to a lesson. The RPC verifies
+ * the caller owns the parent course, the course is editable, the storage
+ * object exists, and the object was uploaded by the same user. If a previous
+ * video existed, the RPC also removes the prior object from Storage as part
+ * of the same transaction — no client-side compensating delete needed.
+ */
+export const attachLessonVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { lessonId: string; storagePath: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("attach_lesson_video", {
+      _lesson_id: data.lessonId,
+      _path: data.storagePath,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/**
+ * Detach the current lesson video and delete the underlying storage object.
+ * The RPC removes the object atomically with the DB update.
+ */
+export const detachLessonVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { lessonId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("detach_lesson_video", {
+      _lesson_id: data.lessonId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/**
+ * Sign a private lesson-video URL for short-lived playback. TTL is clamped
+ * to [60s, 6h]. Returns null on failure so the player can enter a fail-closed
+ * state instead of exposing a stale URL.
+ */
+export const signLessonVideoUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { storagePath: string; expiresIn?: number }) => d)
+  .handler(async ({ data, context }) => {
+    const ttl = Math.max(60, Math.min(data.expiresIn ?? 3600, 60 * 60 * 6));
+    const { data: signed, error } = await context.supabase.storage
+      .from("course-videos")
+      .createSignedUrl(data.storagePath, ttl);
+    if (error || !signed?.signedUrl) return { url: null as string | null, expiresIn: ttl };
+    return { url: signed.signedUrl, expiresIn: ttl };
+  });

@@ -17,6 +17,162 @@ export const COVER_BUCKET = "course-covers";
 export const COVER_MAX_BYTES = 5 * 1024 * 1024; // 5 MiB
 export const COVER_ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 
+// --- Lesson video contract ---------------------------------------------------
+// Videos live in a private bucket and are uploaded resumably via TUS. Only
+// MP4 (H.264/AAC) and WebM (VP8/VP9) are accepted. OGG is NOT supported.
+// Server-side RLS + `attach_lesson_video` enforce the same caps.
+export const VIDEO_BUCKET = "course-videos";
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50 MiB
+export const VIDEO_ALLOWED_MIMES = ["video/mp4", "video/webm"] as const;
+
+export type VideoMime = (typeof VIDEO_ALLOWED_MIMES)[number];
+
+export const VIDEO_EXT_BY_MIME: Record<VideoMime, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+};
+
+export type VideoValidationError =
+  | "empty_file"
+  | "unsupported_type"
+  | "file_too_large"
+  | "invalid_input"
+  | "config_unavailable";
+
+export type VideoValidationResult =
+  | { ok: true; mime: VideoMime; ext: string; size: number }
+  | { ok: false; code: VideoValidationError };
+
+export const VIDEO_VALIDATION_MESSAGE: Record<VideoValidationError, string> = {
+  empty_file: "That video file appears to be empty. Please export it again.",
+  unsupported_type: "Please upload an MP4 or WebM video.",
+  file_too_large: "That video is over 50 MB. Please compress it and try again.",
+  invalid_input: "We couldn't read that file. Please try selecting it again.",
+  config_unavailable: "We couldn't load the video configuration. Please refresh and try again.",
+};
+
+/**
+ * Normalize a video MIME string. Only the exact IANA MIMEs listed in
+ * VIDEO_ALLOWED_MIMES are accepted; browser variants like `video/x-matroska`
+ * are rejected so the client set matches the Storage bucket exactly.
+ */
+export function normalizeVideoMime(raw: string | undefined | null): VideoMime | null {
+  if (!raw) return null;
+  const m = raw.toLowerCase().trim();
+  if (m === "video/mp4") return "video/mp4";
+  if (m === "video/webm") return "video/webm";
+  return null;
+}
+
+export function validateVideoFile(
+  file: File | null | undefined,
+  limits?: { fileSizeLimit: number; allowedMimeTypes: readonly string[] } | null,
+): VideoValidationResult {
+  if (!file) return { ok: false, code: "invalid_input" };
+  if (file.size === 0) return { ok: false, code: "empty_file" };
+  if (limits !== undefined) {
+    if (
+      !limits ||
+      typeof limits.fileSizeLimit !== "number" ||
+      !Number.isFinite(limits.fileSizeLimit) ||
+      limits.fileSizeLimit <= 0 ||
+      !Array.isArray(limits.allowedMimeTypes) ||
+      limits.allowedMimeTypes.length === 0
+    ) {
+      return { ok: false, code: "config_unavailable" };
+    }
+  }
+  const mime = normalizeVideoMime(file.type);
+  if (!mime) return { ok: false, code: "unsupported_type" };
+  const allowed = limits ? limits.allowedMimeTypes : VIDEO_ALLOWED_MIMES;
+  if (!allowed.includes(mime)) return { ok: false, code: "unsupported_type" };
+  const cap = limits ? limits.fileSizeLimit : VIDEO_MAX_BYTES;
+  if (file.size > cap) return { ok: false, code: "file_too_large" };
+  return { ok: true, mime, ext: VIDEO_EXT_BY_MIME[mime], size: file.size };
+}
+
+/**
+ * Build a caller-scoped object path for a lesson video. Mirrors the cover
+ * path shape: `<userUuid>/<courseUuid>/<randomUuid>.<ext>` so RLS policies
+ * keyed on `auth.uid()` and `_object_course_id()` match without change.
+ *
+ * Throws for malformed UUIDs, path-traversal attempts, or extensions not in
+ * the derived allowlist.
+ */
+export function buildVideoObjectPath(input: {
+  userId: string;
+  courseId: string;
+  ext: string;
+  id?: string;
+}): string {
+  if (!isUuidExported(input.userId)) throw new Error("invalid_user_id");
+  if (!isUuidExported(input.courseId)) throw new Error("invalid_course_id");
+  const allowedExts = Object.values(VIDEO_EXT_BY_MIME) as string[];
+  if (!allowedExts.includes(input.ext)) throw new Error("invalid_extension");
+  const id = input.id ?? cryptoRandomUUIDExported();
+  if (!isUuidExported(id)) throw new Error("invalid_object_id");
+  return `${input.userId}/${input.courseId}/${id}.${input.ext}`;
+}
+
+/**
+ * Config for a resumable Supabase Storage TUS upload. The caller passes this
+ * dict to `new tus.Upload(file, config)` after obtaining a fresh access token
+ * from the browser Supabase client. Kept pure so tests can assert the exact
+ * shape without pulling `tus-js-client` into JSDOM.
+ */
+export type TusUploadConfig = {
+  endpoint: string;
+  retryDelays: number[];
+  headers: Record<string, string>;
+  uploadDataDuringCreation: boolean;
+  removeFingerprintOnSuccess: boolean;
+  chunkSize: number;
+  metadata: {
+    bucketName: string;
+    objectName: string;
+    contentType: string;
+    cacheControl: string;
+  };
+};
+
+export function buildTusUploadConfig(input: {
+  supabaseUrl: string;
+  accessToken: string;
+  apiKey: string;
+  objectPath: string;
+  mime: VideoMime;
+  chunkSize?: number;
+}): TusUploadConfig {
+  if (!input.supabaseUrl || !/^https?:\/\//i.test(input.supabaseUrl)) {
+    throw new Error("invalid_supabase_url");
+  }
+  if (!input.accessToken) throw new Error("missing_access_token");
+  if (!input.apiKey) throw new Error("missing_api_key");
+  if (!input.objectPath) throw new Error("missing_object_path");
+  if (!normalizeVideoMime(input.mime)) throw new Error("invalid_mime");
+  const chunk = input.chunkSize ?? 6 * 1024 * 1024;
+  if (!Number.isFinite(chunk) || chunk <= 0) throw new Error("invalid_chunk_size");
+  const base = input.supabaseUrl.replace(/\/+$/, "");
+  return {
+    endpoint: `${base}/storage/v1/upload/resumable`,
+    retryDelays: [0, 3000, 5000, 10000, 20000],
+    headers: {
+      authorization: `Bearer ${input.accessToken}`,
+      "x-upsert": "false",
+      apikey: input.apiKey,
+    },
+    uploadDataDuringCreation: true,
+    removeFingerprintOnSuccess: true,
+    chunkSize: chunk,
+    metadata: {
+      bucketName: VIDEO_BUCKET,
+      objectName: input.objectPath,
+      contentType: input.mime,
+      cacheControl: "3600",
+    },
+  };
+}
+
 export type CoverMime = (typeof COVER_ALLOWED_MIMES)[number];
 
 export const COVER_EXT_BY_MIME: Record<CoverMime, string> = {

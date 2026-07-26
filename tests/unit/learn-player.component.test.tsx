@@ -818,9 +818,7 @@ describe("Phase 3 closure — dashboard cache invalidation on success", () => {
   it("successful setLastLesson persistence marks learner-dashboard stale", async () => {
     getLessonPlayerMock.mockResolvedValue(readyDTO());
     let resolveLast!: () => void;
-    setLastLessonMock.mockImplementation(
-      () => new Promise<void>((r) => (resolveLast = r)),
-    );
+    setLastLessonMock.mockImplementation(() => new Promise<void>((r) => (resolveLast = r)));
     const { qc } = await renderPlayer({ lessonId: "l1" });
     await screen.findByText(/Content l1/);
     const invalidate = vi.spyOn(qc, "invalidateQueries");
@@ -836,19 +834,31 @@ describe("Phase 3 closure — dashboard cache invalidation on success", () => {
 
 describe("Phase 3 closure — UnsavedGuard invocation matrix", () => {
   it.each([
-    ["curriculum", async (user: ReturnType<typeof userEvent.setup>) => {
-      const btns = await screen.findAllByRole("button", { name: /lesson l2/i });
-      await user.click(btns[0]);
-    }],
-    ["Previous", async (user: ReturnType<typeof userEvent.setup>) => {
-      await user.click(screen.getByRole("button", { name: /previous lesson/i }));
-    }],
-    ["Next", async (user: ReturnType<typeof userEvent.setup>) => {
-      await user.click(screen.getByRole("button", { name: /next lesson/i }));
-    }],
-    ["My learning", async (user: ReturnType<typeof userEvent.setup>) => {
-      await user.click(screen.getByRole("link", { name: /my learning/i }));
-    }],
+    [
+      "curriculum",
+      async (user: ReturnType<typeof userEvent.setup>) => {
+        const btns = await screen.findAllByRole("button", { name: /lesson l2/i });
+        await user.click(btns[0]);
+      },
+    ],
+    [
+      "Previous",
+      async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole("button", { name: /previous lesson/i }));
+      },
+    ],
+    [
+      "Next",
+      async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole("button", { name: /next lesson/i }));
+      },
+    ],
+    [
+      "My learning",
+      async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole("link", { name: /my learning/i }));
+      },
+    ],
   ])("dirty note prompts UnsavedGuard from %s", async (_label, act) => {
     const lessons = [baseLesson("l1", 1), baseLesson("l2", 2), baseLesson("l3", 3)];
     getLessonPlayerMock.mockResolvedValue(

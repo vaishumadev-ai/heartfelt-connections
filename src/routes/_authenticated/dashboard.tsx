@@ -37,7 +37,11 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — Mozok" },
-      { name: "description", content: "Your learning dashboard: continue courses, revisit notes and bookmarks, and jump back in." },
+      {
+        name: "description",
+        content:
+          "Your learning dashboard: continue courses, revisit notes and bookmarks, and jump back in.",
+      },
       { property: "og:title", content: "Dashboard — Mozok" },
       { property: "og:description", content: "Your learning dashboard on Mozok." },
       { name: "robots", content: "noindex" },
@@ -53,10 +57,14 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function iconFor(kind: string | null) {
   switch (kind) {
-    case "megaphone": return megaphone;
-    case "pencil": return pencil;
-    case "cyber": return cyberHead;
-    default: return null;
+    case "megaphone":
+      return megaphone;
+    case "pencil":
+      return pencil;
+    case "cyber":
+      return cyberHead;
+    default:
+      return null;
   }
 }
 
@@ -78,8 +86,14 @@ function Dashboard() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
       const meta = data.user.user_metadata || {};
-      setDisplayName(meta.display_name || meta.full_name || data.user.email?.split("@")[0] || "there");
-      const { data: prof } = await supabase.from("profiles").select("display_name, avatar_url").eq("id", data.user.id).maybeSingle();
+      setDisplayName(
+        meta.display_name || meta.full_name || data.user.email?.split("@")[0] || "there",
+      );
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", data.user.id)
+        .maybeSingle();
       if (prof?.display_name) setDisplayName(prof.display_name);
       if (prof?.avatar_url) setAvatar(prof.avatar_url);
     });
@@ -103,14 +117,24 @@ function Dashboard() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black">
                 <div className="h-2.5 w-2.5 rounded-full bg-black" />
               </div>
-              <span>Moz<span className="text-foreground">ok</span></span>
+              <span>
+                Moz<span className="text-foreground">ok</span>
+              </span>
             </div>
             <div className="flex items-center gap-5 text-foreground">
-              <Link to="/browse" title="Browse"><Compass className="h-5 w-5" /></Link>
-              <Link to="/learn" title="My learning"><BookOpen className="h-5 w-5" /></Link>
-              <Link to="/studio" title="Studio"><GraduationCap className="h-5 w-5" /></Link>
+              <Link to="/browse" title="Browse">
+                <Compass className="h-5 w-5" />
+              </Link>
+              <Link to="/learn" title="My learning">
+                <BookOpen className="h-5 w-5" />
+              </Link>
+              <Link to="/studio" title="Studio">
+                <GraduationCap className="h-5 w-5" />
+              </Link>
               <NotificationsBell />
-              <button onClick={signOut} title="Sign out"><LogOut className="h-5 w-5" /></button>
+              <button onClick={signOut} title="Sign out">
+                <LogOut className="h-5 w-5" />
+              </button>
               <MobileMenu onSignOut={signOut} displayName={displayName} />
             </div>
           </nav>
@@ -231,9 +255,7 @@ function Dashboard() {
               <h3 className="font-semibold">Bookmarks</h3>
             </div>
             {recentBookmarks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Save lessons to revisit them later.
-              </p>
+              <p className="text-sm text-muted-foreground">Save lessons to revisit them later.</p>
             ) : (
               <ul className="space-y-2">
                 {recentBookmarks.map((b) => {

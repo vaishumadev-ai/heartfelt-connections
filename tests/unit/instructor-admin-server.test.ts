@@ -2,35 +2,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+function makeChain() {
+  const wrap = (v: any, h: any) => {
+    const fn: any = (arg: any) => {
+      const validated = v ? v(arg?.data) : arg?.data;
+      return h({ data: validated, context: fn.__context });
+    };
+    fn.__setContext = (ctx: any) => {
+      fn.__context = ctx;
+    };
+    return fn;
+  };
+  return {
+    inputValidator: (v: any) => ({ handler: (h: any) => wrap(v, h) }),
+    handler: (h: any) => wrap(null, h),
+  };
+}
+
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
-    middleware: () => ({
-      inputValidator: (v: any) => ({
-        handler: (h: any) => {
-          const fn: any = (arg: any) => {
-            const validated = v(arg?.data);
-            return h({ data: validated, context: fn.__context });
-          };
-          fn.__setContext = (ctx: any) => {
-            fn.__context = ctx;
-          };
-          return fn;
-        },
-      }),
-    }),
-    inputValidator: (v: any) => ({
-      handler: (h: any) => {
-        const fn: any = (arg: any) => {
-          const validated = v(arg?.data);
-          return h({ data: validated, context: fn.__context });
-        };
-        fn.__setContext = (ctx: any) => {
-          fn.__context = ctx;
-        };
-        return fn;
-      },
-    }),
-    handler: (h: any) => h,
+    ...makeChain(),
+    middleware: () => makeChain(),
   }),
 }));
 

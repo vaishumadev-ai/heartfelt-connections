@@ -5,6 +5,7 @@ import {
   COVER_ALLOWED_MIMES,
   COVER_MAX_BYTES,
   normalizeMime,
+  removeObjectStrict,
   signCoverUrl,
   uploadCoverToStorage,
   validateCoverFile,
@@ -51,20 +52,28 @@ describe("media-uploads path & validation", () => {
     expect(normalizeMime("application/pdf")).toBeNull();
   });
 
-  it("buildCoverObjectPath scopes to user, course, ext and stamps time", () => {
+  it("buildCoverObjectPath scopes to user, course, ext and uses a random uuid segment", () => {
     const p = buildCoverObjectPath({
       userId: "u1",
       courseId: "c1",
       ext: "png",
-      now: 1_700_000_000_000,
+      id: "11111111-2222-4333-8444-555555555555",
     });
-    expect(p).toBe("u1/c1/cover-1700000000000.png");
+    expect(p).toBe("u1/c1/11111111-2222-4333-8444-555555555555.png");
   });
 
-  it("buildCoverObjectPath produces distinct paths across attempts", () => {
-    const a = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg", now: 1 });
-    const b = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg", now: 2 });
+  it("buildCoverObjectPath produces distinct paths across attempts (uuid segment)", () => {
+    const a = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg" });
+    const b = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "jpg" });
     expect(a).not.toBe(b);
+    // path must be exactly userId/courseId/<uuid>.<ext> — no filename leakage
+    expect(a).toMatch(/^u\/c\/[0-9a-f-]{8,}\.jpg$/i);
+  });
+
+  it("buildCoverObjectPath never embeds the original filename", () => {
+    const p = buildCoverObjectPath({ userId: "u", courseId: "c", ext: "webp" });
+    expect(p).not.toMatch(/\.(png|jpg|jpeg)$/i);
+    expect(p.split("/")).toHaveLength(3);
   });
 });
 
@@ -97,6 +106,24 @@ describe("media-uploads storage adapters", () => {
       storage: { from: () => ({ remove: () => Promise.reject(new Error("nope")) }) },
     };
     await expect(bestEffortRemoveObject(sb, "x")).resolves.toBeUndefined();
+  });
+
+  it("removeObjectStrict throws on storage error so the UI can enter cleanup_pending", async () => {
+    const sb = {
+      storage: {
+        from: () => ({
+          remove: () => Promise.resolve({ error: { message: "acl denied" } }),
+        }),
+      },
+    };
+    await expect(removeObjectStrict(sb, "u/c/o.png")).rejects.toThrow("acl denied");
+  });
+
+  it("removeObjectStrict resolves on success", async () => {
+    const remove = vi.fn().mockResolvedValue({ error: null });
+    const sb = { storage: { from: () => ({ remove }) } };
+    await expect(removeObjectStrict(sb, "p")).resolves.toBeUndefined();
+    expect(remove).toHaveBeenCalledWith(["p"]);
   });
 
   it("signCoverUrl returns null on error", async () => {

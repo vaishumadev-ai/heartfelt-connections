@@ -199,7 +199,7 @@ export function CoursePage() {
       toast.success("Enrolled! Taking you to your first lesson…");
       qc.invalidateQueries({ queryKey: ["my-enrollments"] });
       qc.invalidateQueries({ queryKey: ["notifications"] });
-      navigate({ to: "/learn/$slug", params: { slug: course!.slug } });
+      navigate({ to: "/learn/$slug", params: { slug: course!.slug }, search: {} });
     },
     onError: (e: Error) => toast.error(e.message),
   });

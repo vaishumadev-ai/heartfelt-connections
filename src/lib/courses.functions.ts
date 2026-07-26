@@ -986,7 +986,9 @@ export const getMyCourse = createServerFn({ method: "GET" })
     if (!course) return null;
     const { data: lessons } = await supabase
       .from("lessons")
-      .select("id, title, position, duration_seconds, content, video_url, is_preview, module_title")
+      .select(
+        "id, title, position, duration_seconds, content, video_url, video_storage_path, is_preview, module_title",
+      )
       .eq("course_id", course.id)
       .order("position", { ascending: true });
     return { course, lessons: lessons ?? [] };

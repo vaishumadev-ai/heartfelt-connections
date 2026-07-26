@@ -557,16 +557,17 @@ function RevokeDialog({
     },
   });
   return (
-    <ActionShell title={`Revoke instructor from ${row.display_name ?? "user"}?`} onClose={onClose}>
-      <div className="mt-2 rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">
-        This is a destructive action. Existing courses and audit history are preserved, but the user
-        will immediately lose Studio authoring access. Any courses they own remain in place —
-        transfer them separately if needed.
-      </div>
-      <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+    <ActionShell
+      title={`Revoke instructor from ${row.display_name ?? "user"}?`}
+      description="Existing courses and audit history are preserved. The user immediately loses Studio authoring access; any courses they own remain in place and can be transferred separately."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
+      <label htmlFor="revoke-reason" className="mt-4 block text-xs font-semibold text-muted-foreground">
         Reason (required)
       </label>
       <textarea
+        id="revoke-reason"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
@@ -577,9 +578,12 @@ function RevokeDialog({
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -596,7 +600,7 @@ function RevokeDialog({
         >
           {mutation.isPending ? "Revoking…" : "Revoke"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }

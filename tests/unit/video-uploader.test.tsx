@@ -38,7 +38,7 @@ vi.mock("@/lib/media.functions", () => ({
   signLessonVideoUrl: (...a: any[]) => signFn(...a),
 }));
 
-import { VideoUploader, __setTusDriver, type TusDriverOptions } from "@/components/studio/VideoUploader";
+import { VideoUploader, type TusDriver, type TusDriverOptions } from "@/components/studio/VideoUploader";
 import { UnsavedGuardProvider } from "@/components/lesson-tools/UnsavedGuard";
 
 // Configurable fake driver — captures options, exposes hooks so tests can
@@ -49,8 +49,8 @@ type DriverCapture = {
 };
 let capture: DriverCapture;
 
-function installFakeDriver(opts?: { autoSuccess?: boolean; error?: Error }) {
-  __setTusDriver((o) => {
+function fakeDriver(opts?: { autoSuccess?: boolean; error?: Error }): TusDriver {
+  return (o) => {
     capture.opts = o;
     if (opts?.error) {
       queueMicrotask(() => o.onError(opts.error!));
@@ -67,12 +67,11 @@ function installFakeDriver(opts?: { autoSuccess?: boolean; error?: Error }) {
         capture.aborted++;
       },
     };
-  });
+  };
 }
 
 beforeEach(() => {
   capture = { opts: null, aborted: 0 };
-  __setTusDriver(null);
   getUserImpl.mockResolvedValue({ data: { user: { id: USER_ID } } });
   getSessionImpl.mockResolvedValue({ data: { session: { access_token: "tok-abc" } } });
   limitsFn.mockResolvedValue({

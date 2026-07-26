@@ -274,6 +274,57 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
     },
   });
 
+  const [reorderAnnounce, setReorderAnnounce] = useState<string>("");
+  const [reorderError, setReorderError] = useState<string | null>(null);
+  const pendingFocusLessonId = useRef<string | null>(null);
+  const reorder = useMutation({
+    mutationFn: (v: { lessonIds: string[] }) =>
+      reorderLessonsFn({ data: { courseId, lessonIds: v.lessonIds } }),
+    onSuccess: () => {
+      setReorderError(null);
+      qc.invalidateQueries({ queryKey: ["my-course", courseId] });
+      qc.invalidateQueries({ queryKey: ["course-readiness", courseId] });
+    },
+    onError: (err) => {
+      setReorderError(mapCourseGovernanceError(err));
+      pendingFocusLessonId.current = null;
+    },
+  });
+
+  const moveLesson = useCallback(
+    (lessonId: string, direction: -1 | 1) => {
+      if (!isEditable || reorder.isPending) return;
+      const ordered = [...lessons]
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((l) => l.id);
+      const idx = ordered.indexOf(lessonId);
+      const target = idx + direction;
+      if (idx < 0 || target < 0 || target >= ordered.length) return;
+      const next = ordered.slice();
+      [next[idx], next[target]] = [next[target], next[idx]];
+      pendingFocusLessonId.current = lessonId;
+      setReorderAnnounce(
+        `Lesson moved to position ${target + 1} of ${ordered.length}.`,
+      );
+      // No permanent optimistic reorder — the query cache is the source of
+      // truth. On success we invalidate; on error we surface a stable message.
+      reorder.mutate({ lessonIds: next });
+    },
+    [isEditable, lessons, reorder],
+  );
+
+  useEffect(() => {
+    const id = pendingFocusLessonId.current;
+    if (!id) return;
+    if (reorder.isPending) return;
+    const btn =
+      document.querySelector<HTMLButtonElement>(
+        `[data-lesson-move-focus="${id}"]`,
+      ) ?? null;
+    if (btn) btn.focus();
+    pendingFocusLessonId.current = null;
+  }, [lessons, reorder.isPending]);
+
   const [newLessonTitle, setNewLessonTitle] = useState("");
 
   if (!data || !course) {

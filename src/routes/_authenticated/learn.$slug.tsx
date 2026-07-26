@@ -206,10 +206,16 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
     const key = `${data.course.id}:${data.current.id}`;
     if (lastPersistedRef.current === key) return;
     lastPersistedRef.current = key;
-    persistLast({ data: { courseId: data.course.id, lessonId: data.current.id } }).catch(() => {
-      // Intentionally silent; do not surface as a fake failure.
-    });
-  }, [data, persistLast]);
+    persistLast({ data: { courseId: data.course.id, lessonId: data.current.id } })
+      .then(() => {
+        // Mark dashboard cache stale so the next mount reflects the new
+        // last_lesson_id; no active refetch is forced.
+        qc.invalidateQueries({ queryKey: ["learner-dashboard"], refetchType: "none" });
+      })
+      .catch(() => {
+        // Intentionally silent; do not surface as a fake failure.
+      });
+  }, [data, persistLast, qc]);
 
   // ----- Non-ready states -----
   if (data.state === "course_not_found_or_hidden") {

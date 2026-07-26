@@ -10,8 +10,9 @@ const navigateSpy = vi.fn();
 const routerInvalidateSpy = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (_c: unknown) => ({
+  createFileRoute: () => (config: any) => ({
     useSearch: () => searchState,
+    options: config,
   }),
   Link: ({ children, to, ...rest }: any) => (
     <a href={typeof to === "string" ? to : "#"} {...rest}>
@@ -46,9 +47,6 @@ vi.mock("@/integrations/lovable/index", () => ({
   lovable: { auth: { signInWithOAuth: (...a: any[]) => signInWithOAuth(...a) } },
 }));
 
-import { AuthPage as _unused } from "@/routes/auth"; // ensure module loads (side-effect: none)
-// Re-import through the route file's component export; auth.tsx doesn't export
-// the component directly, so render via Route.options.component:
 import { Route as AuthRoute } from "@/routes/auth";
 
 const AuthPage = (AuthRoute.options as any).component as React.ComponentType;

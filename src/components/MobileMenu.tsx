@@ -2,7 +2,13 @@ import { Menu, Compass, BookOpen, GraduationCap, LogOut, Home, User } from "luci
 import { Link } from "@tanstack/react-router";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-export function MobileMenu({ onSignOut, displayName }: { onSignOut: () => void; displayName: string }) {
+export function MobileMenu({
+  onSignOut,
+  displayName,
+}: {
+  onSignOut: () => void;
+  displayName: string;
+}) {
   const items = [
     { to: "/dashboard", label: "Dashboard", icon: Home },
     { to: "/browse", label: "Browse courses", icon: Compass },
@@ -12,7 +18,9 @@ export function MobileMenu({ onSignOut, displayName }: { onSignOut: () => void; 
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button title="Menu" aria-label="Menu"><Menu className="h-5 w-5" /></button>
+        <button title="Menu" aria-label="Menu">
+          <Menu className="h-5 w-5" />
+        </button>
       </SheetTrigger>
       <SheetContent side="right" className="w-72">
         <SheetHeader>

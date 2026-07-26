@@ -109,10 +109,7 @@ export function CoverUploader({
     }
   })();
   useEffect(() => {
-    return guard.registerDirtyChecker(
-      `studio-cover-${courseId}`,
-      () => unsafeRef.current,
-    );
+    return guard.registerDirtyChecker(`studio-cover-${courseId}`, () => unsafeRef.current);
   }, [guard, courseId]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(null);

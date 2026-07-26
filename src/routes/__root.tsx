@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -122,6 +123,29 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Exactly one global auth lifecycle for the app. Filters to identity
+    // transitions so cache/router are not thrashed by TOKEN_REFRESHED /
+    // INITIAL_SESSION. Sign-out clears user-scoped Query caches; sign-in
+    // only invalidates so gated data refetches — navigation is the caller's
+    // responsibility (auth callback / auth page) to avoid double redirects.
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+        router.invalidate();
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        queryClient.invalidateQueries();
+        router.invalidate();
+      }
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, [queryClient, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

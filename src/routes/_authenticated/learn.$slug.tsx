@@ -155,6 +155,7 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
       toast.success(`Lesson complete — ${res.progress}%`);
       qc.invalidateQueries({ queryKey: ["lesson-player", slug] });
       qc.invalidateQueries({ queryKey: ["my-enrollments"] });
+      qc.invalidateQueries({ queryKey: ["learner-dashboard"], refetchType: "none" });
     },
     onError: () => {
       // Stable learner copy — never surface raw server/database error text.

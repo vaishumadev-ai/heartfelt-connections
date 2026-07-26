@@ -238,12 +238,20 @@ function InstructorPanel() {
               </div>
             </div>
           </div>
-          <Link
-            to="/admin/courses"
-            className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-primary-foreground"
-          >
-            Open admin
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/admin/courses"
+              className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-primary-foreground"
+            >
+              Courses
+            </Link>
+            <Link
+              to="/admin/instructors"
+              className="rounded-full bg-card px-4 py-2 text-xs font-semibold ring-1 ring-border"
+            >
+              Instructors
+            </Link>
+          </div>
         </div>
       )}
       <form

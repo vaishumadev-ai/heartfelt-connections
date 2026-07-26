@@ -6,7 +6,7 @@ import React from "react";
 
 const navigateSpy = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (_c: unknown) => ({}),
+  createFileRoute: () => (config: any) => ({ options: config }),
   Link: ({ children, to, ...rest }: any) => (
     <a href={typeof to === "string" ? to : "#"} {...rest}>
       {children}

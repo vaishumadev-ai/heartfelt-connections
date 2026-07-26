@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 let authCb: ((event: string) => void) | null = null;
 const unsubscribe = vi.fn();
@@ -20,7 +21,6 @@ vi.mock("@/integrations/supabase/client", () => ({
 // the same effect here inline against the same mocked supabase — this exercises
 // the contract without booting the full TanStack root (which needs a router).
 function RootLifecycle({ queryClient, invalidate }: { queryClient: QueryClient; invalidate: () => void }) {
-  const { supabase } = require("@/integrations/supabase/client");
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "SIGNED_OUT") {

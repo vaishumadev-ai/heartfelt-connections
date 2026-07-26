@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act, within } from "@testing-library/react";
+import { render, screen, waitFor, act, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -305,7 +305,10 @@ describe("cover removal with accessible confirmation", () => {
 describe("media validation", () => {
   it("blocks unsupported MIME", async () => {
     mount();
-    await chooseFile(pngFile(1024, "x.gif", "image/gif"));
+    // Bypass the input's `accept=` filter — userEvent enforces it, but we
+    // want to prove the component's own validation catches it too.
+    const input = screen.getByLabelText("Choose a cover image") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [pngFile(1024, "x.gif", "image/gif")] } });
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/JPEG, PNG, or WebP/));
     expect(uploadImpl).not.toHaveBeenCalled();
   });

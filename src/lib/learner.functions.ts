@@ -140,6 +140,38 @@ export const removeLessonBookmark = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// ---------- Per-lesson personal-state fetchers --------------------------
+// Owner-only SELECT RLS on lesson_notes / lesson_bookmarks (Phase 3) keeps
+// these reads scoped to the caller. No new tables or RPCs are introduced.
+
+export const getLessonNote = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ lessonId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<LearnerNoteDTO | null> => {
+    const { data: row, error } = await context.supabase
+      .from("lesson_notes")
+      .select("id, course_id, lesson_id, body, created_at, updated_at")
+      .eq("user_id", context.userId)
+      .eq("lesson_id", data.lessonId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (row as LearnerNoteDTO | null) ?? null;
+  });
+
+export const getLessonBookmark = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ lessonId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<LearnerBookmarkDTO | null> => {
+    const { data: row, error } = await context.supabase
+      .from("lesson_bookmarks")
+      .select("id, course_id, lesson_id, created_at")
+      .eq("user_id", context.userId)
+      .eq("lesson_id", data.lessonId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (row as LearnerBookmarkDTO | null) ?? null;
+  });
+
 // ---------- Continue Learning selection (pure) --------------------------
 export type ContinuePick = {
   enrollment: LearnerEnrollmentDTO;

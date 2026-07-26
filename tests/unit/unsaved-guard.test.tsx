@@ -89,4 +89,23 @@ describe("UnsavedGuard", () => {
     window.dispatchEvent(evAfter);
     expect(pd3).not.toHaveBeenCalled();
   });
+
+  it("registry entry is removed on unmount, independently of beforeunload listener removal", async () => {
+    // Directly assert the registry cleanup contract: after unmounting the
+    // dirty registrar, guard(action) runs synchronously (no dialog), proving
+    // the checker was removed — this is independent of window listener state.
+    const action = vi.fn();
+    const { rerender } = render(<Harness dirty={true} onAction={action} />);
+    // Sanity: dirty state currently blocks.
+    await userEvent.setup().click(screen.getByRole("button", { name: "go" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    // Close dialog and unmount the registrar (registry entry must be dropped).
+    await userEvent.setup().click(screen.getByRole("button", { name: /stay/i }));
+    rerender(<Harness dirty={true} onAction={action} mountChild={false} />);
+    action.mockClear();
+    await userEvent.setup().click(screen.getByRole("button", { name: "go" }));
+    // Guard resolves immediately — checker was unregistered.
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
 });

@@ -236,11 +236,6 @@ describe("Lesson player — completion flow", () => {
     const btn = await screen.findByRole("button", { name: /mark complete/i });
     const user = userEvent.setup();
     await user.click(btn);
-    // eslint-disable-next-line no-console
-    console.log("DBG add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", btn.getAttribute("aria-pressed"));
-    await new Promise((r) => setTimeout(r, 50));
-    // eslint-disable-next-line no-console
-    console.log("DBG after wait add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", screen.getByTestId("bookmark-button").getAttribute("aria-pressed"));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /mark complete/i })).not.toBeDisabled(),
     );
@@ -638,7 +633,8 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     await waitFor(() => expect(screen.getByTestId("note-status")).toHaveTextContent(/saved/i));
     expect(
       invalidate.mock.calls.some(
-        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        (c) =>
+          (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
       ),
     ).toBe(true);
   });
@@ -657,7 +653,9 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
 
   it("save failure surfaces stable error copy, does not persist optimistic body, keeps note dirty", async () => {
     getLessonPlayerMock.mockResolvedValue(readyDTO());
-    saveLessonNoteMock.mockRejectedValueOnce(new Error("permission denied for function save_lesson_note"));
+    saveLessonNoteMock.mockRejectedValueOnce(
+      new Error("permission denied for function save_lesson_note"),
+    );
     await renderPlayer();
     const ta = await screen.findByTestId("note-textarea");
     const user = userEvent.setup();
@@ -685,7 +683,9 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     const trigger = await screen.findByTestId("note-delete-trigger");
     await user.click(trigger);
     await user.click(await screen.findByTestId("note-delete-confirm"));
-    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }));
+    await waitFor(() =>
+      expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }),
+    );
     await waitFor(() =>
       expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(""),
     );
@@ -707,5 +707,57 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     // Confirm discard
     await user.click(screen.getByRole("button", { name: /discard and navigate/i }));
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
+  });
+
+  it("bookmark failure preserves prior authoritative state and stays retryable; note delete failure retains note", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonBookmarkMock.mockResolvedValue(null);
+    addLessonBookmarkMock.mockRejectedValueOnce(new Error("boom"));
+    getLessonNoteMock.mockResolvedValue({
+      id: "n1",
+      course_id: "c1",
+      lesson_id: "l1",
+      body: "Existing note",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    deleteLessonNoteMock.mockRejectedValueOnce(new Error("nope"));
+    await renderPlayer();
+    const user = userEvent.setup();
+    const btn = await screen.findByTestId("bookmark-button");
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    await user.click(btn);
+    await waitFor(() => expect(addLessonBookmarkMock).toHaveBeenCalledTimes(1));
+    // Prior authoritative state retained (no optimistic flip on failure) and the
+    // control remains a retryable target for the user.
+    await waitFor(() => expect(btn).toHaveAttribute("aria-pressed", "false"));
+    await waitFor(() => expect(btn).not.toBeDisabled());
+
+    // Delete failure retains note
+    await user.click(screen.getByTestId("note-delete-trigger"));
+    await user.click(await screen.findByTestId("note-delete-confirm"));
+    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledTimes(1));
+    expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(
+      "Existing note",
+    );
+  });
+
+  it("completion invalidates learner-dashboard cache", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ current: baseLesson("l2", 2, false), prevId: "l1", nextId: "l3" }),
+    );
+    markLessonCompleteMock.mockResolvedValue({ progress: 66, courseComplete: false });
+    const { qc } = await renderPlayer({ lessonId: "l2" });
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /mark complete/i }));
+    await waitFor(() =>
+      expect(
+        invalidate.mock.calls.some(
+          (c) =>
+            (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+        ),
+      ).toBe(true),
+    );
   });
 });

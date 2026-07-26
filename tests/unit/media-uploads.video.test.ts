@@ -153,11 +153,15 @@ describe("buildTusUploadConfig", () => {
   });
 
   it("rejects invalid inputs", () => {
-    expect(() => buildTusUploadConfig({ ...base, supabaseUrl: "" })).toThrow(/invalid_supabase_url/);
+    expect(() => buildTusUploadConfig({ ...base, supabaseUrl: "" })).toThrow(
+      /invalid_supabase_url/,
+    );
     expect(() => buildTusUploadConfig({ ...base, supabaseUrl: "ftp://x" })).toThrow(
       /invalid_supabase_url/,
     );
-    expect(() => buildTusUploadConfig({ ...base, accessToken: "" })).toThrow(/missing_access_token/);
+    expect(() => buildTusUploadConfig({ ...base, accessToken: "" })).toThrow(
+      /missing_access_token/,
+    );
     expect(() => buildTusUploadConfig({ ...base, apiKey: "" })).toThrow(/missing_api_key/);
     expect(() => buildTusUploadConfig({ ...base, objectPath: "" })).toThrow(/missing_object_path/);
     expect(() =>

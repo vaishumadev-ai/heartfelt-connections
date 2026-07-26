@@ -14,18 +14,28 @@ const REQUIRED_TEST_ENV = [
   "TEST_SUPABASE_PUBLISHABLE_KEY",
   "TEST_SUPABASE_SERVICE_ROLE_KEY",
 ];
-const missingTestEnv = REQUIRED_TEST_ENV.filter((k) => !process.env[k]);
-if (missingTestEnv.length > 0 && !process.env.PW_ALLOW_UNCONFIGURED) {
-  throw new Error(
-    [
-      "Playwright E2E is not configured.",
-      `Missing: ${missingTestEnv.join(", ")}.`,
-      "Provide a DEDICATED test Supabase project and re-run.",
-      "Set PW_ALLOW_UNCONFIGURED=1 to load config for tooling introspection only (will still fail in globalSetup).",
-    ].join(" "),
-  );
-}
-if (missingTestEnv.length === 0) {
+
+// PW_ALLOW_UNCONFIGURED opts out of BOTH the required-env check and the
+// production-guard check at config-load time. This is required so that
+// tooling like `playwright test --list` can enumerate the suite without
+// hosted credentials or a dedicated test Supabase project.
+//
+// The production-guard is NOT weakened: globalSetup re-runs the same
+// validation at run-time via tests/e2e/global-setup.ts, and the webServer
+// child (scripts/test-preview.ts) enforces its own guards. Any actual test
+// execution against production credentials still fails loudly.
+if (!process.env.PW_ALLOW_UNCONFIGURED) {
+  const missingTestEnv = REQUIRED_TEST_ENV.filter((k) => !process.env[k]);
+  if (missingTestEnv.length > 0) {
+    throw new Error(
+      [
+        "Playwright E2E is not configured.",
+        `Missing: ${missingTestEnv.join(", ")}.`,
+        "Provide a DEDICATED test Supabase project and re-run.",
+        "Set PW_ALLOW_UNCONFIGURED=1 to load config for tooling introspection only (will still fail in globalSetup).",
+      ].join(" "),
+    );
+  }
   const check = validateTestProject({
     testSupabaseUrl: process.env.TEST_SUPABASE_URL,
     supabaseUrl: process.env.SUPABASE_URL,
@@ -36,7 +46,6 @@ if (missingTestEnv.length === 0) {
   if (!check.ok) {
     throw new Error(`[playwright.config] ${check.reason}`);
   }
-
   console.log(`[playwright.config] production-guard OK; test project ref: ${check.ref}`);
 }
 

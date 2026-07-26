@@ -4,6 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { ArrowLeft, ShieldCheck, UserCheck, UserX, Ban, Loader2 } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   listInstructorApplicationsAdmin,
   approveInstructorApplication,
   rejectInstructorApplication,
@@ -321,29 +329,43 @@ function useAdminInvalidators() {
 
 function ActionShell({
   title,
+  description,
+  pending,
   onClose,
   children,
 }: {
   title: string;
+  description: string;
+  pending: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next && !pending) onClose();
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 ring-1 ring-border"
+      <DialogContent
+        className="max-w-md rounded-3xl bg-card ring-1 ring-border"
+        onEscapeKeyDown={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
       >
-        <h2 className="text-lg font-bold">{title}</h2>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         {children}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -375,25 +397,31 @@ function ApproveDialog({
     },
   });
   return (
-    <ActionShell title={`Approve ${row.display_name ?? "applicant"}?`} onClose={onClose}>
-      <p className="mt-2 text-sm text-muted-foreground">
-        This grants the instructor role and lets them create courses.
-      </p>
+    <ActionShell
+      title={`Approve ${row.display_name ?? "applicant"}?`}
+      description="This grants the instructor role and lets them create courses."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
       <textarea
         rows={3}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
         placeholder="Optional internal note"
         className="mt-4 w-full resize-none rounded-2xl bg-background p-3 text-sm outline-none ring-1 ring-border focus:ring-foreground"
+        aria-label="Optional internal approval note"
       />
       {errorMsg && (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -410,7 +438,7 @@ function ApproveDialog({
         >
           {mutation.isPending ? "Approving…" : "Approve"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }
@@ -445,14 +473,20 @@ function RejectDialog({
   });
   const remaining = 1000 - reason.length;
   return (
-    <ActionShell title={`Reject ${row.display_name ?? "applicant"}?`} onClose={onClose}>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The applicant will see your reason. They may apply again.
-      </p>
-      <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+    <ActionShell
+      title={`Reject ${row.display_name ?? "applicant"}?`}
+      description="The applicant will see your reason. They may apply again."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
+      <label
+        htmlFor="reject-reason"
+        className="mt-4 block text-xs font-semibold text-muted-foreground"
+      >
         Reason (required)
       </label>
       <textarea
+        id="reject-reason"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
@@ -470,9 +504,12 @@ function RejectDialog({
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -489,7 +526,7 @@ function RejectDialog({
         >
           {mutation.isPending ? "Rejecting…" : "Reject"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }
@@ -523,16 +560,20 @@ function RevokeDialog({
     },
   });
   return (
-    <ActionShell title={`Revoke instructor from ${row.display_name ?? "user"}?`} onClose={onClose}>
-      <div className="mt-2 rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">
-        This is a destructive action. Existing courses and audit history are preserved, but the user
-        will immediately lose Studio authoring access. Any courses they own remain in place —
-        transfer them separately if needed.
-      </div>
-      <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+    <ActionShell
+      title={`Revoke instructor from ${row.display_name ?? "user"}?`}
+      description="Existing courses and audit history are preserved. The user immediately loses Studio authoring access; any courses they own remain in place and can be transferred separately."
+      pending={mutation.isPending}
+      onClose={onClose}
+    >
+      <label
+        htmlFor="revoke-reason"
+        className="mt-4 block text-xs font-semibold text-muted-foreground"
+      >
         Reason (required)
       </label>
       <textarea
+        id="revoke-reason"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value.slice(0, 1000))}
@@ -543,9 +584,12 @@ function RevokeDialog({
           {errorMsg}
         </p>
       )}
-      <div className="mt-5 flex justify-end gap-2">
+      <DialogFooter className="mt-5 gap-2">
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (!mutation.isPending) onClose();
+          }}
+          disabled={mutation.isPending}
           className="rounded-full bg-background px-4 py-2 text-sm font-semibold ring-1 ring-border"
         >
           Cancel
@@ -562,7 +606,7 @@ function RevokeDialog({
         >
           {mutation.isPending ? "Revoking…" : "Revoke"}
         </button>
-      </div>
+      </DialogFooter>
     </ActionShell>
   );
 }

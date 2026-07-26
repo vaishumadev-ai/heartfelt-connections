@@ -329,29 +329,43 @@ function useAdminInvalidators() {
 
 function ActionShell({
   title,
+  description,
+  pending,
   onClose,
   children,
 }: {
   title: string;
+  description: string;
+  pending: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next && !pending) onClose();
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 ring-1 ring-border"
+      <DialogContent
+        className="max-w-md rounded-3xl bg-card ring-1 ring-border"
+        onEscapeKeyDown={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
       >
-        <h2 className="text-lg font-bold">{title}</h2>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         {children}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

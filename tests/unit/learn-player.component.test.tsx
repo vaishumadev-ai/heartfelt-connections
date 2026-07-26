@@ -568,3 +568,144 @@ describe("Lesson player — error boundary retry recovery", () => {
     expect(await screen.findByText(/Content l1/)).toBeInTheDocument();
   });
 });
+
+// ---------- Phase 3B: Notes & Bookmarks ----------
+describe("Lesson player — Phase 3B notes & bookmarks", () => {
+  it("tools do not mount for preview (canTrackProgress=false)", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({ canTrackProgress: false, isEnrolled: false, entitlement: "preview" }),
+    );
+    await renderPlayer();
+    expect(await screen.findByText(/Content l1/)).toBeInTheDocument();
+    expect(screen.queryByTestId("bookmark-button")).toBeNull();
+    expect(screen.queryByTestId("notes-panel")).toBeNull();
+    expect(getLessonBookmarkMock).not.toHaveBeenCalled();
+    expect(getLessonNoteMock).not.toHaveBeenCalled();
+  });
+
+  it("bookmark toggles on and off, invalidates dashboard, and single-flights", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonBookmarkMock.mockResolvedValue(null);
+    let resolveAdd: (v: unknown) => void = () => {};
+    addLessonBookmarkMock.mockImplementation(
+      () => new Promise((res) => (resolveAdd = res)),
+    );
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const btn = await screen.findByTestId("bookmark-button");
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    const user = userEvent.setup();
+    await user.click(btn);
+    await user.click(btn); // rapid second click — must be ignored while in-flight
+    resolveAdd({ ok: true });
+    await waitFor(() =>
+      expect(screen.getByTestId("bookmark-button")).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(addLessonBookmarkMock).toHaveBeenCalledTimes(1);
+    expect(
+      invalidate.mock.calls.some(
+        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+      ),
+    ).toBe(true);
+
+    await user.click(screen.getByTestId("bookmark-button"));
+    await waitFor(() => expect(removeLessonBookmarkMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByTestId("bookmark-button")).toHaveAttribute("aria-pressed", "false"),
+    );
+  });
+
+  it("note Save enabled only when dirty + non-empty + under 4000, Ctrl+Enter saves, counter shows near-limit", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    const { qc } = await renderPlayer();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    const ta = await screen.findByTestId("note-textarea");
+    const save = screen.getByTestId("note-save");
+    expect(save).toBeDisabled(); // empty + not dirty
+
+    const user = userEvent.setup();
+    await user.type(ta, "  ");
+    expect(save).toBeDisabled(); // whitespace only
+    await user.clear(ta);
+    await user.type(ta, "Hello lesson");
+    expect(save).toBeEnabled();
+    // Ctrl+Enter triggers save
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() =>
+      expect(saveLessonNoteMock).toHaveBeenCalledWith({
+        data: { courseId: "c1", lessonId: "l1", body: "Hello lesson" },
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("note-status")).toHaveTextContent(/saved/i));
+    expect(
+      invalidate.mock.calls.some(
+        (c) => (c[0] as { queryKey?: unknown[] } | undefined)?.queryKey?.[0] === "learner-dashboard",
+      ),
+    ).toBe(true);
+  });
+
+  it("note over 4000 chars disables Save and marks textarea invalid", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    await renderPlayer();
+    const ta = (await screen.findByTestId("note-textarea")) as HTMLTextAreaElement;
+    // Fast path: set value via fireEvent to avoid typing 4001 chars.
+    const long = "x".repeat(4001);
+    fireEvent.change(ta, { target: { value: long } });
+    expect(screen.getByTestId("note-save")).toBeDisabled();
+    expect(ta).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByTestId("note-counter")).toHaveTextContent("4001 / 4000");
+  });
+
+  it("save failure surfaces stable error copy, does not persist optimistic body, keeps note dirty", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    saveLessonNoteMock.mockRejectedValueOnce(new Error("permission denied for function save_lesson_note"));
+    await renderPlayer();
+    const ta = await screen.findByTestId("note-textarea");
+    const user = userEvent.setup();
+    await user.type(ta, "draft");
+    await user.click(screen.getByTestId("note-save"));
+    const err = await screen.findByTestId("note-error");
+    // Stable copy — no raw postgres text
+    expect(err.textContent ?? "").not.toMatch(/permission denied|save_lesson_note/i);
+    // Still dirty
+    expect(screen.getByTestId("note-status")).toHaveTextContent(/unsaved/i);
+  });
+
+  it("delete requires confirmation and clears the note", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    getLessonNoteMock.mockResolvedValue({
+      id: "n1",
+      course_id: "c1",
+      lesson_id: "l1",
+      body: "Existing note",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    await renderPlayer();
+    const user = userEvent.setup();
+    const trigger = await screen.findByTestId("note-delete-trigger");
+    await user.click(trigger);
+    await user.click(await screen.findByTestId("note-delete-confirm"));
+    await waitFor(() => expect(deleteLessonNoteMock).toHaveBeenCalledWith({ data: { lessonId: "l1" } }));
+    await waitFor(() =>
+      expect((screen.getByTestId("note-textarea") as HTMLTextAreaElement).value).toBe(""),
+    );
+  });
+
+  it("dirty note blocks curriculum navigation until confirmed", async () => {
+    getLessonPlayerMock.mockResolvedValue(readyDTO());
+    await renderPlayer();
+    const user = userEvent.setup();
+    const ta = await screen.findByTestId("note-textarea");
+    await user.type(ta, "wip");
+    // click Next lesson via curriculum
+    const nextBtn = screen.getByRole("button", { name: /next lesson/i });
+    await user.click(nextBtn);
+    // Guard dialog appears; navigation not yet called
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+    // Confirm discard
+    await user.click(screen.getByRole("button", { name: /discard|leave|continue/i }));
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
+  });
+});

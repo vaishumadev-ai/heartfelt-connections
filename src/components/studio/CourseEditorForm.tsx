@@ -120,7 +120,9 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
       ? "This course is awaiting admin review. Content is locked until a decision is made."
       : rs === "approved"
         ? "This course is approved and live. An admin must unpublish it for edit before changes can be made."
-        : "";
+        : !isEditable
+          ? "This course is locked. Contact an admin if you need to make changes."
+          : "";
 
   const baseline = useMemo(() => hydrate(course as Record<string, unknown>), [course]);
   const [form, setForm] = useState<FormState>(baseline);

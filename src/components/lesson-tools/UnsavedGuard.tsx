@@ -100,9 +100,7 @@ export function UnsavedGuardProvider({ children }: { children: React.ReactNode }
     const formControllers = controllers.filter(
       (c): c is CourseFormNavController => c.kind === "course-form",
     );
-    const coverControllers = controllers.filter(
-      (c): c is CoverNavController => c.kind === "cover",
-    );
+    const coverControllers = controllers.filter((c): c is CoverNavController => c.kind === "cover");
     return {
       courseDirty,
       coverBusy,

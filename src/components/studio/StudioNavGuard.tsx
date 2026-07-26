@@ -127,14 +127,10 @@ export function StudioNavGuard() {
           </p>
         )}
         <AlertDialogFooter>
-          {mode === "wait" && (
-            <AlertDialogCancel>Stay here</AlertDialogCancel>
-          )}
+          {mode === "wait" && <AlertDialogCancel>Stay here</AlertDialogCancel>}
           {mode === "cleanup" && (
             <>
-              <AlertDialogCancel disabled={busy !== null}>
-                Stay here
-              </AlertDialogCancel>
+              <AlertDialogCancel disabled={busy !== null}>Stay here</AlertDialogCancel>
               <button
                 type="button"
                 onClick={retryCleanup}
@@ -147,9 +143,7 @@ export function StudioNavGuard() {
           )}
           {mode === "unsaved" && (
             <>
-              <AlertDialogCancel disabled={busy !== null}>
-                Stay here
-              </AlertDialogCancel>
+              <AlertDialogCancel disabled={busy !== null}>Stay here</AlertDialogCancel>
               <button
                 type="button"
                 onClick={discardAndContinue}

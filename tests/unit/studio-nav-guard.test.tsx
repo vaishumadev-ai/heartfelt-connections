@@ -169,9 +169,9 @@ describe("StudioNavGuard", () => {
     };
     render(<Harness registrars={<Registrar id="form" controller={controller} />} />);
     act(() => block());
-    await userEvent.setup().click(
-      await screen.findByRole("button", { name: /save and continue/i }),
-    );
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: /save and continue/i }));
     await waitFor(() =>
       expect(screen.getByTestId("studio-nav-guard-save-error")).toBeInTheDocument(),
     );
@@ -191,9 +191,9 @@ describe("StudioNavGuard", () => {
     };
     render(<Harness registrars={<Registrar id="form" controller={controller} />} />);
     act(() => block());
-    await userEvent.setup().click(
-      await screen.findByRole("button", { name: /discard and continue/i }),
-    );
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: /discard and continue/i }));
     await waitFor(() => expect(proceedSpy).toHaveBeenCalledTimes(1));
     expect(discard).toHaveBeenCalledTimes(1);
   });
@@ -220,9 +220,7 @@ describe("StudioNavGuard", () => {
     };
     render(<Harness registrars={<Registrar id="cover" controller={controller} />} />);
     act(() => block());
-    expect(
-      await screen.findByText(/please wait for the cover operation/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/please wait for the cover operation/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save and continue/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /discard and continue/i })).toBeNull();
     expect(screen.getByRole("button", { name: /stay here/i })).toBeInTheDocument();

@@ -895,6 +895,39 @@ function LessonRow({
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!isEditable || !canMoveUp || isReordering}
+            data-lesson-move-focus={lesson.id}
+            aria-label={`Move ${lesson.title} up`}
+            title={
+              !isEditable
+                ? "Locked while under review or approved"
+                : !canMoveUp
+                  ? "Already at the top"
+                  : "Move lesson up"
+            }
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!isEditable || !canMoveDown || isReordering}
+            aria-label={`Move ${lesson.title} down`}
+            title={
+              !isEditable
+                ? "Locked while under review or approved"
+                : !canMoveDown
+                  ? "Already at the bottom"
+                  : "Move lesson down"
+            }
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => setOpen((v) => !v)}
             className="min-h-11 rounded-full bg-card px-3 py-1.5 text-xs font-semibold"
           >

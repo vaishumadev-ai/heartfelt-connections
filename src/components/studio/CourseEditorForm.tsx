@@ -780,7 +780,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
               });
               setNewLessonTitle("");
             }}
-            className="mt-4 flex gap-2"
+            className="mt-4 flex flex-col gap-2 sm:flex-row"
           >
             <input
               value={newLessonTitle}
@@ -793,7 +793,7 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
               type="submit"
               disabled={!isEditable}
               title={isEditable ? undefined : "Course is locked while under review or approved"}
-              className="flex min-h-11 items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background disabled:opacity-50"
+              className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-background disabled:opacity-50"
             >
               <Plus className="h-4 w-4" /> Add
             </button>

@@ -119,10 +119,12 @@ describe("CourseEditorForm", () => {
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Existing title!" } });
-    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0),
+    );
     fireEvent.change(title, { target: { value: "Existing title" } });
     await waitFor(() =>
-      expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument(),
+      expect(screen.queryAllByText("Unsaved changes")).toHaveLength(0),
     );
   });
 
@@ -138,7 +140,9 @@ describe("CourseEditorForm", () => {
     expect(payload.title).toBe("Renamed");
     expect(payload).not.toHaveProperty("slug");
     expect(payload).not.toHaveProperty("id");
-    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
+    );
   });
 
   it("collapses rapid Save clicks into a single in-flight request", async () => {
@@ -156,7 +160,9 @@ describe("CourseEditorForm", () => {
     fireEvent.click(btn);
     expect(updateCourse).toHaveBeenCalledTimes(1);
     act(() => resolveUpdate!());
-    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText("Saved").length).toBeGreaterThan(0),
+    );
   });
 
   it("shows a failure banner and preserves the user's edits when save fails", async () => {

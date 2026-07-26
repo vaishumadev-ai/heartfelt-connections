@@ -595,6 +595,8 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     const user = userEvent.setup();
     await user.click(btn);
     await user.click(btn); // rapid second click during pending flow
+    // eslint-disable-next-line no-console
+    console.log("DBG add calls=", addLessonBookmarkMock.mock.calls.length, "btn.disabled=", (btn as HTMLButtonElement).disabled, "aria-pressed=", btn.getAttribute("aria-pressed"));
     await waitFor(() =>
       expect(screen.getByTestId("bookmark-button")).toHaveAttribute("aria-pressed", "true"),
     );

@@ -143,7 +143,8 @@ describe("VideoUploader — upload happy path", () => {
     const cfg = capture.opts!.config as any;
     expect(cfg.endpoint).toContain("/storage/v1/upload/resumable");
     expect(cfg.chunkSize).toBe(6 * 1024 * 1024);
-    expect(cfg.headers.Authorization).toBe("Bearer tok-abc");
+    expect(cfg.headers.authorization).toBe("Bearer tok-abc");
+    expect(cfg.headers["x-upsert"]).toBe("false");
     expect(cfg.metadata.bucketName).toBe("course-videos");
     expect(cfg.metadata.contentType).toBe("video/mp4");
   });

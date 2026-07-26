@@ -7,10 +7,10 @@ requires the explicit step below.
 
 ## Required buckets
 
-| Bucket id       | Public | Size limit (bytes) | Allowed MIME types                        |
-| --------------- | ------ | ------------------ | ----------------------------------------- |
-| `course-covers` | false  | 5,242,880 (5 MiB)  | `image/jpeg`, `image/png`, `image/webp`   |
-| `course-videos` | false  | 52,428,800 (50 MiB)| `video/mp4`, `video/webm`                 |
+| Bucket id       | Public | Size limit (bytes)  | Allowed MIME types                      |
+| --------------- | ------ | ------------------- | --------------------------------------- |
+| `course-covers` | false  | 5,242,880 (5 MiB)   | `image/jpeg`, `image/png`, `image/webp` |
+| `course-videos` | false  | 52,428,800 (50 MiB) | `video/mp4`, `video/webm`               |
 
 Both buckets are PRIVATE. There is no permanent public URL for a cover; UI
 code must obtain a short-lived signed URL through the anon or user-scoped
@@ -63,6 +63,6 @@ document.
 2. Create `course-covers` (private) and `course-videos` (private) via the
    Storage API or platform tool.
 3. Confirm `SELECT bucket, file_size_limit, allowed_mime_types FROM
-   public.media_config;` returns the values in the table above.
+public.media_config;` returns the values in the table above.
 4. Confirm the six storage policies above exist on `storage.objects`.
 5. Confirm no policy grants `anon` SELECT on `course-videos`.

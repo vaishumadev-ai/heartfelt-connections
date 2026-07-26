@@ -33,7 +33,10 @@ describe("P0C.1 corrections — readiness contract (static SQL)", () => {
     ["title_too_short", /char_length\(btrim\(coalesce\(_r\.title[^)]*\)\)\)\s*<\s*5/i],
     ["slug_invalid", /slug_invalid/],
     ["subtitle_too_short", /char_length\(btrim\(coalesce\(_r\.subtitle[^)]*\)\)\)\s*<\s*10/i],
-    ["description_too_short", /char_length\(btrim\(coalesce\(_r\.description[^)]*\)\)\)\s*<\s*200/i],
+    [
+      "description_too_short",
+      /char_length\(btrim\(coalesce\(_r\.description[^)]*\)\)\)\s*<\s*200/i,
+    ],
     ["category_missing", /category_missing/],
     ["level_missing", /level_missing/],
     ["language_missing", /language_missing/],
@@ -42,8 +45,14 @@ describe("P0C.1 corrections — readiness contract (static SQL)", () => {
     ["cover_object_missing", /cover_object_missing/],
     ["instructor_name_missing", /instructor_name_missing/],
     ["instructor_title_missing", /instructor_title_missing/],
-    ["instructor_bio_too_short", /char_length\(btrim\(coalesce\(_r\.instructor_bio[^)]*\)\)\)\s*<\s*80/i],
-    ["learning_outcomes_insufficient", /cardinality\(coalesce\(_r\.learn_outcomes[^)]*\)\)\s*<\s*3/i],
+    [
+      "instructor_bio_too_short",
+      /char_length\(btrim\(coalesce\(_r\.instructor_bio[^)]*\)\)\)\s*<\s*80/i,
+    ],
+    [
+      "learning_outcomes_insufficient",
+      /cardinality\(coalesce\(_r\.learn_outcomes[^)]*\)\)\s*<\s*3/i,
+    ],
     ["skills_missing", /cardinality\(coalesce\(_r\.skills[^)]*\)\)\s*<\s*1/i],
     ["requirements_missing", /cardinality\(coalesce\(_r\.requirements[^)]*\)\)\s*<\s*1/i],
     ["audience_missing", /cardinality\(coalesce\(_r\.audience[^)]*\)\)\s*<\s*1/i],
@@ -99,7 +108,10 @@ describe("P0C.1 corrections — readiness contract (static SQL)", () => {
 
   it("uses coalesce + cardinality parity between NULL and empty arrays", () => {
     for (const col of ["learn_outcomes", "skills", "requirements", "audience"]) {
-      const re = new RegExp(`cardinality\\(coalesce\\(_r\\.${col},\\s*'\\{\\}'::text\\[\\]\\)\\)`, "i");
+      const re = new RegExp(
+        `cardinality\\(coalesce\\(_r\\.${col},\\s*'\\{\\}'::text\\[\\]\\)\\)`,
+        "i",
+      );
       expect(sql, `${col} not coalesced`).toMatch(re);
     }
   });
@@ -119,9 +131,7 @@ describe("P0C.1 corrections — submission enforcement (static SQL)", () => {
   const fn = /CREATE OR REPLACE FUNCTION public\.submit_course_for_review[\s\S]*?\$\$;/i.exec(sql)!;
 
   it("recalculates readiness inside the same transaction", () => {
-    expect(fn[0]).toMatch(
-      /FROM\s+public\.evaluate_course_readiness\(_course_id\)/i,
-    );
+    expect(fn[0]).toMatch(/FROM\s+public\.evaluate_course_readiness\(_course_id\)/i);
   });
 
   it("raises a stable course_not_ready error with structured blocker DETAIL", () => {
@@ -282,7 +292,9 @@ describe("P0C.1 corrections — server function refetch (static)", () => {
 describe("P0C.1 corrections — private cover architecture (static)", () => {
   it("no getPublicUrl call targets the course-covers bucket", async () => {
     const walk = async (dir: string): Promise<string[]> => {
-      const entries = await import("node:fs").then((m) => m.promises.readdir(dir, { withFileTypes: true }));
+      const entries = await import("node:fs").then((m) =>
+        m.promises.readdir(dir, { withFileTypes: true }),
+      );
       const out: string[] = [];
       for (const e of entries) {
         const p = join(dir, e.name);
@@ -298,6 +310,9 @@ describe("P0C.1 corrections — private cover architecture (static)", () => {
       if (/getPublicUrl\([^)]*['"]course-covers['"]/i.test(body)) offenders.push(f);
       if (/from\(['"]course-covers['"]\)[\s\S]{0,80}getPublicUrl/i.test(body)) offenders.push(f);
     }
-    expect(offenders, `getPublicUrl used on private bucket in: ${offenders.join(", ")}`).toHaveLength(0);
+    expect(
+      offenders,
+      `getPublicUrl used on private bucket in: ${offenders.join(", ")}`,
+    ).toHaveLength(0);
   });
 });

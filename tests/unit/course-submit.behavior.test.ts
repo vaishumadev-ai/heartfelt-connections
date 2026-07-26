@@ -25,7 +25,8 @@ function makeSupabase(map: Record<string, RpcResult[]>) {
 // Reproduce the submit handler body against an injectable supabase mock.
 // Keeping the handler behaviour under test isolated from TanStack's RPC
 // transport is intentional; we exercise the exact branch logic.
-async function runSubmit(supabase: { rpc: typeof vi.fn extends never ? never : any }, courseId: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runSubmit(supabase: { rpc: any }, courseId: string) {
   // Instructor role check
   const roleRes = await supabase.rpc("current_user_has_role", { _role: "instructor" });
   if (roleRes.error) throw new Error(`Authorization check failed: ${roleRes.error.message}`);

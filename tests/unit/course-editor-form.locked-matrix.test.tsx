@@ -87,13 +87,16 @@ function mount(initial: {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   qc.setQueryData(["my-course", COURSE_ID], { course, lessons });
-  return { qc, ...render(
-    <QueryClientProvider client={qc}>
-      <React.Suspense fallback={null}>
-        <CourseEditorForm courseId={COURSE_ID} />
-      </React.Suspense>
-    </QueryClientProvider>,
-  ) };
+  return {
+    qc,
+    ...render(
+      <QueryClientProvider client={qc}>
+        <React.Suspense fallback={null}>
+          <CourseEditorForm courseId={COURSE_ID} />
+        </React.Suspense>
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 beforeEach(() => {
@@ -108,9 +111,14 @@ beforeEach(() => {
 
 function lesson(id: string, position: number, title = `L${id}`) {
   return {
-    id, title, position,
-    duration_seconds: null, content: null, video_url: null,
-    is_preview: false, module_title: null,
+    id,
+    title,
+    position,
+    duration_seconds: null,
+    content: null,
+    video_url: null,
+    is_preview: false,
+    module_title: null,
   };
 }
 
@@ -214,9 +222,7 @@ describe("Readiness invalidation matrix", () => {
     fireEvent.change(title, { target: { value: "New" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
     await waitFor(() =>
-      expect(
-        screen.getAllByText(/Something went wrong|please try/i).length,
-      ).toBeGreaterThan(0),
+      expect(screen.getAllByText(/Something went wrong|please try/i).length).toBeGreaterThan(0),
     );
     expect(
       spy.mock.calls.some((c) => {

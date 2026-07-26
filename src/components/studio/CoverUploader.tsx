@@ -117,8 +117,7 @@ export function CoverUploader({
 
   // Preview precedence: local blob (optimistic during upload) → signed URL
   // (private bucket) → legacy public URL (rare fallback) → icon fallback.
-  const previewUrl =
-    localPreview ?? (coverStoragePath ? signedUrl : (legacyCoverUrl ?? null));
+  const previewUrl = localPreview ?? (coverStoragePath ? signedUrl : (legacyCoverUrl ?? null));
 
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["my-course", courseId] });
@@ -182,8 +181,7 @@ export function CoverUploader({
         try {
           await attachFn({ data: { courseId, storagePath: path } });
         } catch (err) {
-          const attachMsg =
-            err instanceof Error ? err.message : "Couldn't attach the cover.";
+          const attachMsg = err instanceof Error ? err.message : "Couldn't attach the cover.";
           // Attach failed — cover on the course is unchanged. Try to remove
           // ONLY the freshly-uploaded orphan (never the previously-attached
           // path). If that cleanup itself fails, surface cleanup_pending so
@@ -375,9 +373,8 @@ export function CoverUploader({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Remove this cover?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        The cover will be detached from this course and the file
-                        deleted from storage. You can upload another one at any
-                        time.
+                        The cover will be detached from this course and the file deleted from
+                        storage. You can upload another one at any time.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

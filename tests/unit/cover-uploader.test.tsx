@@ -78,7 +78,10 @@ beforeEach(() => {
 
   getUserImpl.mockResolvedValue({ data: { user: { id: "user-1" } } });
   limitsFn.mockResolvedValue({
-    cover: { fileSizeLimit: 5 * 1024 * 1024, allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"] },
+    cover: {
+      fileSizeLimit: 5 * 1024 * 1024,
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    },
     video: { fileSizeLimit: 50 * 1024 * 1024, allowedMimeTypes: ["video/mp4"] },
   });
   signCoverPreviewFn.mockResolvedValue({ url: "https://signed.example/current", expiresIn: 3600 });
@@ -275,7 +278,9 @@ describe("cover removal with accessible confirmation", () => {
     mount({ coverStoragePath: "user-1/course-abc/current.png" });
     await userEvent.click(screen.getByRole("button", { name: /remove/i }));
     await userEvent.click(await screen.findByRole("button", { name: /remove cover/i }));
-    await waitFor(() => expect(detachFn).toHaveBeenCalledWith({ data: { courseId: "course-abc" } }));
+    await waitFor(() =>
+      expect(detachFn).toHaveBeenCalledWith({ data: { courseId: "course-abc" } }),
+    );
     expect(storageCalls.some((c) => c.op === "remove")).toBe(false);
   });
 
@@ -345,9 +350,7 @@ describe("signed cover preview", () => {
   it("a stale sign response for a prior storage path cannot replace the current preview", async () => {
     // First render with pathA — will resolve slowly.
     let resolveA!: (v: any) => void;
-    signCoverPreviewFn.mockImplementationOnce(
-      () => new Promise((r) => (resolveA = r)),
-    );
+    signCoverPreviewFn.mockImplementationOnce(() => new Promise((r) => (resolveA = r)));
     // Second render with pathB — resolves fast.
     signCoverPreviewFn.mockImplementationOnce(async () => ({
       url: "https://signed.example/B",
@@ -457,7 +460,9 @@ describe("studio integration", () => {
 
   it("locked course disables replace button", () => {
     mount({ isEditable: false });
-    const replace = screen.getByRole("button", { name: /upload cover|replace cover/i }) as HTMLButtonElement;
+    const replace = screen.getByRole("button", {
+      name: /upload cover|replace cover/i,
+    }) as HTMLButtonElement;
     expect(replace.disabled).toBe(true);
   });
 
@@ -491,8 +496,7 @@ describe("state machine visible transitions", () => {
     attachFn.mockImplementation(() => new Promise((r) => (resolveAttach = r)));
 
     mount();
-    const root = () =>
-      document.querySelector('[data-testid="cover-uploader-root"]') as HTMLElement;
+    const root = () => document.querySelector('[data-testid="cover-uploader-root"]') as HTMLElement;
     expect(root().getAttribute("data-state")).toBe("idle");
 
     await chooseFile(pngFile());

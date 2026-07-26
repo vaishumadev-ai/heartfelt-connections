@@ -954,8 +954,24 @@ export const submitCourseForReview = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("submit_course_for_review", {
       _course_id: data.courseId,
     });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    if (error) {
+      // Stable readiness failure: refetch structured blockers so the UI
+      // never has to parse comma-joined messages.
+      if (error.message === "course_not_ready") {
+        const { data: readiness } = await context.supabase.rpc(
+          "evaluate_course_readiness",
+          { _course_id: data.courseId },
+        );
+        const first = Array.isArray(readiness) ? readiness[0] : readiness;
+        const blockers = (first?.blockers ?? []) as Array<{
+          code: string;
+          lesson_id?: string;
+        }>;
+        return { ok: false as const, code: "course_not_ready" as const, blockers };
+      }
+      throw new Error(error.message);
+    }
+    return { ok: true as const };
   });
 
 export const approveCourse = createServerFn({ method: "POST" })

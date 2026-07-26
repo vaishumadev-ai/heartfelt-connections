@@ -602,7 +602,7 @@ export type Database = {
       evaluate_course_readiness: {
         Args: { _course_id: string }
         Returns: {
-          blockers: string[]
+          blockers: Json
           is_ready: boolean
         }[]
       }

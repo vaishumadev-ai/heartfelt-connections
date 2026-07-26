@@ -111,16 +111,16 @@ describe("CourseEditorForm", () => {
     expect((await screen.findByLabelText("Title")) as HTMLInputElement).toHaveValue(
       "Existing title",
     );
-    expect(screen.getByLabelText("Course URL identifier (slug)")).toHaveValue("example-course");
+    // Slug is rendered read-only; find it by its exact current value.
+    expect(screen.getByDisplayValue("example-course")).toHaveAttribute("readonly");
   });
 
   it("marks unsaved changes on edit and clears back to clean when reverted", async () => {
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
-    await userEvent.type(title, "!");
+    fireEvent.change(title, { target: { value: "Existing title!" } });
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
-    await userEvent.clear(title);
-    await userEvent.type(title, "Existing title");
+    fireEvent.change(title, { target: { value: "Existing title" } });
     await waitFor(() =>
       expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument(),
     );
@@ -130,14 +130,12 @@ describe("CourseEditorForm", () => {
     updateCourse.mockResolvedValue(undefined);
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
-    await userEvent.clear(title);
-    await userEvent.type(title, "Renamed");
+    fireEvent.change(title, { target: { value: "Renamed" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
     await waitFor(() => expect(updateCourse).toHaveBeenCalledTimes(1));
     const payload = updateCourse.mock.calls[0][0].data;
     expect(payload.courseId).toBe(COURSE_ID);
     expect(payload.title).toBe("Renamed");
-    // Whitelist: slug must never be forwarded to updateCourse.
     expect(payload).not.toHaveProperty("slug");
     expect(payload).not.toHaveProperty("id");
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
@@ -150,11 +148,12 @@ describe("CourseEditorForm", () => {
     );
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
-    await userEvent.type(title, "!");
+    fireEvent.change(title, { target: { value: "Existing title!" } });
     const btn = screen.getByRole("button", { name: /Save changes/i });
     await userEvent.click(btn);
-    await userEvent.click(btn);
-    await userEvent.click(btn);
+    // Additional clicks while saving must not re-fire updateCourse.
+    fireEvent.click(btn);
+    fireEvent.click(btn);
     expect(updateCourse).toHaveBeenCalledTimes(1);
     act(() => resolveUpdate!());
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
@@ -164,13 +163,10 @@ describe("CourseEditorForm", () => {
     updateCourse.mockRejectedValue(new Error("network down"));
     mount({});
     const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
-    await userEvent.clear(title);
-    await userEvent.type(title, "Dirty value");
+    fireEvent.change(title, { target: { value: "Dirty value" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
     await waitFor(() => expect(screen.getAllByText(/Something went wrong|network|please try/i).length).toBeGreaterThan(0));
-    // Edited value survives.
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Dirty value");
-    // Still marked dirty, so the user can retry.
     expect(screen.getByRole("button", { name: /Save changes/i })).not.toBeDisabled();
   });
 
@@ -178,12 +174,10 @@ describe("CourseEditorForm", () => {
     updateCourse.mockResolvedValue(undefined);
     mount({});
     const submit = screen.getByRole("button", { name: /Submit for review/i });
-    // Initially clean & ready → enabled.
     await waitFor(() => expect(submit).not.toBeDisabled());
-    // Make dirty → disabled.
-    await userEvent.type(await screen.findByLabelText("Title"), "!");
+    const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
+    fireEvent.change(title, { target: { value: "Existing title!" } });
     expect(submit).toBeDisabled();
-    // Save → re-enabled.
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
     await waitFor(() => expect(submit).not.toBeDisabled());
   });
@@ -218,7 +212,8 @@ describe("CourseEditorForm", () => {
   it("does not send slug when saving (regression)", async () => {
     updateCourse.mockResolvedValue(undefined);
     mount({});
-    await userEvent.type(await screen.findByLabelText("Title"), "!");
+    const title = (await screen.findByLabelText("Title")) as HTMLInputElement;
+    fireEvent.change(title, { target: { value: "Existing title!" } });
     await userEvent.click(screen.getByRole("button", { name: /Save changes/i }));
     await waitFor(() => expect(updateCourse).toHaveBeenCalled());
     const payload = updateCourse.mock.calls[0][0].data;
@@ -249,13 +244,20 @@ describe("CourseEditorForm", () => {
     submitCourseForReview.mockResolvedValue({
       ok: false,
       code: "course_not_ready",
-      blockers: [{ code: "missing_title", severity: "critical", message: "Add a title" }],
+      blockers: [
+        {
+          code: "missing_title",
+          severity: "critical",
+          group: "basics",
+          message: "Add a title",
+          target: "field-title",
+        },
+      ],
     });
     mount({});
     await screen.findByLabelText("Title");
     await userEvent.click(screen.getByRole("button", { name: /Submit for review/i }));
     await waitFor(() => expect(submitCourseForReview).toHaveBeenCalledTimes(1));
-    // Submit should now be disabled because blockers appeared.
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Submit for review/i })).toBeDisabled(),
     );

@@ -122,25 +122,27 @@ describe("auth.tsx behavioral", () => {
   });
 
   it("resend calls supabase.auth.resend exactly once and cooldown disables the button", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     searchState = { mode: "signup" };
     signUp.mockResolvedValue({ data: { session: null, user: { id: "u" } }, error: null });
     resend.mockResolvedValue({ error: null });
     renderPage();
     await act(async () => {
       await fillAndSubmit("signup", { email: "a@b.co", password: "password123" });
+      await vi.advanceTimersByTimeAsync(0);
     });
-    const resendBtn = await screen.findByRole("button", { name: /resend in \d+s/i });
+    const resendBtn = screen.getByRole("button", { name: /resend in \d+s/i });
     // Cooldown active immediately after showing check-email screen.
     expect(resendBtn).toBeDisabled();
     // Advance past cooldown.
     await act(async () => {
-      vi.advanceTimersByTime(46_000);
+      await vi.advanceTimersByTimeAsync(46_000);
     });
-    const enabled = await screen.findByRole("button", { name: /resend email/i });
+    const enabled = screen.getByRole("button", { name: /resend email/i });
     expect(enabled).not.toBeDisabled();
     await act(async () => {
       fireEvent.click(enabled);
+      await vi.advanceTimersByTimeAsync(0);
     });
     expect(resend).toHaveBeenCalledTimes(1);
     expect(resend).toHaveBeenCalledWith(expect.objectContaining({ type: "signup", email: "a@b.co" }));

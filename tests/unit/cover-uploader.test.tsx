@@ -422,6 +422,10 @@ describe("media validation", () => {
       video: { fileSizeLimit: 1, allowedMimeTypes: [] },
     });
     mount();
+    // Wait for the media-limits query to resolve so validation uses the
+    // DB-returned allowlist, not the compiled fallback.
+    await waitFor(() => expect(limitsFn).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
     const input = screen.getByLabelText("Choose a cover image") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [pngFile(1024, "x.jpg", "image/jpeg")] } });
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());

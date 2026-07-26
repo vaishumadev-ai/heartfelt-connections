@@ -315,9 +315,18 @@ export function CourseEditorForm({ courseId }: CourseEditorFormProps) {
     const id = pendingFocusLessonId.current;
     if (!id) return;
     if (reorder.isPending) return;
-    const btn =
-      document.querySelector<HTMLButtonElement>(`[data-lesson-move-focus="${id}"]`) ?? null;
-    if (btn) btn.focus();
+    // Prefer the Move-up button, but if it is disabled (first position) fall
+    // back to the row wrapper. HTMLButtonElement.focus() is a no-op on a
+    // disabled button, so we must detect and reroute focus explicitly.
+    const btn = document.querySelector<HTMLButtonElement>(
+      `[data-lesson-move-focus="${id}"]`,
+    );
+    if (btn && !btn.disabled) {
+      btn.focus();
+    } else {
+      const row = document.querySelector<HTMLElement>(`[data-lesson-row-focus="${id}"]`);
+      row?.focus();
+    }
     pendingFocusLessonId.current = null;
   }, [lessons, reorder.isPending]);
 

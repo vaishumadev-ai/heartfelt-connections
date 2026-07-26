@@ -26,6 +26,7 @@ const submitCourseForReview = vi.fn();
 const getCourseReadiness = vi.fn();
 const upsertLesson = vi.fn();
 const deleteLesson = vi.fn();
+const reorderLessons = vi.fn();
 
 vi.mock("@/lib/courses.functions", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("@/lib/courses.functions");
@@ -37,6 +38,7 @@ vi.mock("@/lib/courses.functions", async () => {
     getCourseReadiness: (...a: any[]) => getCourseReadiness(...a),
     upsertLesson: (...a: any[]) => upsertLesson(...a),
     deleteLesson: (...a: any[]) => deleteLesson(...a),
+    reorderLessons: (...a: any[]) => reorderLessons(...a),
   };
 });
 
@@ -103,6 +105,7 @@ beforeEach(() => {
   getCourseReadiness.mockReset();
   upsertLesson.mockReset();
   deleteLesson.mockReset();
+  reorderLessons.mockReset();
 });
 
 describe("CourseEditorForm", () => {

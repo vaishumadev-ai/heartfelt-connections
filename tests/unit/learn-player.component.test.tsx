@@ -236,6 +236,11 @@ describe("Lesson player — completion flow", () => {
     const btn = await screen.findByRole("button", { name: /mark complete/i });
     const user = userEvent.setup();
     await user.click(btn);
+    // eslint-disable-next-line no-console
+    console.log("DBG add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", btn.getAttribute("aria-pressed"));
+    await new Promise((r) => setTimeout(r, 50));
+    // eslint-disable-next-line no-console
+    console.log("DBG after wait add calls=", addLessonBookmarkMock.mock.calls.length, "aria-pressed=", screen.getByTestId("bookmark-button").getAttribute("aria-pressed"));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /mark complete/i })).not.toBeDisabled(),
     );

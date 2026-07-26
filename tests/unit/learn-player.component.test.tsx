@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -705,7 +705,7 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
     expect(navigateSpy).not.toHaveBeenCalled();
     // Confirm discard
-    await user.click(screen.getByRole("button", { name: /discard|leave|continue/i }));
+    await user.click(screen.getByRole("button", { name: /discard and navigate/i }));
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
   });
 });

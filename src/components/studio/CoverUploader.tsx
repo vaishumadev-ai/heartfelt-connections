@@ -14,6 +14,7 @@ import {
   COVER_MAX_BYTES,
   COVER_VALIDATION_MESSAGE,
   type CoverValidationError,
+  decodeImage,
   removeObjectStrict,
   uploadCoverToStorage,
   validateCoverFile,
@@ -38,7 +39,13 @@ type UploadState =
   | { kind: "replacing"; path: string }
   | { kind: "removing" }
   | { kind: "failed"; message: string }
-  | { kind: "cleanup_pending"; path: string; message: string };
+  | { kind: "cleanup_pending"; path: string };
+
+// Generic operator-safe copy shown when a compensating Storage delete cannot
+// complete. The exact orphan path is kept in private component state and NEVER
+// rendered so it can't leak to the DOM, logs, error boundaries, or devtools.
+const CLEANUP_PENDING_COPY =
+  "The cover was saved, but an older file still needs cleanup. Retry cleanup.";
 
 export type CoverUploaderProps = {
   courseId: string;
@@ -144,11 +151,32 @@ export function CoverUploader({
       const replacing = !!coverStoragePath;
       setState({ kind: "validating" });
       try {
-        const v = validateCoverFile(file);
+        // Fail-closed: without DB-driven limits we cannot make a safe upload
+        // decision. `getMediaLimits` returns a compiled fallback on RPC
+        // error, but the query itself may still be pending or errored.
+        const dbLimits = limitsQ.data?.cover ?? null;
+        if (limitsQ.isError || !dbLimits) {
+          setState({
+            kind: "failed",
+            message: COVER_VALIDATION_MESSAGE.config_unavailable,
+          });
+          return;
+        }
+        const v = validateCoverFile(file, dbLimits);
         if (!v.ok) {
           setState({
             kind: "failed",
             message: COVER_VALIDATION_MESSAGE[v.code as CoverValidationError],
+          });
+          return;
+        }
+        // Decode the image to prove it isn't corrupt and read dimensions.
+        // Non-16:9 is a soft recommendation and does NOT block upload.
+        const decoded = await decodeImage(file);
+        if (!decoded.ok) {
+          setState({
+            kind: "failed",
+            message: COVER_VALIDATION_MESSAGE[decoded.code],
           });
           return;
         }
@@ -159,7 +187,16 @@ export function CoverUploader({
           setState({ kind: "failed", message: "Please sign in again to upload." });
           return;
         }
-        const path = buildCoverObjectPath({ userId: user.id, courseId, ext: v.ext });
+        let path: string;
+        try {
+          path = buildCoverObjectPath({ userId: user.id, courseId, ext: v.ext });
+        } catch {
+          setState({
+            kind: "failed",
+            message: COVER_VALIDATION_MESSAGE.config_unavailable,
+          });
+          return;
+        }
         // Optimistic local preview so the instructor sees their pick instantly.
         try {
           setBlobPreview(URL.createObjectURL(file));
@@ -178,39 +215,51 @@ export function CoverUploader({
           return;
         }
         setState({ kind: replacing ? "replacing" : "attaching", path });
+        let previousStoragePath: string | null = null;
         try {
-          await attachFn({ data: { courseId, storagePath: path } });
+          const res = await attachFn({ data: { courseId, storagePath: path } });
+          previousStoragePath =
+            (res && typeof (res as { previousStoragePath?: unknown }).previousStoragePath === "string"
+              ? (res as { previousStoragePath: string }).previousStoragePath
+              : null) ?? null;
         } catch (err) {
           const attachMsg = err instanceof Error ? err.message : "Couldn't attach the cover.";
           // Attach failed — cover on the course is unchanged. Try to remove
           // ONLY the freshly-uploaded orphan (never the previously-attached
           // path). If that cleanup itself fails, surface cleanup_pending so
-          // the user can retry the exact recorded path.
+          // the user can retry cleanup of the recorded (but never-displayed)
+          // orphan path.
           try {
             await removeObjectStrict(supabase, path);
             setBlobPreview(null);
             setState({ kind: "failed", message: attachMsg });
           } catch {
             setBlobPreview(null);
-            setState({
-              kind: "cleanup_pending",
-              path,
-              message: `${attachMsg} An orphan upload could not be cleaned up automatically.`,
-            });
+            setState({ kind: "cleanup_pending", path });
           }
           return;
         }
-        // Attach succeeded → the signed-URL effect will fetch the fresh URL
-        // for the new coverStoragePath. Drop the local blob only after that
-        // fetch (see effect below) to avoid a flash of "No cover yet".
+        // Attach succeeded → the new cover is authoritative. Refresh caches
+        // so the fresh signed URL replaces the optimistic preview. Then, if
+        // the RPC handed us a previously-attached path, run the compensating
+        // Storage delete. Object-deletion failure here MUST NOT roll back
+        // the attach; the new cover stays visible and we surface a
+        // cleanup_pending retry with the previous (private) path.
         setState({ kind: "ready" });
         invalidateAll();
+        if (previousStoragePath) {
+          try {
+            await removeObjectStrict(supabase, previousStoragePath);
+          } catch {
+            setState({ kind: "cleanup_pending", path: previousStoragePath });
+          }
+        }
       } finally {
         inFlight.current = false;
         if (inputRef.current) inputRef.current.value = "";
       }
     },
-    [attachFn, courseId, coverStoragePath, invalidateAll, setBlobPreview],
+    [attachFn, courseId, coverStoragePath, invalidateAll, limitsQ.data, limitsQ.isError, setBlobPreview],
   );
 
   // Once the signed URL for the newly-attached cover has arrived, drop the
@@ -221,21 +270,39 @@ export function CoverUploader({
 
   const removeMut = useMutation({
     mutationFn: async () => {
-      if (inFlight.current) return;
+      if (inFlight.current) return { previousStoragePath: null as string | null };
       inFlight.current = true;
       setState({ kind: "removing" });
       try {
-        // detach RPC handles storage deletion server-side, atomically with
-        // clearing cover_storage_path. On its failure we do NOT touch Storage.
-        await detachFn({ data: { courseId } });
+        // The detach RPC clears cover_storage_path in Postgres and returns
+        // the previously-attached storage path. Physical object deletion is
+        // a client-side compensating step performed only AFTER the DB
+        // commits. If the object delete fails, the course is safely
+        // detached and the UI enters cleanup_pending for retry.
+        const res = await detachFn({ data: { courseId } });
+        const previousStoragePath =
+          (res && typeof (res as { previousStoragePath?: unknown }).previousStoragePath ===
+          "string"
+            ? (res as { previousStoragePath: string }).previousStoragePath
+            : null) ?? null;
+        return { previousStoragePath };
       } finally {
         inFlight.current = false;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (res) => {
       setBlobPreview(null);
-      setState({ kind: "idle" });
       invalidateAll();
+      if (res?.previousStoragePath) {
+        try {
+          await removeObjectStrict(supabase, res.previousStoragePath);
+          setState({ kind: "idle" });
+        } catch {
+          setState({ kind: "cleanup_pending", path: res.previousStoragePath });
+        }
+      } else {
+        setState({ kind: "idle" });
+      }
     },
     onError: (err) => {
       setState({
@@ -251,19 +318,10 @@ export function CoverUploader({
     },
     onSuccess: () => setState({ kind: "idle" }),
     onError: (err) => {
-      // Stay in cleanup_pending; just update the message so the user knows
-      // the retry didn't work. Never lose the tracked path.
-      setState((s) =>
-        s.kind === "cleanup_pending"
-          ? {
-              ...s,
-              message:
-                err instanceof Error
-                  ? `Cleanup retry failed: ${err.message}`
-                  : "Cleanup retry failed.",
-            }
-          : s,
-      );
+      // Stay in cleanup_pending with the same (never-rendered) path so the
+      // user can retry again. We deliberately do NOT surface the raw error
+      // message: it can contain Storage/PostgREST internals.
+      void err;
     },
   });
 
@@ -303,7 +361,7 @@ export function CoverUploader({
     replacing: "Replacing cover…",
     removing: "Removing cover…",
     failed: state.kind === "failed" ? state.message : null,
-    cleanup_pending: state.kind === "cleanup_pending" ? state.message : null,
+    cleanup_pending: null,
   };
 
   return (
@@ -400,7 +458,7 @@ export function CoverUploader({
           )}
           {state.kind === "cleanup_pending" && (
             <div role="alert" className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">
-              <p>{state.message}</p>
+              <p>{CLEANUP_PENDING_COPY}</p>
               <button
                 type="button"
                 onClick={() => retryCleanup.mutate(state.path)}

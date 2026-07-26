@@ -65,28 +65,33 @@ export const attachCourseCover = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string; storagePath: string }) => d)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("attach_course_cover", {
+    const { data: prev, error } = await context.supabase.rpc("attach_course_cover", {
       _course_id: data.courseId,
       _path: data.storagePath,
     });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const previousStoragePath =
+      typeof prev === "string" && prev.length > 0 ? prev : null;
+    return { ok: true as const, previousStoragePath };
   });
 
 /**
- * Detach the current cover from a course and delete the underlying object.
- * The RPC handles ordering: detach the metadata first, then remove the file
- * so a mid-flight failure never leaves a course pointing at a deleted key.
+ * Detach the current cover from a course and return the previously-attached
+ * storage path so the caller-scoped Storage client can delete it as a
+ * compensating step. The database change commits regardless of whether the
+ * subsequent object deletion succeeds.
  */
 export const detachCourseCover = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("detach_course_cover", {
+    const { data: prev, error } = await context.supabase.rpc("detach_course_cover", {
       _course_id: data.courseId,
     });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const previousStoragePath =
+      typeof prev === "string" && prev.length > 0 ? prev : null;
+    return { ok: true as const, previousStoragePath };
   });
 
 /**

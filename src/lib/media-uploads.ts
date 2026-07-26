@@ -29,33 +29,77 @@ export type CoverValidationError =
   | "empty_file"
   | "unsupported_type"
   | "file_too_large"
-  | "invalid_input";
+  | "invalid_input"
+  | "invalid_dimensions"
+  | "undecodable_image"
+  | "config_unavailable";
 
 export type CoverValidationResult =
   | { ok: true; mime: CoverMime; ext: string; size: number }
   | { ok: false; code: CoverValidationError };
 
+/**
+ * The bucket accepts only the exact IANA image MIMEs listed in
+ * COVER_ALLOWED_MIMES. `image/jpg` is a common but non-standard string that
+ * some browsers/tools emit — we deliberately REJECT it rather than silently
+ * rewriting it to `image/jpeg`, so the accepted set at the UI matches the
+ * accepted set at Storage exactly.
+ */
 export function normalizeMime(raw: string | undefined | null): CoverMime | null {
   if (!raw) return null;
-  const m = raw.toLowerCase();
-  if (m === "image/jpg" || m === "image/jpeg") return "image/jpeg";
+  const m = raw.toLowerCase().trim();
+  if (m === "image/jpeg") return "image/jpeg";
   if (m === "image/png") return "image/png";
   if (m === "image/webp") return "image/webp";
   return null;
 }
 
-export function validateCoverFile(file: File | null | undefined): CoverValidationResult {
+export function validateCoverFile(
+  file: File | null | undefined,
+  limits?: { fileSizeLimit: number; allowedMimeTypes: readonly string[] } | null,
+): CoverValidationResult {
   if (!file) return { ok: false, code: "invalid_input" };
   if (file.size === 0) return { ok: false, code: "empty_file" };
+  // If DB-driven limits are provided but malformed, fail closed rather than
+  // silently falling back to the compiled default.
+  if (limits !== undefined) {
+    if (
+      !limits ||
+      typeof limits.fileSizeLimit !== "number" ||
+      !Number.isFinite(limits.fileSizeLimit) ||
+      limits.fileSizeLimit <= 0 ||
+      !Array.isArray(limits.allowedMimeTypes) ||
+      limits.allowedMimeTypes.length === 0
+    ) {
+      return { ok: false, code: "config_unavailable" };
+    }
+  }
   const mime = normalizeMime(file.type);
   if (!mime) return { ok: false, code: "unsupported_type" };
-  if (file.size > COVER_MAX_BYTES) return { ok: false, code: "file_too_large" };
+  const allowed = limits ? limits.allowedMimeTypes : COVER_ALLOWED_MIMES;
+  if (!allowed.includes(mime)) return { ok: false, code: "unsupported_type" };
+  const cap = limits ? limits.fileSizeLimit : COVER_MAX_BYTES;
+  if (file.size > cap) return { ok: false, code: "file_too_large" };
   return { ok: true, mime, ext: COVER_EXT_BY_MIME[mime], size: file.size };
+}
+
+// Standard UUID v1–v5 shape. We validate BOTH the caller-supplied user and
+// course IDs so a malformed value can never be smuggled into the object key
+// (e.g. `..`, slashes, encoded separators, `user-1` style test fixtures).
+export const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v);
 }
 
 /**
  * Build a deterministic-but-fresh object path scoped to the caller. Uses the
  * user id and course id so RLS policies keyed on `auth.uid()` will match.
+ *
+ * Throws if `userId` or `courseId` isn't a well-formed UUID, or if `ext`
+ * isn't one of the derived allowlist extensions. This prevents path
+ * traversal, slash injection, and accidental filename leakage.
  */
 export function buildCoverObjectPath(input: {
   userId: string;
@@ -64,7 +108,12 @@ export function buildCoverObjectPath(input: {
   /** Random object id. Pass a `crypto.randomUUID()` in prod. Tests may override. */
   id?: string;
 }): string {
+  if (!isUuid(input.userId)) throw new Error("invalid_user_id");
+  if (!isUuid(input.courseId)) throw new Error("invalid_course_id");
+  const allowedExts = Object.values(COVER_EXT_BY_MIME) as string[];
+  if (!allowedExts.includes(input.ext)) throw new Error("invalid_extension");
   const id = input.id ?? cryptoRandomUUID();
+  if (!isUuid(id)) throw new Error("invalid_object_id");
   return `${input.userId}/${input.courseId}/${id}.${input.ext}`;
 }
 
@@ -85,7 +134,55 @@ export const COVER_VALIDATION_MESSAGE: Record<CoverValidationError, string> = {
   unsupported_type: "Please upload a JPEG, PNG, or WebP image.",
   file_too_large: "That image is over 5 MB. Please compress it and try again.",
   invalid_input: "We couldn't read that file. Please try selecting it again.",
+  invalid_dimensions: "That image doesn't have valid dimensions. Try a different file.",
+  undecodable_image: "We couldn't decode that image. Please export it again and retry.",
+  config_unavailable:
+    "We couldn't load the cover configuration. Please refresh and try again.",
 };
+
+/**
+ * Decode the image in the browser to prove it's not corrupt and read its
+ * intrinsic dimensions. Returns width/height on success, or a validation
+ * error code on failure. The temporary object URL is revoked before the
+ * function returns so it can't leak.
+ */
+export async function decodeImage(
+  file: File,
+): Promise<
+  | { ok: true; width: number; height: number; is16by9: boolean }
+  | { ok: false; code: "undecodable_image" | "invalid_dimensions" }
+> {
+  const g = globalThis as {
+    URL?: { createObjectURL?: (b: Blob) => string; revokeObjectURL?: (u: string) => void };
+    Image?: new () => HTMLImageElement;
+  };
+  if (!g.URL?.createObjectURL || !g.Image) {
+    // No decoder available in this runtime (SSR/edge). Skip decode; the
+    // upload path still enforces size + MIME.
+    return { ok: true, width: 0, height: 0, is16by9: true };
+  }
+  const url = g.URL.createObjectURL(file);
+  try {
+    const img = new g.Image();
+    const loaded = await new Promise<boolean>((resolve) => {
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+    if (!loaded) return { ok: false, code: "undecodable_image" };
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h || w <= 0 || h <= 0) return { ok: false, code: "invalid_dimensions" };
+    const ratio = w / h;
+    return { ok: true, width: w, height: h, is16by9: Math.abs(ratio - 16 / 9) < 0.02 };
+  } finally {
+    try {
+      g.URL.revokeObjectURL?.(url);
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 /**
  * Upload the cover file to Storage. Uses `upsert: false` so a duplicate key

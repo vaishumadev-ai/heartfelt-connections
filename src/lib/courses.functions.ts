@@ -631,6 +631,121 @@ export const revokeInstructorRole = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type AdminInstructorApplication = {
+  application_id: string;
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  status: "pending" | "approved" | "rejected" | "withdrawn";
+  application_reason: string | null;
+  decision_reason: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+  is_current_instructor: boolean;
+};
+
+export type AdminInstructorApplicationsPage = {
+  rows: AdminInstructorApplication[];
+  total: number;
+};
+
+const ADMIN_APP_STATUSES = ["pending", "approved", "rejected", "withdrawn"] as const;
+export type AdminApplicationStatus = (typeof ADMIN_APP_STATUSES)[number];
+
+export const listInstructorApplicationsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: { status?: AdminApplicationStatus | null; limit?: number; offset?: number } | undefined) => {
+      const raw = d ?? {};
+      const status =
+        raw.status && ADMIN_APP_STATUSES.includes(raw.status) ? raw.status : null;
+      const rawLimit = Number.isFinite(raw.limit as number) ? Number(raw.limit) : 25;
+      const rawOffset = Number.isFinite(raw.offset as number) ? Number(raw.offset) : 0;
+      const limit = Math.min(Math.max(Math.trunc(rawLimit), 1), 100);
+      const offset = Math.max(Math.trunc(rawOffset), 0);
+      return { status, limit, offset };
+    },
+  )
+  .handler(async ({ data, context }): Promise<AdminInstructorApplicationsPage> => {
+    const { error, data: rows } = await context.supabase.rpc(
+      "list_instructor_applications_admin",
+      {
+        _status: data.status ?? undefined,
+        _limit: data.limit,
+        _offset: data.offset,
+      },
+    );
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []) as Array<{
+      application_id: string;
+      user_id: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      status: AdminApplicationStatus;
+      application_reason: string | null;
+      decision_reason: string | null;
+      decided_by: string | null;
+      decided_at: string | null;
+      created_at: string;
+      updated_at: string;
+      is_current_instructor: boolean;
+      total_count: number | string;
+    }>;
+    const total = list.length > 0 ? Number(list[0].total_count ?? 0) : 0;
+    return {
+      rows: list.map((r) => ({
+        application_id: r.application_id,
+        user_id: r.user_id,
+        display_name: r.display_name,
+        avatar_url: r.avatar_url,
+        status: r.status,
+        application_reason: r.application_reason,
+        decision_reason: r.decision_reason,
+        decided_by: r.decided_by,
+        decided_at: r.decided_at,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        is_current_instructor: !!r.is_current_instructor,
+      })),
+      total: Number.isFinite(total) ? total : 0,
+    };
+  });
+
+/**
+ * Stable, admin-safe copy for instructor governance mutations and reads.
+ * Raw Postgres/Supabase messages are never rendered to the UI.
+ */
+export function mapInstructorGovernanceError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const s = raw.toLowerCase();
+  if (s.includes("reason required")) {
+    return "A reason is required.";
+  }
+  if (
+    s.includes("not authenticated") ||
+    s.includes("unauthorized") ||
+    s.includes("28000")
+  ) {
+    return "Please sign in and try again.";
+  }
+  if (s.includes("admin only") || s.includes("forbidden") || s.includes("42501")) {
+    return "You don't have permission to perform this action.";
+  }
+  if (s.includes("application not found") || s.includes("42704")) {
+    return "This application could not be found.";
+  }
+  if (
+    s.includes("application not pending") ||
+    s.includes("only pending applications") ||
+    s.includes("22023")
+  ) {
+    return "This application is no longer pending.";
+  }
+  return "Something went wrong. Please try again in a moment.";
+}
+
 export type MyCourse = {
   id: string;
   slug: string;

@@ -591,6 +591,7 @@ describe("Lesson player — Phase 3B notes & bookmarks", () => {
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     const btn = await screen.findByTestId("bookmark-button");
     expect(btn).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(btn).not.toBeDisabled());
     const user = userEvent.setup();
     await user.click(btn);
     await user.click(btn); // rapid second click during pending flow

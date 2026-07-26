@@ -630,6 +630,28 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_instructor_applications_admin: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _status?: Database["public"]["Enums"]["instructor_application_status"]
+        }
+        Returns: {
+          application_id: string
+          application_reason: string
+          avatar_url: string
+          created_at: string
+          decided_at: string
+          decided_by: string
+          decision_reason: string
+          display_name: string
+          is_current_instructor: boolean
+          status: Database["public"]["Enums"]["instructor_application_status"]
+          total_count: number
+          updated_at: string
+          user_id: string
+        }[]
+      }
       reject_course: {
         Args: { _course_id: string; _reason: string }
         Returns: undefined

@@ -4,6 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { ArrowLeft, ShieldCheck, UserCheck, UserX, Ban, Loader2 } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   listInstructorApplicationsAdmin,
   approveInstructorApplication,
   rejectInstructorApplication,

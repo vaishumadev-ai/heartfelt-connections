@@ -143,7 +143,10 @@ describe("listInstructorApplicationsAdmin — failure surface", () => {
   it("propagates DB failures as an Error that the mapper can classify without leaking raw details", async () => {
     const { supabase } = makeSupabase({
       data: null,
-      error: { message: "permission denied for function public.list_instructor_applications_admin", code: "42501" },
+      error: {
+        message: "permission denied for function public.list_instructor_applications_admin",
+        code: "42501",
+      },
     });
     bind({ supabase, userId: "u", claims: {} });
     await expect(

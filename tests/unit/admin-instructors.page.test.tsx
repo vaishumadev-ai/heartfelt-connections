@@ -132,9 +132,7 @@ describe("AdminInstructors page — tabs and pagination", () => {
     // Wait for the query to resolve and pagination controls to render.
     const next = await screen.findByRole("button", { name: /next/i });
     fireEvent.click(next);
-    await waitFor(() =>
-      expect(list.mock.calls.some((c) => c[0].data.offset === 25)).toBe(true),
-    );
+    await waitFor(() => expect(list.mock.calls.some((c) => c[0].data.offset === 25)).toBe(true));
     fireEvent.click(screen.getByRole("tab", { name: /approved/i }));
     await waitFor(() => {
       const last = list.mock.calls[list.mock.calls.length - 1][0].data;

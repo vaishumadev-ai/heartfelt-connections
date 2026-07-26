@@ -44,14 +44,18 @@ describe("list_instructor_applications_admin migration contract", () => {
   });
 
   it("revokes EXECUTE from PUBLIC and anon", () => {
-    const revoke = sql.match(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.list_instructor_applications_admin[\s\S]*?;/i);
+    const revoke = sql.match(
+      /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.list_instructor_applications_admin[\s\S]*?;/i,
+    );
     expect(revoke).not.toBeNull();
     expect(revoke![0]).toMatch(/FROM\s+PUBLIC/i);
     expect(revoke![0]).toMatch(/\banon\b/i);
   });
 
   it("grants EXECUTE to authenticated only", () => {
-    const grant = sql.match(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.list_instructor_applications_admin[\s\S]*?;/i);
+    const grant = sql.match(
+      /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.list_instructor_applications_admin[\s\S]*?;/i,
+    );
     expect(grant).not.toBeNull();
     // Extract just the TO clause to avoid matching "public.list_..." in the function name.
     const toClause = grant![0].match(/TO\s+([^;]+);/i);
@@ -74,7 +78,9 @@ describe("list_instructor_applications_admin migration contract", () => {
   });
 
   it("adds user_id FK to auth.users(id) ON DELETE CASCADE", () => {
-    expect(sql).toMatch(/FOREIGN\s+KEY\s*\(\s*user_id\s*\)\s*REFERENCES\s+auth\.users\s*\(\s*id\s*\)\s+ON\s+DELETE\s+CASCADE/i);
+    expect(sql).toMatch(
+      /FOREIGN\s+KEY\s*\(\s*user_id\s*\)\s*REFERENCES\s+auth\.users\s*\(\s*id\s*\)\s+ON\s+DELETE\s+CASCADE/i,
+    );
   });
 
   it("does not drop or weaken owner-only SELECT policy on instructor_applications", () => {

@@ -479,7 +479,10 @@ function RejectDialog({
       pending={mutation.isPending}
       onClose={onClose}
     >
-      <label htmlFor="reject-reason" className="mt-4 block text-xs font-semibold text-muted-foreground">
+      <label
+        htmlFor="reject-reason"
+        className="mt-4 block text-xs font-semibold text-muted-foreground"
+      >
         Reason (required)
       </label>
       <textarea
@@ -563,7 +566,10 @@ function RevokeDialog({
       pending={mutation.isPending}
       onClose={onClose}
     >
-      <label htmlFor="revoke-reason" className="mt-4 block text-xs font-semibold text-muted-foreground">
+      <label
+        htmlFor="revoke-reason"
+        className="mt-4 block text-xs font-semibold text-muted-foreground"
+      >
         Reason (required)
       </label>
       <textarea

@@ -105,12 +105,12 @@ export function buildVideoObjectPath(input: {
   ext: string;
   id?: string;
 }): string {
-  if (!isUuidExported(input.userId)) throw new Error("invalid_user_id");
-  if (!isUuidExported(input.courseId)) throw new Error("invalid_course_id");
+  if (!isUuid(input.userId)) throw new Error("invalid_user_id");
+  if (!isUuid(input.courseId)) throw new Error("invalid_course_id");
   const allowedExts = Object.values(VIDEO_EXT_BY_MIME) as string[];
   if (!allowedExts.includes(input.ext)) throw new Error("invalid_extension");
-  const id = input.id ?? cryptoRandomUUIDExported();
-  if (!isUuidExported(id)) throw new Error("invalid_object_id");
+  const id = input.id ?? cryptoRandomUUID();
+  if (!isUuid(id)) throw new Error("invalid_object_id");
   return `${input.userId}/${input.courseId}/${id}.${input.ext}`;
 }
 

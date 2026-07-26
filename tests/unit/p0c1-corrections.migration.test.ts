@@ -286,10 +286,6 @@ describe("P0C.1 corrections — server function refetch (static)", () => {
 });
 
 describe("P0C.1 corrections — private cover architecture (static)", () => {
-  const clientSrc = readFileSync(join(process.cwd(), "src"), { encoding: undefined });
-  // Grep across src/ for forbidden public-URL usage on the private cover
-  // bucket. Reading the whole src/ as a directory string via fs is not
-  // supported here; do a filesystem walk instead.
   it("no getPublicUrl call targets the course-covers bucket", async () => {
     const walk = async (dir: string): Promise<string[]> => {
       const entries = await import("node:fs").then((m) => m.promises.readdir(dir, { withFileTypes: true }));
@@ -309,7 +305,5 @@ describe("P0C.1 corrections — private cover architecture (static)", () => {
       if (/from\(['"]course-covers['"]\)[\s\S]{0,80}getPublicUrl/i.test(body)) offenders.push(f);
     }
     expect(offenders, `getPublicUrl used on private bucket in: ${offenders.join(", ")}`).toHaveLength(0);
-    // The variable was unused in the module body; reference to keep TS happy.
-    void clientSrc;
   });
 });

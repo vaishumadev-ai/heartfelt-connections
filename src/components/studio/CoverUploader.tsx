@@ -111,6 +111,12 @@ export function CoverUploader({
   useEffect(() => {
     return guard.registerDirtyChecker(`studio-cover-${courseId}`, () => unsafeRef.current);
   }, [guard, courseId]);
+
+  // Nav controller: exposes a status (safe/busy/cleanup_pending) and a
+  // retryCleanup action the route-level StudioNavGuard can drive from a
+  // single dialog. The private storage path stays inside this component.
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const localPreviewRef = useRef<string | null>(null);
@@ -360,6 +366,38 @@ export function CoverUploader({
       void err;
     },
   });
+
+  const retryCleanupMutateAsyncRef = useRef(retryCleanup.mutateAsync);
+  retryCleanupMutateAsyncRef.current = retryCleanup.mutateAsync;
+  useEffect(() => {
+    return guard.registerNavController(`studio-cover-${courseId}`, {
+      kind: "cover",
+      status: () => {
+        const k = stateRef.current.kind;
+        if (k === "cleanup_pending") return "cleanup_pending";
+        if (
+          k === "validating" ||
+          k === "uploading" ||
+          k === "attaching" ||
+          k === "replacing" ||
+          k === "removing"
+        ) {
+          return "busy";
+        }
+        return "safe";
+      },
+      retryCleanup: async () => {
+        const s = stateRef.current;
+        if (s.kind !== "cleanup_pending") return true;
+        try {
+          await retryCleanupMutateAsyncRef.current(s.path);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    });
+  }, [guard, courseId]);
 
   useEffect(() => {
     return () => {

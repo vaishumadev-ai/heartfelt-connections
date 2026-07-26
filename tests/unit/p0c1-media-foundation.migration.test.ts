@@ -98,9 +98,7 @@ describe("P0C.1 media schema + RPCs", () => {
   });
 
   it("get_media_limits reads from media_config (not storage.buckets)", () => {
-    const fn = sql.match(
-      /CREATE OR REPLACE FUNCTION public\.get_media_limits[\s\S]*?\$\$;/i,
-    );
+    const fn = sql.match(/CREATE OR REPLACE FUNCTION public\.get_media_limits[\s\S]*?\$\$;/i);
     expect(fn).not.toBeNull();
     expect(fn![0]).toMatch(/FROM\s+public\.media_config/i);
     expect(fn![0]).not.toMatch(/FROM\s+storage\.buckets/i);
@@ -182,13 +180,9 @@ describe("P0C.1 reorder concurrency", () => {
     const trg = sql.match(
       /CREATE OR REPLACE FUNCTION public\.lock_course_for_lesson_mutation[\s\S]*?\$\$;/i,
     )!;
-    const rpc = sql.match(
-      /CREATE OR REPLACE FUNCTION public\.reorder_lessons[\s\S]*?\$\$;/i,
-    )!;
+    const rpc = sql.match(/CREATE OR REPLACE FUNCTION public\.reorder_lessons[\s\S]*?\$\$;/i)!;
     for (const block of [trg[0], rpc[0]]) {
-      expect(block).toMatch(
-        /pg_advisory_xact_lock\(hashtext\('mozok\.course_lessons:'\s*\|\|/,
-      );
+      expect(block).toMatch(/pg_advisory_xact_lock\(hashtext\('mozok\.course_lessons:'\s*\|\|/);
     }
   });
 
@@ -210,9 +204,7 @@ describe("P0C.1 reorder concurrency", () => {
   });
 
   it("reorder_lessons enforces exact-set membership and rejects duplicates", () => {
-    const rpc = sql.match(
-      /CREATE OR REPLACE FUNCTION public\.reorder_lessons[\s\S]*?\$\$;/i,
-    )!;
+    const rpc = sql.match(/CREATE OR REPLACE FUNCTION public\.reorder_lessons[\s\S]*?\$\$;/i)!;
     expect(rpc[0]).toMatch(/Duplicate lesson ids/i);
     expect(rpc[0]).toMatch(/Lesson set mismatch/i);
     expect(rpc[0]).toMatch(/course_is_editable/i);
@@ -225,10 +217,7 @@ describe("P0C.1 storage RLS policies", () => {
   const sql = loadByMarker("P0C.1 — Media Foundation");
 
   it("uploads require caller-owned editable course", () => {
-    for (const name of [
-      "covers_insert_own_editable_course",
-      "videos_insert_own_editable_course",
-    ]) {
+    for (const name of ["covers_insert_own_editable_course", "videos_insert_own_editable_course"]) {
       const p = new RegExp(`CREATE POLICY\\s+"${name}"[\\s\\S]*?\\);`, "i").exec(sql);
       expect(p, `policy ${name} missing`).not.toBeNull();
       expect(p![0]).toMatch(/owner\s*=\s*auth\.uid\(\)/i);
@@ -262,9 +251,16 @@ describe("P0C.1 column-grant restoration hotfix", () => {
   const sql = loadByMarker("Fix column grants inadvertently removed");
 
   it("restores INSERT/UPDATE column grants on courses but not cover_url/certificate/cover_storage_path", () => {
-    expect(sql).toMatch(/GRANT\s+INSERT\s*\([^)]*\btitle\b[^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/i);
-    expect(sql).toMatch(/GRANT\s+UPDATE\s*\([^)]*\bdescription\b[^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/i);
-    const grants = sql.match(/GRANT\s+(INSERT|UPDATE)\s*\([^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/gi) || [];
+    expect(sql).toMatch(
+      /GRANT\s+INSERT\s*\([^)]*\btitle\b[^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/i,
+    );
+    expect(sql).toMatch(
+      /GRANT\s+UPDATE\s*\([^)]*\bdescription\b[^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/i,
+    );
+    const grants =
+      sql.match(
+        /GRANT\s+(INSERT|UPDATE)\s*\([^)]*\)\s+ON\s+public\.courses\s+TO\s+authenticated/gi,
+      ) || [];
     for (const g of grants) {
       expect(g).not.toMatch(/\bcover_url\b/);
       expect(g).not.toMatch(/\bcertificate\b/);
@@ -273,7 +269,10 @@ describe("P0C.1 column-grant restoration hotfix", () => {
   });
 
   it("restores lesson INSERT/UPDATE column grants but not video_storage_path", () => {
-    const grants = sql.match(/GRANT\s+(INSERT|UPDATE)\s*\([^)]*\)\s+ON\s+public\.lessons\s+TO\s+authenticated/gi) || [];
+    const grants =
+      sql.match(
+        /GRANT\s+(INSERT|UPDATE)\s*\([^)]*\)\s+ON\s+public\.lessons\s+TO\s+authenticated/gi,
+      ) || [];
     expect(grants.length).toBeGreaterThanOrEqual(2);
     for (const g of grants) {
       expect(g).not.toMatch(/\bvideo_storage_path\b/);

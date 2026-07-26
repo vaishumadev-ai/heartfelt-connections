@@ -2,12 +2,13 @@ import { useSuspenseQuery, useMutation, useQueryClient, useQuery } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Send, ArrowUp, ArrowDown } from "lucide-react";
 import {
   getMyCourse,
   updateCourse,
   upsertLesson,
   deleteLesson,
+  reorderLessons,
   submitCourseForReview,
   getCourseReadiness,
   isCourseEditable,

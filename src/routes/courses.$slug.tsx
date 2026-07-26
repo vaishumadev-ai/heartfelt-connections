@@ -316,6 +316,7 @@ export function CoursePage() {
         <Link
           to="/learn/$slug"
           params={{ slug: course.slug }}
+          search={{ lesson: undefined }}
           className={`${base} inline-flex items-center gap-2`}
         >
           <Play className="h-4 w-4" /> Continue learning

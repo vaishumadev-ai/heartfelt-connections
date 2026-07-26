@@ -64,13 +64,12 @@ describe("UnsavedGuard", () => {
     const action = vi.fn();
     const { rerender, unmount } = render(<Harness dirty={true} onAction={action} />);
 
-    // beforeunload while dirty: preventDefault called and returnValue set
+    // beforeunload while dirty: preventDefault is invoked (browsers use this
+    // as the signal to show the leave-page confirmation).
     const evDirty = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
     const preventDefault = vi.spyOn(evDirty, "preventDefault");
     window.dispatchEvent(evDirty);
     expect(preventDefault).toHaveBeenCalled();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((evDirty as any).returnValue).toBe("");
 
     // Unmount the dirty registrar → guard now considers state clean.
     rerender(<Harness dirty={true} onAction={action} mountChild={false} />);

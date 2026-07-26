@@ -6,9 +6,11 @@
  *  - Cover files: JPEG, PNG, or WebP. `image/jpg` normalized to `image/jpeg`.
  *  - Cover size hard cap enforced client-side; server enforces its own via
  *    the `get_media_limits` RPC and RLS.
- *  - Object path shape: `<userId>/<courseId>/cover-<epoch_ms>.<ext>`. Timestamp
- *    guarantees each attempt writes a fresh key so a partial upload never
- *    collides with a subsequent one.
+ *  - Object path shape:
+ *      `<userId>/<courseId>/<crypto.randomUUID()>.<mimeExt>`
+ *    A UUID is used instead of a timestamp so parallel or retried uploads
+ *    from the same instructor can never collide and so the object key can
+ *    never leak the original filename or client clock.
  */
 
 export const COVER_BUCKET = "course-covers";
@@ -59,10 +61,23 @@ export function buildCoverObjectPath(input: {
   userId: string;
   courseId: string;
   ext: string;
-  now?: number;
+  /** Random object id. Pass a `crypto.randomUUID()` in prod. Tests may override. */
+  id?: string;
 }): string {
-  const stamp = input.now ?? Date.now();
-  return `${input.userId}/${input.courseId}/cover-${stamp}.${input.ext}`;
+  const id = input.id ?? cryptoRandomUUID();
+  return `${input.userId}/${input.courseId}/${id}.${input.ext}`;
+}
+
+function cryptoRandomUUID(): string {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) return g.crypto.randomUUID();
+  // Last-ditch fallback for exotic runtimes. Not intended to be reached in
+  // production browsers or workerd.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export const COVER_VALIDATION_MESSAGE: Record<CoverValidationError, string> = {
@@ -121,6 +136,24 @@ export async function bestEffortRemoveObject(
   } catch {
     /* swallow */
   }
+}
+
+/**
+ * Remove an object and surface any storage error to the caller so the UI
+ * can enter a `cleanup_pending` retry state with the exact orphaned path.
+ */
+export async function removeObjectStrict(
+  supabase: {
+    storage: {
+      from: (bucket: string) => {
+        remove: (paths: string[]) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  },
+  path: string,
+): Promise<void> {
+  const { error } = await supabase.storage.from(COVER_BUCKET).remove([path]);
+  if (error) throw new Error(error.message);
 }
 
 /**

@@ -41,6 +41,18 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/dashboard#tok=1")).toBe("/dashboard");
     expect(safeNextPath("/browse?q=js")).toBe("/browse?q=js");
   });
+
+  it("uses segment-boundary matching for allowed prefixes", () => {
+    // exact match
+    expect(safeNextPath("/admin")).toBe("/admin");
+    // segment child under allowed prefix
+    expect(safeNextPath("/admin/courses")).toBe("/admin/courses");
+    expect(safeNextPath("/courses/example")).toBe("/courses/example");
+    // lookalike that shares the prefix but not the segment boundary
+    expect(safeNextPath("/administrator")).toBe(DEFAULT_NEXT);
+    expect(safeNextPath("/administrator/panel")).toBe(DEFAULT_NEXT);
+    expect(safeNextPath("/coursesX")).toBe(DEFAULT_NEXT);
+  });
 });
 
 describe("maskEmail", () => {

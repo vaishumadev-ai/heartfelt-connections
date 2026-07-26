@@ -54,9 +54,7 @@ describe("course-readiness mapper", () => {
   });
 
   it("preserves lesson_id for lesson-scoped blockers", () => {
-    const [b] = normalizeReadinessBlockers([
-      { code: "lesson_module_missing", lesson_id: "abc" },
-    ]);
+    const [b] = normalizeReadinessBlockers([{ code: "lesson_module_missing", lesson_id: "abc" }]);
     expect(b.lesson_id).toBe("abc");
   });
 

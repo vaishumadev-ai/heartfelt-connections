@@ -109,7 +109,8 @@ function EditCourse() {
 
   const course = data?.course;
   const lessons = data?.lessons ?? [];
-  const rs = ((course as { review_status?: string } | undefined)?.review_status ?? "draft") as string;
+  const rs = ((course as { review_status?: string } | undefined)?.review_status ??
+    "draft") as string;
   const isEditable = isCourseEditable({
     is_published: course?.is_published,
     review_status: rs,
@@ -254,7 +255,11 @@ function EditCourse() {
     const el = document.getElementById(target);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+    if (
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLSelectElement
+    ) {
       el.focus();
     }
   }, []);
@@ -352,9 +357,7 @@ function EditCourse() {
             </button>
             {course.is_published && (
               <button
-                onClick={() =>
-                  navigate({ to: "/courses/$slug", params: { slug: course.slug } })
-                }
+                onClick={() => navigate({ to: "/courses/$slug", params: { slug: course.slug } })}
                 className="rounded-full bg-card px-4 py-2 text-xs font-semibold ring-1 ring-border"
               >
                 View live
@@ -609,17 +612,17 @@ function EditCourse() {
             </Field>
           </div>
           <p className="mt-3 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
-            Course submission currently requires the price to be <strong>Free ($0.00)</strong>.
-            Paid checkout is not enabled in this release; keeping a price now preserves it for
-            future compatibility.
+            Course submission currently requires the price to be <strong>Free ($0.00)</strong>. Paid
+            checkout is not enabled in this release; keeping a price now preserves it for future
+            compatibility.
           </p>
         </Section>
 
         {/* -------- COVER placeholder -------- */}
         <Section id="section-cover" title="Cover artwork">
           <p className="rounded-2xl bg-background p-4 text-sm text-muted-foreground">
-            Private cover upload arrives in the next Studio release. The readiness check
-            currently requires a cover, so submission will remain blocked until it ships.
+            Private cover upload arrives in the next Studio release. The readiness check currently
+            requires a cover, so submission will remain blocked until it ships.
           </p>
         </Section>
 

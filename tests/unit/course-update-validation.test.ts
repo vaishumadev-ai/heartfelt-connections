@@ -39,9 +39,9 @@ describe("normalizeUpdateCoursePayload — whitelist", () => {
   it.each(COURSE_UPDATE_FORBIDDEN_FIELDS as readonly string[])(
     "rejects forbidden field %s",
     (field) => {
-      expect(() =>
-        normalizeUpdateCoursePayload({ [field]: "x" }),
-      ).toThrow(new RegExp(`forbidden_field_${field}`));
+      expect(() => normalizeUpdateCoursePayload({ [field]: "x" })).toThrow(
+        new RegExp(`forbidden_field_${field}`),
+      );
     },
   );
 
@@ -56,9 +56,7 @@ describe("normalizeUpdateCoursePayload — whitelist", () => {
 
   it("price_cents must be a non-negative integer within limit", () => {
     expect(() => normalizeUpdateCoursePayload({ price_cents: -1 })).toThrow(/invalid_price_cents/);
-    expect(() => normalizeUpdateCoursePayload({ price_cents: 1.5 })).toThrow(
-      /invalid_price_cents/,
-    );
+    expect(() => normalizeUpdateCoursePayload({ price_cents: 1.5 })).toThrow(/invalid_price_cents/);
     expect(() =>
       normalizeUpdateCoursePayload({ price_cents: COURSE_UPDATE_LIMITS.price_cents.max + 1 }),
     ).toThrow(/invalid_price_cents/);
@@ -66,10 +64,7 @@ describe("normalizeUpdateCoursePayload — whitelist", () => {
   });
 
   it("string arrays reject non-strings and drop empty items", () => {
-    expect(normalizeUpdateCoursePayload({ skills: ["a", "", "  b  "] }).skills).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(normalizeUpdateCoursePayload({ skills: ["a", "", "  b  "] }).skills).toEqual(["a", "b"]);
     expect(() => normalizeUpdateCoursePayload({ skills: [1 as unknown as string] })).toThrow(
       /invalid_skills_item/,
     );
@@ -81,9 +76,9 @@ describe("normalizeUpdateCoursePayload — whitelist", () => {
   });
 
   it("faq rejects half-empty pairs", () => {
-    expect(() =>
-      normalizeUpdateCoursePayload({ faq: [{ q: "only q", a: "" }] }),
-    ).toThrow(/invalid_faq_item/);
+    expect(() => normalizeUpdateCoursePayload({ faq: [{ q: "only q", a: "" }] })).toThrow(
+      /invalid_faq_item/,
+    );
   });
 
   it("faq drops fully-empty pairs and preserves order", () => {

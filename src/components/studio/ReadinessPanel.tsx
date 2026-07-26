@@ -1,7 +1,4 @@
-import {
-  groupReadinessBlockers,
-  type CourseReadinessBlocker,
-} from "@/lib/course-readiness";
+import { groupReadinessBlockers, type CourseReadinessBlocker } from "@/lib/course-readiness";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export type LessonMeta = { id: string; title: string };
@@ -77,9 +74,7 @@ export function ReadinessPanel({
                         <span className="flex-1">
                           {b.message}
                           {lessonTitle && (
-                            <span className="ml-1 text-muted-foreground">
-                              — “{lessonTitle}”
-                            </span>
+                            <span className="ml-1 text-muted-foreground">— “{lessonTitle}”</span>
                           )}
                           {b.target === "section-cover" && (
                             <span className="ml-1 text-muted-foreground">

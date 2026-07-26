@@ -36,7 +36,8 @@ async function runSubmit(supabase: { rpc: any }, courseId: string) {
   if (!submitRes.error) return { ok: true as const };
   if (submitRes.error.message === "course_not_ready") {
     const r = await supabase.rpc("evaluate_course_readiness", { _course_id: courseId });
-    if (r.error) return { ok: false as const, code: "readiness_refetch_failed" as const, blockers: [] };
+    if (r.error)
+      return { ok: false as const, code: "readiness_refetch_failed" as const, blockers: [] };
     const first = Array.isArray(r.data) ? r.data[0] : r.data;
     return {
       ok: false as const,
@@ -89,10 +90,7 @@ describe("submitCourseForReview behaviour", () => {
     // Refetch happened exactly once.
     expect(rpc.mock.calls.filter((c) => c[0] === "evaluate_course_readiness")).toHaveLength(1);
     if (res.code !== "course_not_ready") return;
-    expect(res.blockers.map((b) => b.code)).toEqual([
-      "title_too_short",
-      "lesson_module_missing",
-    ]);
+    expect(res.blockers.map((b) => b.code)).toEqual(["title_too_short", "lesson_module_missing"]);
     expect(res.blockers[1].lesson_id).toBe("L1");
   });
 
@@ -109,9 +107,7 @@ describe("submitCourseForReview behaviour", () => {
   it("throws for unknown database failures — caller maps to stable copy", async () => {
     const { supabase } = makeSupabase({
       current_user_has_role: [{ data: true, error: null }],
-      submit_course_for_review: [
-        { data: null, error: { message: "42501: permission denied" } },
-      ],
+      submit_course_for_review: [{ data: null, error: { message: "42501: permission denied" } }],
     });
     await expect(runSubmit(supabase, "c1")).rejects.toThrow(/permission denied/);
   });

@@ -77,7 +77,11 @@ export function StructuredListEditor({
   };
 
   return (
-    <fieldset className="rounded-2xl bg-background p-4" id={fieldId} aria-describedby={helper ? `${fieldId ?? label}-helper` : undefined}>
+    <fieldset
+      className="rounded-2xl bg-background p-4"
+      id={fieldId}
+      aria-describedby={helper ? `${fieldId ?? label}-helper` : undefined}
+    >
       <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </legend>
@@ -129,9 +133,7 @@ export function StructuredListEditor({
           );
         })}
         {rows.length === 0 && (
-          <li className="rounded-xl bg-card p-3 text-xs text-muted-foreground">
-            No items yet.
-          </li>
+          <li className="rounded-xl bg-card p-3 text-xs text-muted-foreground">No items yet.</li>
         )}
       </ul>
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">

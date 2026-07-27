@@ -98,7 +98,7 @@ describe("Admin course detail — P0D review actions", () => {
     renderWith(makeQc());
     fireEvent.click(screen.getByRole("button", { name: /Approve & publish/i }));
     const dialog = screen.getByRole("dialog", { name: /Confirm approval/i });
-    const confirm = within(dialog).getByRole("button", { name: /Approve & publish/i });
+    const confirm = within(dialog).getByRole("button", { name: /Yes, publish/i });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
     await waitFor(() => expect(approveMock).toHaveBeenCalledTimes(1));
@@ -114,7 +114,7 @@ describe("Admin course detail — P0D review actions", () => {
     renderWith(makeQc());
     fireEvent.click(screen.getByRole("button", { name: /Approve & publish/i }));
     const dialog = screen.getByRole("dialog", { name: /Confirm approval/i });
-    fireEvent.click(within(dialog).getByRole("button", { name: /Approve & publish/i }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /Yes, publish/i }));
     await waitFor(() =>
       expect(screen.getByText(/Add at least one lesson\./i)).toBeTruthy(),
     );

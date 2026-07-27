@@ -317,7 +317,7 @@ describe("getLessonVideoUrl — leak-shape guardrails", () => {
   it("thrown errors NEVER include storage path, bucket, or supabase details", async () => {
     const supabase = makeSupabase({
       course: publishedFreeCourse(),
-      enrollment: { data: { id: "e1" }, error: null },
+      // Unenrolled + protected (non-preview) lesson → denied.
       lesson: {
         data: {
           id: VALID_LESSON,

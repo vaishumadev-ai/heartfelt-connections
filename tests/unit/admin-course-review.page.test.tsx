@@ -43,7 +43,7 @@ vi.mock("@/lib/courses.functions", () => ({
   unpublishForEdit: (...a: any[]) => unpublishMock(...a),
   approveCourse: (...a: any[]) => approveMock(...a),
   rejectCourse: (...a: any[]) => rejectMock(...a),
-  mapCourseGovernanceError: (e: any) => (e?.message ?? "err"),
+  mapCourseGovernanceError: (e: any) => e?.message ?? "err",
 }));
 
 let course: any;
@@ -53,11 +53,7 @@ import { Route as AdminRoute } from "@/routes/_authenticated/admin.courses.$cour
 function renderWith(qc: QueryClient) {
   const Component: any = (AdminRoute as any).options.component;
   return render(
-    React.createElement(
-      QueryClientProvider,
-      { client: qc },
-      React.createElement(Component, null),
-    ),
+    React.createElement(QueryClientProvider, { client: qc }, React.createElement(Component, null)),
   );
 }
 
@@ -137,9 +133,7 @@ describe("Admin course detail — P0D review actions", () => {
     fireEvent.click(screen.getByRole("button", { name: /Approve & publish/i }));
     const dialog = await screen.findByRole("dialog", { name: /Confirm approval/i });
     fireEvent.click(within(dialog).getByRole("button", { name: /Yes, publish/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/Add at least one lesson\./i)).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(/Add at least one lesson\./i)).toBeTruthy());
     expect(screen.getByText(/readiness regressed/i)).toBeTruthy();
   });
 

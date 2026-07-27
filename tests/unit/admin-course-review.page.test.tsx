@@ -86,7 +86,7 @@ beforeEach(() => {
 describe("Admin course detail — P0D review actions", () => {
   it("shows pending-review actions and a Preview-as-learner link", () => {
     renderWith(makeQc());
-    expect(screen.getByText(/Pending review/i)).toBeTruthy();
+    expect(screen.getAllByText(/Pending review/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /Approve & publish/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Reject with reason/i })).toBeTruthy();
     const preview = screen.getByRole("link", { name: /Preview as learner/i }) as HTMLAnchorElement;

@@ -84,13 +84,18 @@ beforeEach(() => {
 });
 
 describe("Admin course detail — P0D review actions", () => {
-  it("shows pending-review actions and a Preview-as-learner link", () => {
+  it("shows pending-review actions and both View public page + Preview lessons links", () => {
     renderWith(makeQc());
     expect(screen.getAllByText(/Pending review/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /Approve & publish/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Reject with reason/i })).toBeTruthy();
-    const preview = screen.getByRole("link", { name: /Preview as learner/i }) as HTMLAnchorElement;
-    expect(preview.getAttribute("target")).toBe("_blank");
+    const publicLink = screen.getByRole("link", { name: /View public page/i }) as HTMLAnchorElement;
+    expect(publicLink.getAttribute("target")).toBe("_blank");
+    const learnLink = screen.getByRole("link", { name: /Preview lessons/i }) as HTMLAnchorElement;
+    expect(learnLink.getAttribute("target")).toBe("_blank");
+    // The href stub falls back to "#" (Link mock), but the "to" is exercised
+    // via React props; assert it distinctly targets the learner route.
+    expect(learnLink).not.toBe(publicLink);
   });
 
   it("approve requires confirmation and single-flights the call", async () => {
@@ -99,8 +104,12 @@ describe("Admin course detail — P0D review actions", () => {
     fireEvent.click(screen.getByRole("button", { name: /Approve & publish/i }));
     const dialog = await screen.findByRole("dialog", { name: /Confirm approval/i });
     const confirm = within(dialog).getByRole("button", { name: /Yes, publish/i });
+    // Rapid clicks must collapse to one mutation via synchronous ref guard.
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
     fireEvent.click(confirm);
     await waitFor(() => expect(approveMock).toHaveBeenCalled());
+    expect(approveMock).toHaveBeenCalledTimes(1);
     expect(approveMock).toHaveBeenCalledWith({ data: { courseId: "c1" } });
   });
 
@@ -120,7 +129,7 @@ describe("Admin course detail — P0D review actions", () => {
     expect(screen.getByText(/readiness regressed/i)).toBeTruthy();
   });
 
-  it("reject requires a non-empty reason before firing", async () => {
+  it("reject requires a trimmed reason of at least 10 characters", async () => {
     rejectMock.mockResolvedValue({ ok: true });
     renderWith(makeQc());
     fireEvent.click(screen.getByRole("button", { name: /Reject with reason/i }));
@@ -128,12 +137,42 @@ describe("Admin course detail — P0D review actions", () => {
     const submit = within(dialog).getByRole("button", { name: /^Reject$/i }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
     const textarea = within(dialog).getByPlaceholderText(/What must the instructor change/i);
+    // Whitespace only stays disabled.
+    fireEvent.change(textarea, { target: { value: "         " } });
+    expect(submit.disabled).toBe(true);
+    // Too short stays disabled.
+    fireEvent.change(textarea, { target: { value: "too" } });
+    expect(submit.disabled).toBe(true);
+    // Valid trimmed reason enables submit.
     fireEvent.change(textarea, { target: { value: "  Needs better outline  " } });
     expect(submit.disabled).toBe(false);
+    // Rapid clicks collapse to one mutation.
+    fireEvent.click(submit);
+    fireEvent.click(submit);
     fireEvent.click(submit);
     await waitFor(() => expect(rejectMock).toHaveBeenCalledTimes(1));
     expect(rejectMock).toHaveBeenCalledWith({
       data: { courseId: "c1", reason: "Needs better outline" },
     });
+  });
+
+  it("reject failure preserves the reason and remains retryable", async () => {
+    rejectMock.mockRejectedValueOnce(new Error("boom"));
+    renderWith(makeQc());
+    fireEvent.click(screen.getByRole("button", { name: /Reject with reason/i }));
+    const dialog = screen.getByRole("dialog", { name: /Reject course/i });
+    const textarea = within(dialog).getByPlaceholderText(
+      /What must the instructor change/i,
+    ) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Needs better outline" } });
+    const submit = within(dialog).getByRole("button", { name: /^Reject$/i }) as HTMLButtonElement;
+    fireEvent.click(submit);
+    await waitFor(() => expect(rejectMock).toHaveBeenCalledTimes(1));
+    // Reason preserved after failure; button still enabled for retry.
+    expect(textarea.value).toBe("Needs better outline");
+    expect(submit.disabled).toBe(false);
+    rejectMock.mockResolvedValueOnce(undefined);
+    fireEvent.click(submit);
+    await waitFor(() => expect(rejectMock).toHaveBeenCalledTimes(2));
   });
 });

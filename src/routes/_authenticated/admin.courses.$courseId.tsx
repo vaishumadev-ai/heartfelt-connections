@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useMutation, useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, AlertTriangle, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import {
   getAdminCourse,
@@ -52,6 +52,13 @@ function AdminCourseDetail() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectErr, setRejectErr] = useState<string | null>(null);
   const [approveBlockers, setApproveBlockers] = useState<CourseReadinessBlocker[] | null>(null);
+  // Synchronous single-flight guards. `disabled={isPending}` alone leaves a
+  // window before React rerenders in which rapid clicks can enqueue duplicates.
+  const approveInFlight = useRef(false);
+  const rejectInFlight = useRef(false);
+
+  const REJECT_MIN = 10;
+  const REJECT_MAX = 1000;
 
   const unpublish = useMutation({
     mutationFn: (v: { reason: string }) => unpublishFn({ data: { courseId, reason: v.reason } }),
@@ -75,12 +82,17 @@ function AdminCourseDetail() {
         qc.invalidateQueries({ queryKey: ["admin-courses"] });
         qc.invalidateQueries({ queryKey: ["courses"] });
         qc.invalidateQueries({ queryKey: ["course"] });
+        qc.invalidateQueries({ queryKey: ["my-courses"] });
+        qc.invalidateQueries({ queryKey: ["notifications"] });
       } else {
         // Readiness regressed between submission and admin review.
         setApproveBlockers(res.blockers);
       }
     },
     onError: (e: Error) => setErr(mapCourseGovernanceError(e)),
+    onSettled: () => {
+      approveInFlight.current = false;
+    },
   });
 
   const reject = useMutation({
@@ -90,9 +102,25 @@ function AdminCourseDetail() {
       setRejectReason("");
       qc.invalidateQueries({ queryKey: ["admin-course", courseId] });
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
+      qc.invalidateQueries({ queryKey: ["my-courses"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (e: Error) => setRejectErr(mapCourseGovernanceError(e)),
+    onSettled: () => {
+      rejectInFlight.current = false;
+    },
   });
+
+  const fireApprove = () => {
+    if (approveInFlight.current || approve.isPending) return;
+    approveInFlight.current = true;
+    approve.mutate();
+  };
+  const fireReject = (r: string) => {
+    if (rejectInFlight.current || reject.isPending) return;
+    rejectInFlight.current = true;
+    reject.mutate({ reason: r });
+  };
 
   if (!data) {
     return (
@@ -125,7 +153,17 @@ function AdminCourseDetail() {
               rel="noreferrer"
               className="flex items-center gap-1 rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border hover:bg-foreground/5"
             >
-              <ExternalLink className="h-3 w-3" /> Preview as learner
+              <ExternalLink className="h-3 w-3" /> View public page
+            </Link>
+            <Link
+              to="/learn/$slug"
+              params={{ slug: data.slug }}
+              search={{ lesson: undefined }}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-full bg-card px-3 py-1 text-[11px] font-semibold ring-1 ring-border hover:bg-foreground/5"
+            >
+              <ExternalLink className="h-3 w-3" /> Preview lessons
             </Link>
             <Link
               to="/admin/instructors"
@@ -346,7 +384,7 @@ function AdminCourseDetail() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => approve.mutate()}
+                  onClick={fireApprove}
                   disabled={approve.isPending}
                   aria-busy={approve.isPending}
                   className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
@@ -374,7 +412,15 @@ function AdminCourseDetail() {
                   setRejectErr("Reason required");
                   return;
                 }
-                reject.mutate({ reason: r });
+                if (r.length < REJECT_MIN) {
+                  setRejectErr(`Reason must be at least ${REJECT_MIN} characters`);
+                  return;
+                }
+                if (r.length > REJECT_MAX) {
+                  setRejectErr(`Reason must be under ${REJECT_MAX} characters`);
+                  return;
+                }
+                fireReject(r);
               }}
               className="w-full max-w-md rounded-3xl bg-card p-6 ring-1 ring-border"
             >
@@ -389,11 +435,16 @@ function AdminCourseDetail() {
                 </span>
                 <textarea
                   value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value.slice(0, 1000))}
+                  onChange={(e) => setRejectReason(e.target.value.slice(0, REJECT_MAX))}
                   rows={4}
                   placeholder="What must the instructor change?"
                   className="w-full resize-none rounded-2xl bg-background p-3 text-sm outline-none ring-1 ring-border focus:ring-foreground"
                 />
+                <div className="mt-1 flex justify-end text-[11px] text-muted-foreground">
+                  <span aria-live="polite">
+                    {rejectReason.trim().length}/{REJECT_MAX} · min {REJECT_MIN}
+                  </span>
+                </div>
               </label>
               {rejectErr && (
                 <div
@@ -414,7 +465,7 @@ function AdminCourseDetail() {
                 </button>
                 <button
                   type="submit"
-                  disabled={reject.isPending || !rejectReason.trim()}
+                  disabled={reject.isPending || rejectReason.trim().length < REJECT_MIN}
                   aria-busy={reject.isPending}
                   className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 >

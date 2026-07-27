@@ -383,7 +383,13 @@ export type PlayerLessonDTO = {
   duration_seconds: number | null;
   is_preview: boolean;
   content: string | null;
-  video_url: string | null;
+  /**
+   * Boolean-only signal indicating the lesson has a private video attached.
+   * The DTO NEVER exposes `video_storage_path`, `video_url`, or any signed
+   * or permanent Storage URL. Signed playback URLs are minted on demand via
+   * `getLessonVideoUrl` and live only in short-lived component state.
+   */
+  has_video: boolean;
 };
 
 export type PlayerBase = {
@@ -559,18 +565,18 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     if (fullAccess) {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, is_preview, content, video_url")
+        .select("id, title, position, duration_seconds, is_preview, content, video_storage_path")
         .eq("course_id", course.id);
       if (lErr) throw new Error(lErr.message);
-      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+      lessons = orderLessons(rows ?? []).map(mapPlayerLessonRow);
     } else if (entitlement === "preview") {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, is_preview, content, video_url")
+        .select("id, title, position, duration_seconds, is_preview, content, video_storage_path")
         .eq("course_id", course.id)
         .eq("is_preview", true);
       if (lErr) throw new Error(lErr.message);
-      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+      lessons = orderLessons(rows ?? []).map(mapPlayerLessonRow);
       if (lessons.length === 0) {
         return { ...buildBase(), state: "no_preview_available" };
       }

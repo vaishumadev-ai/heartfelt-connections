@@ -77,7 +77,9 @@ function makeSupabase(spec: {
           createSignedUrl: (p: string, ttl: number) => {
             storageCall.path = p;
             storageCall.ttl = ttl;
-            return Promise.resolve(spec.sign ?? { data: { signedUrl: "https://s/x" }, error: null });
+            return Promise.resolve(
+              spec.sign ?? { data: { signedUrl: "https://s/x" }, error: null },
+            );
           },
         };
       },
@@ -86,11 +88,8 @@ function makeSupabase(spec: {
   return supabase as any;
 }
 
-const call = (
-  supabase: any,
-  input: { slug: string; lessonId: string },
-  userId = "user-1",
-) => (getLessonVideoUrl as any)({ data: input, context: { supabase, userId } });
+const call = (supabase: any, input: { slug: string; lessonId: string }, userId = "user-1") =>
+  (getLessonVideoUrl as any)({ data: input, context: { supabase, userId } });
 
 const VALID_LESSON = "11111111-1111-1111-1111-111111111111";
 const publishedFreeCourse = (owner = "other") => ({

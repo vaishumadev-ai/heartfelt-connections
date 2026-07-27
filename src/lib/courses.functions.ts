@@ -737,91 +737,84 @@ export const getLessonVideoUrl = createServerFn({ method: "POST" })
     });
     return schema.parse(d);
   })
-  .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ signedUrl: string; expiresAt: number }> => {
-      const { supabase, userId } = context;
+  .handler(async ({ data, context }): Promise<{ signedUrl: string; expiresAt: number }> => {
+    const { supabase, userId } = context;
 
-      // 1) Resolve course. Any failure is indistinguishable from "not found".
-      const { data: course, error: cErr } = await supabase
-        .from("courses")
-        .select("id, is_published, instructor_id, price_cents")
-        .eq("slug", data.slug)
-        .maybeSingle();
-      if (cErr || !course) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    // 1) Resolve course. Any failure is indistinguishable from "not found".
+    const { data: course, error: cErr } = await supabase
+      .from("courses")
+      .select("id, is_published, instructor_id, price_cents")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (cErr || !course) throw new Error(LESSON_VIDEO_UNAVAILABLE);
 
-      // 2) Fail-closed role checks. instructor_id match alone is not enough
-      //    — the instructor role must still be active.
-      const [
-        { data: isAdminData, error: roleErrA },
-        { data: isInstructorData, error: roleErrI },
-      ] = await Promise.all([
+    // 2) Fail-closed role checks. instructor_id match alone is not enough
+    //    — the instructor role must still be active.
+    const [{ data: isAdminData, error: roleErrA }, { data: isInstructorData, error: roleErrI }] =
+      await Promise.all([
         supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
         supabase.rpc("has_role", { _user_id: userId, _role: "instructor" }),
       ]);
-      if (roleErrA || roleErrI) throw new Error(LESSON_VIDEO_UNAVAILABLE);
-      const isAdmin = !!isAdminData;
-      const isActiveInstructor = !!isInstructorData;
-      const isOwner = course.instructor_id === userId && isActiveInstructor;
+    if (roleErrA || roleErrI) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    const isAdmin = !!isAdminData;
+    const isActiveInstructor = !!isInstructorData;
+    const isOwner = course.instructor_id === userId && isActiveInstructor;
 
-      // 3) Enrollment lookup (any DB failure fails closed).
-      const { data: enr, error: enrErr } = await supabase
-        .from("enrollments")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("course_id", course.id)
-        .maybeSingle();
-      if (enrErr) throw new Error(LESSON_VIDEO_UNAVAILABLE);
-      const isEnrolled = !!enr;
+    // 3) Enrollment lookup (any DB failure fails closed).
+    const { data: enr, error: enrErr } = await supabase
+      .from("enrollments")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("course_id", course.id)
+      .maybeSingle();
+    if (enrErr) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    const isEnrolled = !!enr;
 
-      const entitlement = resolveLessonEntitlement({
-        course: {
-          is_published: course.is_published,
-          price_cents: course.price_cents,
-        },
-        isOwner,
-        isAdmin,
-        enrolled: isEnrolled,
-      });
-      if (entitlement === "none") throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    const entitlement = resolveLessonEntitlement({
+      course: {
+        is_published: course.is_published,
+        price_cents: course.price_cents,
+      },
+      isOwner,
+      isAdmin,
+      enrolled: isEnrolled,
+    });
+    if (entitlement === "none") throw new Error(LESSON_VIDEO_UNAVAILABLE);
 
-      // 4) Lesson must belong to this course.
-      const { data: lesson, error: lErr } = await supabase
-        .from("lessons")
-        .select("id, course_id, is_preview, video_storage_path")
-        .eq("id", data.lessonId)
-        .eq("course_id", course.id)
-        .maybeSingle();
-      if (lErr || !lesson) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    // 4) Lesson must belong to this course.
+    const { data: lesson, error: lErr } = await supabase
+      .from("lessons")
+      .select("id, course_id, is_preview, video_storage_path")
+      .eq("id", data.lessonId)
+      .eq("course_id", course.id)
+      .maybeSingle();
+    if (lErr || !lesson) throw new Error(LESSON_VIDEO_UNAVAILABLE);
 
-      // Preview viewers only receive playback for preview lessons.
-      if (entitlement === "preview" && !lesson.is_preview) {
-        throw new Error(LESSON_VIDEO_UNAVAILABLE);
-      }
+    // Preview viewers only receive playback for preview lessons.
+    if (entitlement === "preview" && !lesson.is_preview) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
 
-      if (
-        !lesson.video_storage_path ||
-        typeof lesson.video_storage_path !== "string" ||
-        lesson.video_storage_path.length === 0
-      ) {
-        throw new Error(LESSON_VIDEO_UNAVAILABLE);
-      }
+    if (
+      !lesson.video_storage_path ||
+      typeof lesson.video_storage_path !== "string" ||
+      lesson.video_storage_path.length === 0
+    ) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
 
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("course-videos")
-        .createSignedUrl(lesson.video_storage_path, LESSON_VIDEO_URL_TTL_SECONDS);
-      if (signErr || !signed?.signedUrl) {
-        throw new Error(LESSON_VIDEO_UNAVAILABLE);
-      }
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("course-videos")
+      .createSignedUrl(lesson.video_storage_path, LESSON_VIDEO_URL_TTL_SECONDS);
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
 
-      return {
-        signedUrl: signed.signedUrl,
-        expiresAt: Date.now() + LESSON_VIDEO_URL_TTL_SECONDS * 1000,
-      };
-    },
-  );
+    return {
+      signedUrl: signed.signedUrl,
+      expiresAt: Date.now() + LESSON_VIDEO_URL_TTL_SECONDS * 1000,
+    };
+  });
 
 // ============ Instructor Studio ============
 

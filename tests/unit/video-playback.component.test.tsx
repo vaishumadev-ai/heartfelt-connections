@@ -211,9 +211,9 @@ describe("LessonVideo — signed URL lifecycle", () => {
     await act(async () => {
       resolveL1({ signedUrl: "https://signed.example/STALE_L1", expiresAt: Date.now() + 300_000 });
     });
-    expect(
-      (screen.getByTestId("video-element") as HTMLVideoElement).getAttribute("src"),
-    ).toBe("https://signed.example/L2");
+    expect((screen.getByTestId("video-element") as HTMLVideoElement).getAttribute("src")).toBe(
+      "https://signed.example/L2",
+    );
     expect(screen.queryByDisplayValue("https://signed.example/STALE_L1")).toBeNull();
   });
 });
@@ -244,9 +244,9 @@ describe("LessonVideo — refresh & auto-retry with fake timers", () => {
     });
     await waitFor(() => expect(getLessonVideoUrlMock).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(
-        (screen.getByTestId("video-element") as HTMLVideoElement).getAttribute("src"),
-      ).toBe("https://signed.example/second"),
+      expect((screen.getByTestId("video-element") as HTMLVideoElement).getAttribute("src")).toBe(
+        "https://signed.example/second",
+      ),
     );
 
     // Unmount clears any pending refresh timer — no further calls even after
@@ -279,9 +279,9 @@ describe("LessonVideo — refresh & auto-retry with fake timers", () => {
     expect(getLessonVideoUrlMock).toHaveBeenCalledTimes(2);
 
     // Manual Retry re-arms the auto-retry budget: exactly one more sign call.
-    await userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync }).click(
-      screen.getByTestId("video-retry"),
-    );
+    await userEvent
+      .setup({ advanceTimers: vi.advanceTimersByTimeAsync })
+      .click(screen.getByTestId("video-retry"));
     await waitFor(() => expect(getLessonVideoUrlMock).toHaveBeenCalledTimes(3));
   });
 });

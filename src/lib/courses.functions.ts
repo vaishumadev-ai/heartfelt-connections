@@ -1068,6 +1068,7 @@ export type MyCourse = {
   price_cents: number;
   is_published: boolean;
   updated_at: string;
+  review_status: "draft" | "pending_review" | "approved" | "rejected";
 };
 
 export const listMyCourses = createServerFn({ method: "GET" })
@@ -1382,16 +1383,33 @@ export const getCourseReadiness = createServerFn({ method: "GET" })
     return { is_ready: isReady, blockers };
   });
 
+export type ApproveCourseResult =
+  | { ok: true }
+  | { ok: false; code: "course_not_ready"; blockers: CourseReadinessBlocker[] };
+
 export const approveCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { courseId: string; reason?: string | null }) => d)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<ApproveCourseResult> => {
     const { error } = await context.supabase.rpc("approve_course", {
       _course_id: data.courseId,
       _reason: data.reason ?? undefined,
     });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!error) return { ok: true };
+    if (error.message === "course_not_ready") {
+      // Refetch authoritative blockers so the admin sees why approval was refused.
+      const { data: readiness, error: readErr } = await context.supabase.rpc(
+        "evaluate_course_readiness",
+        { _course_id: data.courseId },
+      );
+      if (readErr) return { ok: false, code: "course_not_ready", blockers: [] };
+      const first = Array.isArray(readiness) ? readiness[0] : readiness;
+      const blockers = normalizeReadinessBlockers(
+        (first as { blockers?: unknown } | null)?.blockers,
+      );
+      return { ok: false, code: "course_not_ready", blockers };
+    }
+    throw new Error(error.message);
   });
 
 export const rejectCourse = createServerFn({ method: "POST" })

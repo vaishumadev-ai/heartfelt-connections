@@ -28,7 +28,6 @@ const SERVER_CODES = [
   "requirements_missing",
   "audience_missing",
   "not_free",
-  "certificate_unavailable",
   "no_lessons",
   "lesson_module_missing",
   "lesson_position_invalid",

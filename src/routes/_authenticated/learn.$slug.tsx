@@ -26,6 +26,7 @@ import {
   type LessonPlayerResult,
   type PlayerLessonDTO,
 } from "@/lib/courses.functions";
+import { issueCourseCertificate } from "@/lib/certificates.functions";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BookmarkButton } from "@/components/lesson-tools/BookmarkButton";
@@ -170,6 +171,21 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
     },
     onSettled: () => {
       inFlightRef.current = false;
+    },
+  });
+
+  const issueCert = useServerFn(issueCourseCertificate);
+  const certMutation = useMutation({
+    mutationFn: (input: { courseId: string }) => issueCert({ data: input }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["learner-dashboard"], refetchType: "none" });
+      navigate({
+        to: "/certificates/$certificateId",
+        params: { certificateId: res.id },
+      });
+    },
+    onError: () => {
+      toast.error("We couldn't issue your certificate. Please try again.");
     },
   });
 
@@ -424,6 +440,18 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
                 <p className="mt-1 text-sm text-muted-foreground">
                   You've completed every lesson in this course.
                 </p>
+                {course.certificate && track && (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => certMutation.mutate({ courseId: course.id })}
+                      disabled={certMutation.isPending}
+                      className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
+                    >
+                      {certMutation.isPending ? "Preparing your certificate…" : "Get your certificate →"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -159,11 +159,6 @@ const BLOCKER_MAP: Record<string, Mapping> = {
     group: "pricing",
     target: "field-price",
   },
-  certificate_unavailable: {
-    message: "Certificates are not available in this release.",
-    group: "pricing",
-    target: "section-pricing",
-  },
   no_lessons: {
     message: "Add at least one lesson to the curriculum.",
     group: "curriculum",

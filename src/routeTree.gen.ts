@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CoursesIndexRouteImport } from './routes/courses.index'
+import { Route as VerifyVerificationCodeRouteImport } from './routes/verify.$verificationCode'
 import { Route as CoursesSlugRouteImport } from './routes/courses.$slug'
 import { Route as AuthResetRouteImport } from './routes/auth.reset'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedStudioCourseIdRouteImport } from './routes/_authenticated/studio.$courseId'
 import { Route as AuthenticatedLearnSlugRouteImport } from './routes/_authenticated/learn.$slug'
+import { Route as AuthenticatedCertificatesCertificateIdRouteImport } from './routes/_authenticated/certificates.$certificateId'
 import { Route as AuthenticatedAdminInstructorsRouteImport } from './routes/_authenticated/admin.instructors'
 import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin.courses'
 import { Route as AuthenticatedAdminCoursesCourseIdRouteImport } from './routes/_authenticated/admin.courses.$courseId'
@@ -48,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const CoursesIndexRoute = CoursesIndexRouteImport.update({
   id: '/courses/',
   path: '/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyVerificationCodeRoute = VerifyVerificationCodeRouteImport.update({
+  id: '/verify/$verificationCode',
+  path: '/verify/$verificationCode',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoursesSlugRoute = CoursesSlugRouteImport.update({
@@ -91,6 +98,12 @@ const AuthenticatedLearnSlugRoute = AuthenticatedLearnSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => AuthenticatedLearnRoute,
 } as any)
+const AuthenticatedCertificatesCertificateIdRoute =
+  AuthenticatedCertificatesCertificateIdRouteImport.update({
+    id: '/certificates/$certificateId',
+    path: '/certificates/$certificateId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminInstructorsRoute =
   AuthenticatedAdminInstructorsRouteImport.update({
     id: '/admin/instructors',
@@ -120,9 +133,11 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses/': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
+  '/certificates/$certificateId': typeof AuthenticatedCertificatesCertificateIdRoute
   '/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
   '/admin/courses/$courseId': typeof AuthenticatedAdminCoursesCourseIdRoute
@@ -137,9 +152,11 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
+  '/certificates/$certificateId': typeof AuthenticatedCertificatesCertificateIdRoute
   '/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
   '/admin/courses/$courseId': typeof AuthenticatedAdminCoursesCourseIdRoute
@@ -156,9 +173,11 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses/': typeof CoursesIndexRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/_authenticated/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
+  '/_authenticated/certificates/$certificateId': typeof AuthenticatedCertificatesCertificateIdRoute
   '/_authenticated/learn/$slug': typeof AuthenticatedLearnSlugRoute
   '/_authenticated/studio/$courseId': typeof AuthenticatedStudioCourseIdRoute
   '/_authenticated/admin/courses/$courseId': typeof AuthenticatedAdminCoursesCourseIdRoute
@@ -175,9 +194,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses/'
     | '/admin/courses'
     | '/admin/instructors'
+    | '/certificates/$certificateId'
     | '/learn/$slug'
     | '/studio/$courseId'
     | '/admin/courses/$courseId'
@@ -192,9 +213,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses'
     | '/admin/courses'
     | '/admin/instructors'
+    | '/certificates/$certificateId'
     | '/learn/$slug'
     | '/studio/$courseId'
     | '/admin/courses/$courseId'
@@ -210,9 +233,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses/'
     | '/_authenticated/admin/courses'
     | '/_authenticated/admin/instructors'
+    | '/_authenticated/certificates/$certificateId'
     | '/_authenticated/learn/$slug'
     | '/_authenticated/studio/$courseId'
     | '/_authenticated/admin/courses/$courseId'
@@ -224,6 +249,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   BrowseRoute: typeof BrowseRoute
   CoursesSlugRoute: typeof CoursesSlugRoute
+  VerifyVerificationCodeRoute: typeof VerifyVerificationCodeRoute
   CoursesIndexRoute: typeof CoursesIndexRoute
 }
 
@@ -262,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/courses'
       fullPath: '/courses/'
       preLoaderRoute: typeof CoursesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify/$verificationCode': {
+      id: '/verify/$verificationCode'
+      path: '/verify/$verificationCode'
+      fullPath: '/verify/$verificationCode'
+      preLoaderRoute: typeof VerifyVerificationCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/courses/$slug': {
@@ -319,6 +352,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/learn/$slug'
       preLoaderRoute: typeof AuthenticatedLearnSlugRouteImport
       parentRoute: typeof AuthenticatedLearnRoute
+    }
+    '/_authenticated/certificates/$certificateId': {
+      id: '/_authenticated/certificates/$certificateId'
+      path: '/certificates/$certificateId'
+      fullPath: '/certificates/$certificateId'
+      preLoaderRoute: typeof AuthenticatedCertificatesCertificateIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/instructors': {
       id: '/_authenticated/admin/instructors'
@@ -387,6 +427,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedAdminCoursesRoute: typeof AuthenticatedAdminCoursesRouteWithChildren
   AuthenticatedAdminInstructorsRoute: typeof AuthenticatedAdminInstructorsRoute
+  AuthenticatedCertificatesCertificateIdRoute: typeof AuthenticatedCertificatesCertificateIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -395,6 +436,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedAdminCoursesRoute: AuthenticatedAdminCoursesRouteWithChildren,
   AuthenticatedAdminInstructorsRoute: AuthenticatedAdminInstructorsRoute,
+  AuthenticatedCertificatesCertificateIdRoute:
+    AuthenticatedCertificatesCertificateIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -418,6 +461,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   BrowseRoute: BrowseRoute,
   CoursesSlugRoute: CoursesSlugRoute,
+  VerifyVerificationCodeRoute: VerifyVerificationCodeRoute,
   CoursesIndexRoute: CoursesIndexRoute,
 }
 export const routeTree = rootRouteImport

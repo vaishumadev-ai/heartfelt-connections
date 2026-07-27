@@ -55,6 +55,10 @@ vi.mock("@/lib/learner.functions", () => ({
   removeLessonBookmark: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+vi.mock("@/lib/certificates.functions", () => ({
+  issueCourseCertificate: vi.fn(),
+}));
+
 // ---------- Fixtures ----------
 
 const lessonWith = (id: string, has_video: boolean) => ({

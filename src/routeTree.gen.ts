@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CoursesIndexRouteImport } from './routes/courses.index'
+import { Route as VerifyVerificationCodeRouteImport } from './routes/verify.$verificationCode'
 import { Route as CoursesSlugRouteImport } from './routes/courses.$slug'
 import { Route as AuthResetRouteImport } from './routes/auth.reset'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const CoursesIndexRoute = CoursesIndexRouteImport.update({
   id: '/courses/',
   path: '/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyVerificationCodeRoute = VerifyVerificationCodeRouteImport.update({
+  id: '/verify/$verificationCode',
+  path: '/verify/$verificationCode',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoursesSlugRoute = CoursesSlugRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses/': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses': typeof CoursesIndexRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/courses/$slug': typeof CoursesSlugRoute
+  '/verify/$verificationCode': typeof VerifyVerificationCodeRoute
   '/courses/': typeof CoursesIndexRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRouteWithChildren
   '/_authenticated/admin/instructors': typeof AuthenticatedAdminInstructorsRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses/'
     | '/admin/courses'
     | '/admin/instructors'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses'
     | '/admin/courses'
     | '/admin/instructors'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/reset'
     | '/courses/$slug'
+    | '/verify/$verificationCode'
     | '/courses/'
     | '/_authenticated/admin/courses'
     | '/_authenticated/admin/instructors'
@@ -237,6 +249,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   BrowseRoute: typeof BrowseRoute
   CoursesSlugRoute: typeof CoursesSlugRoute
+  VerifyVerificationCodeRoute: typeof VerifyVerificationCodeRoute
   CoursesIndexRoute: typeof CoursesIndexRoute
 }
 
@@ -275,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/courses'
       fullPath: '/courses/'
       preLoaderRoute: typeof CoursesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify/$verificationCode': {
+      id: '/verify/$verificationCode'
+      path: '/verify/$verificationCode'
+      fullPath: '/verify/$verificationCode'
+      preLoaderRoute: typeof VerifyVerificationCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/courses/$slug': {
@@ -441,6 +461,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   BrowseRoute: BrowseRoute,
   CoursesSlugRoute: CoursesSlugRoute,
+  VerifyVerificationCodeRoute: VerifyVerificationCodeRoute,
   CoursesIndexRoute: CoursesIndexRoute,
 }
 export const routeTree = rootRouteImport

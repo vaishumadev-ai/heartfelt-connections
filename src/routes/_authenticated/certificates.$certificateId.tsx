@@ -4,7 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Award, Printer, Share2, ShieldAlert } from "lucide-react";
 import { getMyCertificate, type CertificateDTO } from "@/lib/certificates.functions";
 
-function certQueryOptions(id: string, fn: (args: { data: { id: string } }) => Promise<CertificateDTO | null>) {
+function certQueryOptions(
+  id: string,
+  fn: (args: { data: { id: string } }) => Promise<CertificateDTO | null>,
+) {
   return queryOptions({
     queryKey: ["certificate", id],
     queryFn: () => fn({ data: { id } }),
@@ -90,7 +93,10 @@ function CertificatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8" style={{ fontFamily: "Poppins, sans-serif" }}>
+    <div
+      className="min-h-screen bg-background p-4 md:p-8"
+      style={{ fontFamily: "Poppins, sans-serif" }}
+    >
       <div className="mx-auto max-w-4xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <Link
@@ -156,10 +162,12 @@ function CertificatePage() {
             </p>
             <h2 className="mt-3 text-xl font-semibold md:text-3xl">{data.course_title}</h2>
             <p className="mt-6 text-sm text-muted-foreground">
-              Instructor: <span className="font-semibold text-foreground">{data.instructor_name}</span>
+              Instructor:{" "}
+              <span className="font-semibold text-foreground">{data.instructor_name}</span>
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Issued on <span className="font-semibold text-foreground">{formatDate(data.issued_at)}</span>
+              Issued on{" "}
+              <span className="font-semibold text-foreground">{formatDate(data.issued_at)}</span>
             </p>
           </div>
 

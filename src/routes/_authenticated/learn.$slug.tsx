@@ -448,7 +448,9 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
                       disabled={certMutation.isPending}
                       className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                     >
-                      {certMutation.isPending ? "Preparing your certificate…" : "Get your certificate →"}
+                      {certMutation.isPending
+                        ? "Preparing your certificate…"
+                        : "Get your certificate →"}
                     </button>
                   </div>
                 )}

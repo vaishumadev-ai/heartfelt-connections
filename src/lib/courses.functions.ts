@@ -403,6 +403,32 @@ export type PlayerBase = {
   completedLessonIds: string[];
 };
 
+/**
+ * Map a raw lesson row (containing the server-only `video_storage_path`) to
+ * the player-safe DTO. `has_video` is the ONLY signal about video presence
+ * that leaves the server; the storage path itself never crosses the RPC
+ * boundary.
+ */
+function mapPlayerLessonRow(row: {
+  id: string;
+  title: string;
+  position: number;
+  duration_seconds: number | null;
+  is_preview: boolean;
+  content: string | null;
+  video_storage_path?: string | null;
+}): PlayerLessonDTO {
+  return {
+    id: row.id,
+    title: row.title,
+    position: row.position,
+    duration_seconds: row.duration_seconds,
+    is_preview: row.is_preview,
+    content: row.content,
+    has_video: typeof row.video_storage_path === "string" && row.video_storage_path.length > 0,
+  };
+}
+
 export type LessonPlayerResult =
   | { state: "course_not_found_or_hidden" }
   | (PlayerBase & { state: "empty_curriculum" })

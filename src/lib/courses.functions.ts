@@ -378,6 +378,7 @@ export type PlayerCourseDTO = {
   slug: string;
   title: string;
   category: string;
+  certificate: boolean;
 };
 
 export type PlayerLessonDTO = {
@@ -461,7 +462,9 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     //    missing courses to non-owner/non-admin viewers.
     const { data: course, error: cErr } = await supabase
       .from("courses")
-      .select("id, slug, title, category, is_published, instructor_id, price_cents")
+      .select(
+        "id, slug, title, category, is_published, instructor_id, price_cents, certificate",
+      )
       .eq("slug", data.slug)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
@@ -521,6 +524,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
       slug: course.slug,
       title: course.title,
       category: course.category,
+      certificate: course.certificate === true,
     };
 
     // Completions are only surfaced for a viewer with active trackable

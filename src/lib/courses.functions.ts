@@ -462,9 +462,7 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     //    missing courses to non-owner/non-admin viewers.
     const { data: course, error: cErr } = await supabase
       .from("courses")
-      .select(
-        "id, slug, title, category, is_published, instructor_id, price_cents, certificate",
-      )
+      .select("id, slug, title, category, is_published, instructor_id, price_cents, certificate")
       .eq("slug", data.slug)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);

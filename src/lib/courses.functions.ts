@@ -60,6 +60,7 @@ export const COURSE_UPDATE_ALLOWED_FIELDS = [
   "instructor_name",
   "instructor_title",
   "instructor_bio",
+  "certificate",
 ] as const;
 export type CourseUpdateField = (typeof COURSE_UPDATE_ALLOWED_FIELDS)[number];
 
@@ -70,7 +71,6 @@ export const COURSE_UPDATE_FORBIDDEN_FIELDS = [
   "cover_url",
   "cover_storage_path",
   "icon_kind",
-  "certificate",
   "is_published",
   "review_status",
   "review_decision_reason",
@@ -188,6 +188,10 @@ export function normalizeUpdateCoursePayload(input: unknown): Record<string, unk
     if (k in src) out[k] = normalizeStringArray(src[k], k);
   }
   if ("faq" in src) out.faq = normalizeFaq(src.faq);
+  if ("certificate" in src) {
+    if (typeof src.certificate !== "boolean") throw new Error("invalid_certificate");
+    out.certificate = src.certificate;
+  }
   return out;
 }
 

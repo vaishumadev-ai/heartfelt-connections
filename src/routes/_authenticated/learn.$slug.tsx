@@ -388,6 +388,15 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
                 <Lock className="h-3.5 w-3.5" /> Preview lesson
               </p>
             )}
+            {entitlement === "full" && !track && !isEnrolled && (
+              <p
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-semibold"
+                data-testid="admin-preview-banner"
+                role="note"
+              >
+                <Lock className="h-3.5 w-3.5" /> Admin preview · progress and notes are disabled
+              </p>
+            )}
 
             <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-foreground grid place-items-center">
               <LessonVideo slug={slug} lesson={current} />

@@ -610,3 +610,192 @@ function StateShell({
 
 // Re-export type-only symbol used above (helps tree-shaking checks).
 export type { LessonPlayerResult };
+
+// ============ LessonVideo — signed URL state machine ============
+//
+// Fetches a short-lived signed URL for the current lesson's private video
+// object. Behaviour contract (P0C.3 Checkpoint 3):
+//   - No fetch when the lesson has no video (`has_video === false`).
+//   - The signed URL never enters query keys, router search params,
+//     localStorage, error messages, or the console. It lives only in this
+//     component's local state and disappears on unmount / lesson change.
+//   - Stale responses (from a previous lessonId or request generation) are
+//     ignored via a monotonically-increasing request id.
+//   - The URL is refreshed ~30s before expiry.
+//   - On media/network `error`, we automatically re-sign exactly once. A
+//     second failure lands in the stable "failed" state with a manual
+//     Retry action. Retry re-arms the single auto-retry budget.
+//   - Refresh timers are cleared on lesson change and unmount.
+//   - The video element preserves `currentTime` and playing state across
+//     silent refreshes.
+function LessonVideo({ slug, lesson }: { slug: string; lesson: PlayerLessonDTO }) {
+  const signFn = useServerFn(getLessonVideoUrl);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "failed">(
+    lesson.has_video ? "loading" : "idle",
+  );
+  const [url, setUrl] = useState<string | null>(null);
+
+  const requestIdRef = useRef(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRetryUsedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const preservedTimeRef = useRef(0);
+  const preservedPausedRef = useRef(true);
+
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerRef.current !== null) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    const myId = ++requestIdRef.current;
+    if (mountedRef.current) setState("loading");
+    try {
+      const res = await signFn({ data: { slug, lessonId: lesson.id } });
+      if (myId !== requestIdRef.current || !mountedRef.current) return;
+      setUrl(res.signedUrl);
+      setState("ready");
+      clearRefreshTimer();
+      const msUntilRefresh = Math.max(1000, res.expiresAt - Date.now() - 30_000);
+      refreshTimerRef.current = setTimeout(() => {
+        void load();
+      }, msUntilRefresh);
+    } catch {
+      if (myId !== requestIdRef.current || !mountedRef.current) return;
+      setUrl(null);
+      setState("failed");
+      clearRefreshTimer();
+    }
+  }, [signFn, slug, lesson.id, clearRefreshTimer]);
+
+  // Reset on lesson change and mount.
+  useEffect(() => {
+    mountedRef.current = true;
+    // Bump the generation counter so any in-flight promise resolves stale.
+    requestIdRef.current += 1;
+    clearRefreshTimer();
+    setUrl(null);
+    autoRetryUsedRef.current = false;
+    preservedTimeRef.current = 0;
+    preservedPausedRef.current = true;
+    if (!lesson.has_video) {
+      setState("idle");
+      return () => {
+        clearRefreshTimer();
+      };
+    }
+    void load();
+    return () => {
+      clearRefreshTimer();
+    };
+  }, [lesson.id, lesson.has_video, load, clearRefreshTimer]);
+
+  // Unmount cleanup.
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      clearRefreshTimer();
+    };
+  }, [clearRefreshTimer]);
+
+  // Preserve currentTime / playing state across a silent refresh.
+  useEffect(() => {
+    if (state !== "ready" || !url) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const t = preservedTimeRef.current;
+    if (t > 0) {
+      try {
+        el.currentTime = t;
+      } catch {
+        // Some browsers throw before metadata is loaded; ignore.
+      }
+    }
+    if (!preservedPausedRef.current) {
+      el.play().catch(() => {
+        // Autoplay may be blocked; the user can resume manually.
+      });
+    }
+  }, [state, url]);
+
+  const handleTimeUpdate: React.ReactEventHandler<HTMLVideoElement> = () => {
+    const el = videoRef.current;
+    if (el && Number.isFinite(el.currentTime)) preservedTimeRef.current = el.currentTime;
+  };
+  const handlePlay = () => {
+    preservedPausedRef.current = false;
+  };
+  const handlePause = () => {
+    preservedPausedRef.current = true;
+  };
+  const handleError: React.ReactEventHandler<HTMLVideoElement> = () => {
+    if (!autoRetryUsedRef.current) {
+      autoRetryUsedRef.current = true;
+      void load();
+    } else {
+      setUrl(null);
+      setState("failed");
+      clearRefreshTimer();
+    }
+  };
+
+  if (!lesson.has_video) {
+    return (
+      <div className="text-center text-background/70" data-testid="video-empty">
+        <PlayCircle className="mx-auto h-20 w-20" />
+        <p className="mt-2 text-sm">No video for this lesson</p>
+      </div>
+    );
+  }
+
+  if (state === "loading") {
+    return (
+      <div
+        className="text-center text-background/70"
+        role="status"
+        aria-live="polite"
+        data-testid="video-loading"
+      >
+        <p className="text-sm">Loading video…</p>
+      </div>
+    );
+  }
+
+  if (state === "failed" || !url) {
+    return (
+      <div className="text-center text-background/70" role="alert" data-testid="video-failed">
+        <p className="text-sm">Video is temporarily unavailable.</p>
+        <button
+          type="button"
+          onClick={() => {
+            autoRetryUsedRef.current = false;
+            void load();
+          }}
+          data-testid="video-retry"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground min-h-11"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      key={lesson.id}
+      src={url}
+      controls
+      className="h-full w-full"
+      aria-label={`Video: ${lesson.title}`}
+      onTimeUpdate={handleTimeUpdate}
+      onPlay={handlePlay}
+      onPause={handlePause}
+      onError={handleError}
+      data-testid="video-element"
+    />
+  );
+}

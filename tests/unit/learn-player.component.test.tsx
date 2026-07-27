@@ -39,11 +39,13 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const getLessonPlayerMock = vi.fn();
 const markLessonCompleteMock = vi.fn();
 const setLastLessonMock = vi.fn().mockResolvedValue(undefined);
+const getLessonVideoUrlMock = vi.fn();
 
 vi.mock("@/lib/courses.functions", () => ({
   getLessonPlayer: (...a: unknown[]) => getLessonPlayerMock(...a),
   markLessonComplete: (...a: unknown[]) => markLessonCompleteMock(...a),
   setLastLesson: (...a: unknown[]) => setLastLessonMock(...a),
+  getLessonVideoUrl: (...a: unknown[]) => getLessonVideoUrlMock(...a),
 }));
 
 const getLessonNoteMock = vi.fn();
@@ -71,7 +73,7 @@ const baseLesson = (id: string, position: number, is_preview = false, extras: an
   duration_seconds: 300,
   is_preview,
   content: `Content ${id}`,
-  video_url: null,
+  has_video: false,
   ...extras,
 });
 
@@ -120,6 +122,11 @@ beforeEach(() => {
   markLessonCompleteMock.mockReset();
   setLastLessonMock.mockReset();
   setLastLessonMock.mockResolvedValue(undefined);
+  getLessonVideoUrlMock.mockReset();
+  getLessonVideoUrlMock.mockResolvedValue({
+    signedUrl: "https://signed.example/video",
+    expiresAt: Date.now() + 300_000,
+  });
   navigateSpy.mockReset();
   routerInvalidateSpy.mockReset();
   getLessonNoteMock.mockReset();

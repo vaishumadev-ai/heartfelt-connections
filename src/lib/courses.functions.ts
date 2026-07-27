@@ -383,7 +383,13 @@ export type PlayerLessonDTO = {
   duration_seconds: number | null;
   is_preview: boolean;
   content: string | null;
-  video_url: string | null;
+  /**
+   * Boolean-only signal indicating the lesson has a private video attached.
+   * The DTO NEVER exposes `video_storage_path`, `video_url`, or any signed
+   * or permanent Storage URL. Signed playback URLs are minted on demand via
+   * `getLessonVideoUrl` and live only in short-lived component state.
+   */
+  has_video: boolean;
 };
 
 export type PlayerBase = {
@@ -396,6 +402,32 @@ export type PlayerBase = {
   canSelfEnroll: boolean;
   completedLessonIds: string[];
 };
+
+/**
+ * Map a raw lesson row (containing the server-only `video_storage_path`) to
+ * the player-safe DTO. `has_video` is the ONLY signal about video presence
+ * that leaves the server; the storage path itself never crosses the RPC
+ * boundary.
+ */
+function mapPlayerLessonRow(row: {
+  id: string;
+  title: string;
+  position: number;
+  duration_seconds: number | null;
+  is_preview: boolean;
+  content: string | null;
+  video_storage_path?: string | null;
+}): PlayerLessonDTO {
+  return {
+    id: row.id,
+    title: row.title,
+    position: row.position,
+    duration_seconds: row.duration_seconds,
+    is_preview: row.is_preview,
+    content: row.content,
+    has_video: typeof row.video_storage_path === "string" && row.video_storage_path.length > 0,
+  };
+}
 
 export type LessonPlayerResult =
   | { state: "course_not_found_or_hidden" }
@@ -559,18 +591,18 @@ export const getLessonPlayer = createServerFn({ method: "GET" })
     if (fullAccess) {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, is_preview, content, video_url")
+        .select("id, title, position, duration_seconds, is_preview, content, video_storage_path")
         .eq("course_id", course.id);
       if (lErr) throw new Error(lErr.message);
-      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+      lessons = orderLessons(rows ?? []).map(mapPlayerLessonRow);
     } else if (entitlement === "preview") {
       const { data: rows, error: lErr } = await supabase
         .from("lessons")
-        .select("id, title, position, duration_seconds, is_preview, content, video_url")
+        .select("id, title, position, duration_seconds, is_preview, content, video_storage_path")
         .eq("course_id", course.id)
         .eq("is_preview", true);
       if (lErr) throw new Error(lErr.message);
-      lessons = orderLessons(rows ?? []) as PlayerLessonDTO[];
+      lessons = orderLessons(rows ?? []).map(mapPlayerLessonRow);
       if (lessons.length === 0) {
         return { ...buildBase(), state: "no_preview_available" };
       }
@@ -675,6 +707,113 @@ export const setLastLesson = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// ============ Secure lesson video URL (P0C.3 Checkpoint 3) ============
+//
+// Mint a short-lived signed URL for the caller-authenticated lesson video.
+// The function reuses the exact entitlement matrix used by `getLessonPlayer`
+// so playback authorization can never drift from list authorization.
+//
+// Never returns `video_storage_path`, `video_url`, or a permanent URL. On any
+// failure (missing course, missing lesson, wrong course, entitlement=none,
+// preview-viewer requesting a non-preview lesson, revoked instructor, role
+// lookup failure, enrollment lookup failure, storage sign failure) the caller
+// receives a stable, leak-free error message and NO URL.
+export const LESSON_VIDEO_URL_TTL_SECONDS = 300;
+const LESSON_VIDEO_UNAVAILABLE = "Lesson video unavailable";
+
+export const getLessonVideoUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => {
+    const schema = z.object({
+      slug: z
+        .string()
+        .trim()
+        .min(1)
+        .max(200)
+        .regex(/^[a-zA-Z0-9-]+$/),
+      lessonId: z.string().uuid(),
+    });
+    return schema.parse(d);
+  })
+  .handler(async ({ data, context }): Promise<{ signedUrl: string; expiresAt: number }> => {
+    const { supabase, userId } = context;
+
+    // 1) Resolve course. Any failure is indistinguishable from "not found".
+    const { data: course, error: cErr } = await supabase
+      .from("courses")
+      .select("id, is_published, instructor_id, price_cents")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (cErr || !course) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+
+    // 2) Fail-closed role checks. instructor_id match alone is not enough
+    //    — the instructor role must still be active.
+    const [{ data: isAdminData, error: roleErrA }, { data: isInstructorData, error: roleErrI }] =
+      await Promise.all([
+        supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "instructor" }),
+      ]);
+    if (roleErrA || roleErrI) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    const isAdmin = !!isAdminData;
+    const isActiveInstructor = !!isInstructorData;
+    const isOwner = course.instructor_id === userId && isActiveInstructor;
+
+    // 3) Enrollment lookup (any DB failure fails closed).
+    const { data: enr, error: enrErr } = await supabase
+      .from("enrollments")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("course_id", course.id)
+      .maybeSingle();
+    if (enrErr) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    const isEnrolled = !!enr;
+
+    const entitlement = resolveLessonEntitlement({
+      course: {
+        is_published: course.is_published,
+        price_cents: course.price_cents,
+      },
+      isOwner,
+      isAdmin,
+      enrolled: isEnrolled,
+    });
+    if (entitlement === "none") throw new Error(LESSON_VIDEO_UNAVAILABLE);
+
+    // 4) Lesson must belong to this course.
+    const { data: lesson, error: lErr } = await supabase
+      .from("lessons")
+      .select("id, course_id, is_preview, video_storage_path")
+      .eq("id", data.lessonId)
+      .eq("course_id", course.id)
+      .maybeSingle();
+    if (lErr || !lesson) throw new Error(LESSON_VIDEO_UNAVAILABLE);
+
+    // Preview viewers only receive playback for preview lessons.
+    if (entitlement === "preview" && !lesson.is_preview) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
+
+    if (
+      !lesson.video_storage_path ||
+      typeof lesson.video_storage_path !== "string" ||
+      lesson.video_storage_path.length === 0
+    ) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
+
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("course-videos")
+      .createSignedUrl(lesson.video_storage_path, LESSON_VIDEO_URL_TTL_SECONDS);
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(LESSON_VIDEO_UNAVAILABLE);
+    }
+
+    return {
+      signedUrl: signed.signedUrl,
+      expiresAt: Date.now() + LESSON_VIDEO_URL_TTL_SECONDS * 1000,
+    };
   });
 
 // ============ Instructor Studio ============

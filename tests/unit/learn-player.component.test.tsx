@@ -1040,4 +1040,33 @@ describe("Lesson player — hook safety across state transitions", () => {
     expect(getLessonNoteMock).not.toHaveBeenCalled();
     expect(getLessonBookmarkMock).not.toHaveBeenCalled();
   });
+
+  it("admin lesson preview: full entitlement, no enrollment, no progress writes, no personal state, banner visible", async () => {
+    getLessonPlayerMock.mockResolvedValue(
+      readyDTO({
+        entitlement: "full",
+        isEnrolled: false,
+        canTrackProgress: false,
+        progress: null,
+        canSelfEnroll: false,
+        current: baseLesson("l2", 2, false, { has_video: true, video_storage_path: "c/v.mp4" }),
+        lessons: [baseLesson("l1", 1, true), baseLesson("l2", 2, false)],
+        nextId: null,
+      }),
+    );
+    await renderPlayer({ lessonId: "l2" });
+    await screen.findByText(/Content l2/);
+    // Non-trackable admin-preview banner rendered.
+    expect(screen.getByTestId("admin-preview-banner")).toBeTruthy();
+    // No Mark complete button (track=false).
+    expect(screen.queryByRole("button", { name: /Mark complete/i })).toBeNull();
+    // Signed video still requested (playback preserved).
+    await waitFor(() => expect(getLessonVideoUrlMock).toHaveBeenCalled());
+    // No enrollment/progress/last-lesson writes for admin preview.
+    expect(markLessonCompleteMock).not.toHaveBeenCalled();
+    expect(setLastLessonMock).not.toHaveBeenCalled();
+    // No personal notes/bookmarks mounted.
+    expect(getLessonNoteMock).not.toHaveBeenCalled();
+    expect(getLessonBookmarkMock).not.toHaveBeenCalled();
+  });
 });

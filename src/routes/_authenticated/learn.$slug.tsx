@@ -17,9 +17,10 @@ import {
   Menu,
   Lock,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getLessonPlayer,
+  getLessonVideoUrl,
   markLessonComplete,
   setLastLesson,
   type LessonPlayerResult,
@@ -389,20 +390,7 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
             )}
 
             <div className="mt-6 aspect-video overflow-hidden rounded-2xl bg-foreground grid place-items-center">
-              {current.video_url ? (
-                <video
-                  key={current.id}
-                  src={current.video_url}
-                  controls
-                  className="h-full w-full"
-                  aria-label={`Video: ${current.title}`}
-                />
-              ) : (
-                <div className="text-center text-background/70">
-                  <PlayCircle className="mx-auto h-20 w-20" />
-                  <p className="mt-2 text-sm">No video for this lesson</p>
-                </div>
-              )}
+              <LessonVideo slug={slug} lesson={current} />
             </div>
 
             {current.content ? (
@@ -410,7 +398,7 @@ function PlayerBodyInner({ slug, lessonId }: { slug: string; lessonId?: string }
                 {current.content}
               </div>
             ) : (
-              !current.video_url && (
+              !current.has_video && (
                 <p className="mt-6 text-sm text-muted-foreground">
                   Content for this lesson isn't available yet.
                 </p>

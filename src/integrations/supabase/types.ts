@@ -50,6 +50,59 @@ export type Database = {
         }
         Relationships: []
       }
+      certificates: {
+        Row: {
+          certificate_number: string
+          course_id: string
+          course_title_snapshot: string
+          id: string
+          instructor_name_snapshot: string
+          issued_at: string
+          learner_name_snapshot: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          user_id: string
+          verification_code: string
+        }
+        Insert: {
+          certificate_number: string
+          course_id: string
+          course_title_snapshot: string
+          id?: string
+          instructor_name_snapshot: string
+          issued_at?: string
+          learner_name_snapshot: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          user_id: string
+          verification_code?: string
+        }
+        Update: {
+          certificate_number?: string
+          course_id?: string
+          course_title_snapshot?: string
+          id?: string
+          instructor_name_snapshot?: string
+          issued_at?: string
+          learner_name_snapshot?: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          user_id?: string
+          verification_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           audience: string[]
@@ -564,6 +617,7 @@ export type Database = {
         Args: { _course: string; _lesson: string; _user: string }
         Returns: boolean
       }
+      _new_certificate_number: { Args: never; Returns: string }
       _object_course_id: { Args: { _name: string }; Returns: string }
       add_lesson_bookmark: {
         Args: { _course_id: string; _lesson_id: string }
@@ -666,6 +720,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      issue_course_certificate: {
+        Args: { _course_id: string }
+        Returns: string
+      }
       list_admin_courses: {
         Args: never
         Returns: {
@@ -721,6 +779,10 @@ export type Database = {
         Args: { _course_id: string; _lesson_ids: string[] }
         Returns: undefined
       }
+      revoke_certificate: {
+        Args: { _certificate_id: string; _reason: string }
+        Returns: undefined
+      }
       revoke_instructor_role: {
         Args: { _reason: string; _user_id: string }
         Returns: undefined
@@ -744,6 +806,17 @@ export type Database = {
       unpublish_for_edit: {
         Args: { _course_id: string; _reason: string }
         Returns: undefined
+      }
+      verify_certificate: {
+        Args: { _verification_code: string }
+        Returns: {
+          certificate_number: string
+          course_title: string
+          instructor_name: string
+          issued_at: string
+          learner_name: string
+          status: string
+        }[]
       }
       withdraw_instructor_application: {
         Args: { _application_id: string }

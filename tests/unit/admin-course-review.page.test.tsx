@@ -22,8 +22,18 @@ vi.mock("@tanstack/react-router", async () => {
       options: config,
       useParams: () => ({ courseId: "c1" }),
     }),
-    Link: ({ children, to, params, ...rest }: any) =>
-      React.createElement("a", { href: typeof to === "string" ? to : "#", ...rest }, children),
+    Link: ({ children, to, params, search, ...rest }: any) =>
+      React.createElement(
+        "a",
+        {
+          href: typeof to === "string" ? to : "#",
+          "data-to": typeof to === "string" ? to : "",
+          "data-slug": params?.slug ?? "",
+          "data-search": search ? JSON.stringify(search) : "",
+          ...rest,
+        },
+        children,
+      ),
     useNavigate: () => vi.fn(),
   };
 });
@@ -91,11 +101,15 @@ describe("Admin course detail — P0D review actions", () => {
     expect(screen.getByRole("button", { name: /Reject with reason/i })).toBeTruthy();
     const publicLink = screen.getByRole("link", { name: /View public page/i }) as HTMLAnchorElement;
     expect(publicLink.getAttribute("target")).toBe("_blank");
+    expect(publicLink.getAttribute("data-to")).toBe("/courses/$slug");
+    expect(publicLink.getAttribute("data-slug")).toBe("sample-course");
     const learnLink = screen.getByRole("link", { name: /Preview lessons/i }) as HTMLAnchorElement;
     expect(learnLink.getAttribute("target")).toBe("_blank");
-    // The href stub falls back to "#" (Link mock), but the "to" is exercised
-    // via React props; assert it distinctly targets the learner route.
-    expect(learnLink).not.toBe(publicLink);
+    expect(learnLink.getAttribute("data-to")).toBe("/learn/$slug");
+    expect(learnLink.getAttribute("data-slug")).toBe("sample-course");
+    // Preview-lessons contract: explicit search with lesson=undefined so the
+    // player resolves the resume/first-preview lesson server-side.
+    expect(learnLink.getAttribute("data-search")).toBe(JSON.stringify({}));
   });
 
   it("approve requires confirmation and single-flights the call", async () => {

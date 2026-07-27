@@ -48,6 +48,10 @@ vi.mock("@/lib/courses.functions", () => ({
   getLessonVideoUrl: (...a: unknown[]) => getLessonVideoUrlMock(...a),
 }));
 
+vi.mock("@/lib/certificates.functions", () => ({
+  issueCourseCertificate: vi.fn(),
+}));
+
 const getLessonNoteMock = vi.fn();
 const saveLessonNoteMock = vi.fn();
 const deleteLessonNoteMock = vi.fn();

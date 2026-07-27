@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import {
   listAdminCourses,
@@ -38,6 +39,37 @@ const statusStyle: Record<string, string> = {
 
 function AdminCourses() {
   const { data } = useSuspenseQuery(adminCoursesQO);
+  type Filter = "pending" | "approved" | "rejected" | "draft" | "all";
+  const [filter, setFilter] = useState<Filter>("pending");
+  const counts = useMemo(() => {
+    const c = { pending: 0, approved: 0, rejected: 0, draft: 0, all: data.length };
+    for (const r of data) {
+      if (r.review_status === "pending_review") c.pending++;
+      else if (r.review_status === "approved") c.approved++;
+      else if (r.review_status === "rejected") c.rejected++;
+      else if (r.review_status === "draft") c.draft++;
+    }
+    return c;
+  }, [data]);
+  const rows = useMemo(() => {
+    if (filter === "all") return data;
+    const status =
+      filter === "pending"
+        ? "pending_review"
+        : filter === "approved"
+          ? "approved"
+          : filter === "rejected"
+            ? "rejected"
+            : "draft";
+    return data.filter((c) => c.review_status === status);
+  }, [data, filter]);
+  const tabs: Array<{ id: Filter; label: string; count: number }> = [
+    { id: "pending", label: "Pending review", count: counts.pending },
+    { id: "approved", label: "Approved", count: counts.approved },
+    { id: "rejected", label: "Rejected", count: counts.rejected },
+    { id: "draft", label: "Draft", count: counts.draft },
+    { id: "all", label: "All", count: counts.all },
+  ];
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Poppins, sans-serif" }}>
       <div className="mx-auto max-w-6xl p-4 md:p-8">
@@ -72,6 +104,37 @@ function AdminCourses() {
             Read-only overview. Use the detail page to review or unpublish an approved course with
             zero learner history.
           </p>
+          <div
+            role="tablist"
+            aria-label="Filter courses by review status"
+            className="mt-4 flex flex-wrap gap-2"
+          >
+            {tabs.map((t) => {
+              const active = filter === t.id;
+              return (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFilter(t.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-border ${
+                    active
+                      ? "bg-foreground text-primary-foreground"
+                      : "bg-card hover:bg-foreground/5"
+                  }`}
+                >
+                  {t.label}
+                  <span
+                    className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${
+                      active ? "bg-primary-foreground/20" : "bg-foreground/10"
+                    }`}
+                  >
+                    {t.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-6 overflow-hidden rounded-2xl ring-1 ring-border">
             <table className="w-full text-sm">
               <thead className="bg-background text-left text-[11px] uppercase text-muted-foreground">
@@ -85,14 +148,14 @@ function AdminCourses() {
                 </tr>
               </thead>
               <tbody>
-                {data.length === 0 && (
+                {rows.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                      No courses yet.
+                      No courses in this view.
                     </td>
                   </tr>
                 )}
-                {data.map((c: AdminCourseRow) => (
+                {rows.map((c: AdminCourseRow) => (
                   <tr key={c.id} className="border-t border-border/60">
                     <td className="px-4 py-3">
                       <div className="font-semibold">{c.title}</div>

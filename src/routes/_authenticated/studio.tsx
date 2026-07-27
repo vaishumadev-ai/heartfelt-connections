@@ -313,13 +313,7 @@ function InstructorPanel() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold">{c.title}</h3>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        c.is_published ? "-foreground -foreground" : "-foreground -foreground"
-                      }`}
-                    >
-                      {c.is_published ? "Published" : "Draft"}
-                    </span>
+                    <StatusPill course={c} />
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {c.category} · ${(c.price_cents / 100).toFixed(2)}
@@ -350,5 +344,31 @@ function InstructorPanel() {
         )}
       </div>
     </div>
+  );
+}
+
+function StatusPill({ course }: { course: MyCourse }) {
+  // Reflects the full review lifecycle so instructors see pending / rejected / approved.
+  const { review_status: rs, is_published } = course;
+  let label: string;
+  let cls: string;
+  if (rs === "pending_review") {
+    label = "Pending review";
+    cls = "bg-foreground/10 text-foreground";
+  } else if (rs === "rejected") {
+    label = "Changes requested";
+    cls = "bg-destructive/10 text-destructive";
+  } else if (rs === "approved" && is_published) {
+    label = "Approved · Published";
+    cls = "bg-foreground text-primary-foreground";
+  } else if (rs === "approved") {
+    label = "Approved";
+    cls = "bg-foreground/10 text-foreground";
+  } else {
+    label = "Draft";
+    cls = "bg-background text-muted-foreground ring-1 ring-border";
+  }
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{label}</span>
   );
 }
